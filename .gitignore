@@ -1,0 +1,40 @@
+# Root .gitignore for Inventory monorepo
+
+# Built deployment zip archives
+/dist/
+
+# Server ignored files
+/server/vendor/
+/server/.env
+/server/.env.*
+!/server/.env.example
+/server/.phpunit.result.cache
+/server/.phpunit.cache/
+/server/storage/*.key
+/server/storage/logs/*.log
+/server/database/*.sqlite
+/server/database/*.sqlite-journal
+/server/public/storage
+/server/public/hot
+
+# App Flutter ignored files
+/app/.dart_tool/
+/app/.flutter-plugins
+/app/.flutter-plugins-dependencies
+/app/build/
+/app/.packages
+/app/.pub-cache/
+/app/.pub/
+
+# Explicitly ensure lockfiles are committed
+!/server/composer.lock
+!/app/pubspec.lock
+
+# IDE & Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

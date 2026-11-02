@@ -1,0 +1,112 @@
+name: CI & Deployment Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  server:
+    name: Server Checks & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, mbstring, openssl, curl, json, ctype, tokenizer, xml
+          coverage: none
+
+      - name: Validate composer.json (strict)
+        run: |
+          cd server
+          composer validate --strict
+
+      - name: Composer Audit (Blocking)
+        run: |
+          cd server
+          composer audit
+
+      - name: Install Composer dependencies
+        run: |
+          cd server
+          composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run PHPUnit
+        run: |
+          cd server
+          ./vendor/bin/phpunit
+
+  app:
+    name: Flutter App Checks & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Flutter dependencies
+        run: |
+          cd app
+          flutter pub get
+
+      - name: Flutter Analyze
+        run: |
+          cd app
+          flutter analyze
+
+      - name: Flutter Test
+        run: |
+          cd app
+          flutter test
+
+  osv-scanner:
+    name: OSV Vulnerability Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run OSV-Scanner on lockfiles
+        uses: google/osv-scanner-action@v1.9.2
+        with:
+          scan-args: |-
+            --lockfile=server/composer.lock
+            --lockfile=app/pubspec.lock
+
+  release:
+    name: Package Deployable Shared Hosting Zip
+    needs: [server, app, osv-scanner]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, mbstring, openssl, curl, json, ctype, tokenizer, xml
+          coverage: none
+
+      - name: Build deployable production archive
+        run: |
+          ./scripts/build-zip.sh
+
+      - name: Upload Deployment Zip Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: inventory-server-deployable
+          path: dist/inventory-server.zip
+          if-no-files-found: error
+          retention-days: 14
