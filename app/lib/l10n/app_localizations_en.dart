@@ -241,4 +241,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dailySummary => 'Daily Summary Notification';
+
+  @override
+  String get dubeTitle => 'Dube / Pay Later';
+
+  @override
+  String get btnDube => 'Dube';
+
+  @override
+  String get cashInDrawer => 'Cash in Drawer';
+
+  @override
+  String get outstandingDube => 'Outstanding Dube';
+
+  @override
+  String get paymentMethods => 'Payment Methods';
+
+  @override
+  String get dueToday => 'Due Today';
+
+  @override
+  String get overdue => 'Overdue';
 }

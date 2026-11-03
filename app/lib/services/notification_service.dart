@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
 
 import '../database/app_database.dart';
 import '../repositories/ledger_repository.dart';
@@ -16,6 +17,7 @@ class NotificationService {
 
   static const String lowStockChannelId = 'low_stock_channel';
   static const String dailySummaryChannelId = 'daily_summary_channel';
+  static const String dubeReminderChannelId = 'dube_reminder_channel';
 
   /// Initializes the local notification plugin and configures notification channels.
   Future<void> init() async {
@@ -144,6 +146,100 @@ class NotificationService {
         title: '📊 Today\'s Summary / የዛሬ ማጠቃለያ',
         body: 'Total sales: $formattedTotal. Low stock items: $lowCount.',
         notificationDetails: details,
+      );
+    } catch (_) {}
+  }
+
+  /// Checks for customers with dube due today or overdue, and dispatches a notification if any exist.
+  Future<void> checkAndNotifyDubeDueToday() async {
+    try {
+      final masterEnabled = await repository.isNotificationsEnabled();
+      if (!masterEnabled) return;
+
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final customers = await repository.listCustomers();
+      int dueTodayCount = 0;
+      int overdueCount = 0;
+
+      for (final c in customers) {
+        final openSales = await repository.openSales(c.id, asOfDate: today);
+        bool hasDueToday = false;
+        bool hasOverdue = false;
+
+        for (final item in openSales) {
+          final d = item.dueDate;
+          if (d != null) {
+            if (d == today) {
+              hasDueToday = true;
+            } else if (d.compareTo(today) < 0) {
+              hasOverdue = true;
+            }
+          }
+        }
+        if (hasDueToday) dueTodayCount++;
+        if (hasOverdue) overdueCount++;
+      }
+
+      if (dueTodayCount == 0 && overdueCount == 0) return;
+
+      const androidDetails = AndroidNotificationDetails(
+        dubeReminderChannelId,
+        'Dube Reminders / የዱቤ ማስታወሻ',
+        channelDescription: 'Reminders for dube payments due today or overdue',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      );
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: DarwinNotificationDetails(),
+      );
+
+      final msg = dueTodayCount > 0
+          ? '$dueTodayCount customers have dube due today${overdueCount > 0 ? " ($overdueCount overdue)" : ""}.'
+          : '$overdueCount customers have overdue dube.';
+
+      await _plugin.show(
+        id: 99997,
+        title: '⏰ Dube Due Reminder / የዱቤ ማስታወሻ',
+        body: msg,
+        notificationDetails: details,
+      );
+    } catch (_) {}
+  }
+
+  /// Configures or cancels the daily dube due notification schedule.
+  Future<void> scheduleDubeDueReminder({
+    required bool enabled,
+    String? timeStr,
+  }) async {
+    try {
+      await _plugin.cancel(id: 99997);
+      if (!enabled) return;
+
+      final masterEnabled = await repository.isNotificationsEnabled();
+      if (!masterEnabled) return;
+
+      const androidDetails = AndroidNotificationDetails(
+        dubeReminderChannelId,
+        'Dube Reminders / የዱቤ ማስታወሻ',
+        channelDescription: 'Daily reminder for customer dube due today',
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        icon: '@mipmap/ic_launcher',
+      );
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: DarwinNotificationDetails(),
+      );
+
+      await _plugin.periodicallyShow(
+        id: 99997,
+        title: '⏰ Dube Reminders / የዱቤ ማስታወሻ',
+        body: 'Check customers with dube due today or overdue.',
+        repeatInterval: RepeatInterval.daily,
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.inexact,
       );
     } catch (_) {}
   }

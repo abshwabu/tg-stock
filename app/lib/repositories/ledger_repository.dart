@@ -1,10 +1,122 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:intl/intl.dart';
 
 import '../database/app_database.dart';
+import '../utils/phone_validator.dart';
 import '../utils/quantity_formatter.dart';
 import '../utils/uuid_generator.dart';
+
+class CustomerCreditProfile {
+  final String customerId;
+  final String customerName;
+  final int totalDebtCents;
+  final int overdueCents;
+  final int openSalesCount;
+  final bool hasOverpayment;
+  final int overpaymentCents;
+  final int netBalanceCents;
+  final String? oldestDueDate;
+  final int maxDaysOverdue;
+
+  CustomerCreditProfile({
+    required this.customerId,
+    required this.customerName,
+    required this.totalDebtCents,
+    required this.overdueCents,
+    required this.openSalesCount,
+    required this.hasOverpayment,
+    required this.overpaymentCents,
+    required this.netBalanceCents,
+    this.oldestDueDate,
+    required this.maxDaysOverdue,
+  });
+}
+
+class CustomerAllocationResult {
+  final Map<String, int> saleAllocations; // saleId -> allocatedRepaymentCents
+  final Map<String, OpenSaleBreakdown> salesBreakdown;
+  final int totalUnpaidCents;
+  final int totalRepaymentsCents;
+  final int netBalanceCents;
+  final bool hasOverpayment;
+  final int overpaymentCents;
+
+  CustomerAllocationResult({
+    required this.saleAllocations,
+    required this.salesBreakdown,
+    required this.totalUnpaidCents,
+    required this.totalRepaymentsCents,
+    required this.netBalanceCents,
+    required this.hasOverpayment,
+    required this.overpaymentCents,
+  });
+}
+
+class OpenSaleBreakdown {
+  final Sale sale;
+  final int totalCents;
+  final int explicitPaidCents;
+  final int allocatedRepaymentCents;
+  final int remainingBalanceCents;
+  final String? dueDate;
+  final bool isOverdue;
+
+  OpenSaleBreakdown({
+    required this.sale,
+    required this.totalCents,
+    required this.explicitPaidCents,
+    required this.allocatedRepaymentCents,
+    required this.remainingBalanceCents,
+    this.dueDate,
+    this.isOverdue = false,
+  });
+}
+
+class OverdueSaleItem {
+  final Sale sale;
+  final Customer? customer;
+  final String dueDate;
+  final int daysOverdue;
+  final int totalCents;
+  final int remainingBalanceCents;
+
+  OverdueSaleItem({
+    required this.sale,
+    this.customer,
+    required this.dueDate,
+    required this.daysOverdue,
+    required this.totalCents,
+    required this.remainingBalanceCents,
+  });
+}
+
+class SaleWithDetails {
+  final Sale sale;
+  final Customer? customer;
+  final List<MovementWithProduct> items;
+  final List<Payment> payments;
+  final int remainingBalanceCents;
+  final String statusBadge; // 'Paid', 'Partial', 'Dube', 'Voided'
+  final String primaryMethod; // 'Cash', 'Bank', 'Wallet', 'Dube', 'Unspecified'
+
+  SaleWithDetails({
+    required this.sale,
+    this.customer,
+    required this.items,
+    required this.payments,
+    required this.remainingBalanceCents,
+    required this.statusBadge,
+    required this.primaryMethod,
+  });
+
+  bool get canUndo {
+    if (sale.voidedAtMs != null) return false;
+    final now = DateTime.now().toUtc().millisecondsSinceEpoch;
+    return (now - sale.createdAtMs) <= 600000;
+  }
+}
 
 class InsufficientStockException implements Exception {
   final String productId;
@@ -51,7 +163,7 @@ class SaleLineItem {
     required this.unitPriceCents,
   });
 
-  int get totalCents => (qtyMilli.abs() * unitPriceCents) ~/ 1000;
+  int get totalCents => ((qtyMilli.abs() * unitPriceCents) / 1000).round();
 }
 
 class MovementWithProduct {
@@ -1445,6 +1557,784 @@ class LedgerRepository {
       final l = m.locationId != null ? await getLocation(m.locationId!) : null;
       result.add(MovementWithProduct(movement: m, product: p, location: l));
     }
+    return result;
+  }
+
+  // ==========================================
+  // PAYMENT METHODS & SETTINGS
+  // ==========================================
+
+  Future<List<String>> getPaymentMethodsEnabled() async {
+    final entry = await (db.select(db.appSettings)..where((s) => s.key.equals('payment_methods_enabled'))).getSingleOrNull();
+    if (entry == null || entry.value.isEmpty) {
+      return ['cash', 'bank', 'wallet', 'dube'];
+    }
+    try {
+      final list = jsonDecode(entry.value);
+      if (list is List) {
+        return list.map((e) => e.toString()).toList();
+      }
+    } catch (_) {}
+    return ['cash', 'bank', 'wallet', 'dube'];
+  }
+
+  Future<void> setPaymentMethodsEnabled(List<String> methods) async {
+    await (db.into(db.appSettings)).insert(
+      AppSetting(key: 'payment_methods_enabled', value: jsonEncode(methods)),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
+  Future<int> getDubeDefaultDays() async {
+    final entry = await (db.select(db.appSettings)..where((s) => s.key.equals('dube_default_days'))).getSingleOrNull();
+    return entry != null ? (int.tryParse(entry.value) ?? 14) : 14;
+  }
+
+  Future<void> setDubeDefaultDays(int days) async {
+    await (db.into(db.appSettings)).insert(
+      AppSetting(key: 'dube_default_days', value: days.toString()),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
+  Future<bool> getRequirePaymentReference() async {
+    final entry = await (db.select(db.appSettings)..where((s) => s.key.equals('require_payment_reference'))).getSingleOrNull();
+    return entry?.value == 'true';
+  }
+
+  Future<void> setRequirePaymentReference(bool required) async {
+    await (db.into(db.appSettings)).insert(
+      AppSetting(key: 'require_payment_reference', value: required ? 'true' : 'false'),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
+  Future<String> getDubeReminderTime() async {
+    final entry = await (db.select(db.appSettings)..where((s) => s.key.equals('dube_reminder_time'))).getSingleOrNull();
+    return entry?.value ?? '09:00';
+  }
+
+  Future<void> setDubeReminderTime(String time) async {
+    await (db.into(db.appSettings)).insert(
+      AppSetting(key: 'dube_reminder_time', value: time),
+      mode: InsertMode.insertOrReplace,
+    );
+  }
+
+  // ==========================================
+  // PAYMENT PROVIDERS CATALOG
+  // ==========================================
+
+  Future<List<PaymentProvider>> listPaymentProviders({String? kind, bool? enabledOnly}) async {
+    var q = db.select(db.paymentProviders);
+    if (kind != null) {
+      q = q..where((p) => p.kind.equals(kind));
+    }
+    if (enabledOnly == true) {
+      q = q..where((p) => p.enabled.equals(true));
+    }
+    q = q..orderBy([
+      (p) => OrderingTerm(expression: p.favorite, mode: OrderingMode.desc),
+      (p) => OrderingTerm(expression: p.providerKey, mode: OrderingMode.asc),
+    ]);
+    return q.get();
+  }
+
+  Future<PaymentProvider> upsertPaymentProvider({
+    required String providerKey,
+    required String kind,
+    String? name,
+    bool enabled = true,
+    bool favorite = false,
+  }) async {
+    return db.upsertPaymentProvider(
+      providerKey: providerKey,
+      kind: kind,
+      name: name,
+      enabled: enabled,
+      favorite: favorite,
+    );
+  }
+
+  Future<void> setPaymentProviderFavorite(String providerKey, bool favorite) async {
+    final existing = await (db.select(db.paymentProviders)..where((p) => p.providerKey.equals(providerKey))).getSingleOrNull();
+    if (existing == null) return;
+    await upsertPaymentProvider(
+      providerKey: existing.providerKey,
+      kind: existing.kind,
+      name: existing.name,
+      enabled: existing.enabled,
+      favorite: favorite,
+    );
+  }
+
+  Future<void> setPaymentProviderEnabled(String providerKey, bool enabled) async {
+    final existing = await (db.select(db.paymentProviders)..where((p) => p.providerKey.equals(providerKey))).getSingleOrNull();
+    if (existing == null) return;
+    await upsertPaymentProvider(
+      providerKey: existing.providerKey,
+      kind: existing.kind,
+      name: existing.name,
+      enabled: enabled,
+      favorite: existing.favorite,
+    );
+  }
+
+  // ==========================================
+  // CUSTOMERS (Mutable Metadata)
+  // ==========================================
+
+  Future<Customer> upsertCustomer({
+    String? id,
+    required String name,
+    String? phone,
+    String? note,
+  }) async {
+    final normPhone = (phone != null && phone.trim().isNotEmpty)
+        ? PhoneValidator.normalize(phone.trim())
+        : null;
+
+    return db.upsertCustomer(
+      id: id,
+      name: name.trim(),
+      phone: normPhone,
+      note: note?.trim(),
+    );
+  }
+
+  Future<Customer?> getCustomer(String id) async {
+    return (db.select(db.customers)..where((c) => c.id.equals(id))).getSingleOrNull();
+  }
+
+  Future<Customer?> findCustomerByPhone(String rawPhone) async {
+    final norm = PhoneValidator.normalize(rawPhone);
+    if (norm == null) return null;
+    return (db.select(db.customers)
+          ..where((c) => c.phone.equals(norm) & c.deletedAtMs.isNull())
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
+  Future<List<Customer>> listCustomers({String? search, bool includeDeleted = false}) async {
+    var q = db.select(db.customers);
+    if (!includeDeleted) {
+      q = q..where((c) => c.deletedAtMs.isNull());
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      final term = '%${search.trim().toLowerCase()}%';
+      q = q..where((c) => c.name.lower().like(term) | c.phone.like(term));
+    }
+    q = q..orderBy([(c) => OrderingTerm(expression: c.name, mode: OrderingMode.asc)]);
+    return q.get();
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    final balance = await customerBalance(id);
+    if (balance != 0) {
+      throw StateError('Cannot delete customer with open balance ($balance cents).');
+    }
+    await db.deleteCustomer(id);
+  }
+
+  // ==========================================
+  // SALES WITH PAYMENT & DUBE INVARIANT
+  // ==========================================
+
+  Future<Sale> recordSaleWithPayment({
+    required List<SaleLineItem> items,
+    String? note,
+    String? locationId,
+    String? customerId,
+    String? dueDate,
+    required String paymentMethod, // 'cash', 'bank', 'wallet', 'dube'
+    String? providerKey,
+    int? paidAmountCents,
+    String? paidMethod,
+    String? paidProviderKey,
+    String? reference,
+    int? createdAtMs,
+  }) async {
+    if (items.isEmpty) {
+      throw ArgumentError('Cart is empty.');
+    }
+
+    final targetLocId = locationId ?? await getActiveLocationId();
+    final allowNegative = await getAllowNegativeStock();
+
+    // 1. Stock check
+    if (!allowNegative) {
+      for (final item in items) {
+        final currentStock = await stockOf(item.product.id, locationId: targetLocId);
+        if (currentStock < item.qtyMilli) {
+          throw InsufficientStockException(
+            productId: item.product.id,
+            productName: item.product.name,
+            currentStockMilli: currentStock,
+            requestedQtyMilli: item.qtyMilli,
+          );
+        }
+      }
+    }
+
+    // 2. Recompute total exactly
+    int totalCents = 0;
+    for (final item in items) {
+      totalCents += item.totalCents;
+    }
+
+    final nowMs = createdAtMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    // 3. Validate Dube constraints
+    final isDube = paymentMethod == 'dube';
+    final upfrontPaid = isDube ? (paidAmountCents ?? 0) : totalCents;
+
+    if (isDube) {
+      if (customerId == null || customerId.trim().isEmpty) {
+        throw ArgumentError('Customer is required for Dube sale.');
+      }
+      if (dueDate == null || dueDate.trim().isEmpty) {
+        throw ArgumentError('Due date is required for Dube sale.');
+      }
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.fromMillisecondsSinceEpoch(nowMs));
+      if (dueDate.compareTo(todayStr) < 0) {
+        throw ArgumentError('Due date cannot be before the sale date.');
+      }
+    }
+
+    return db.transaction(() async {
+      // A. Create sale header
+      final sale = await db.createSale(
+        locationId: targetLocId,
+        customerId: customerId,
+        totalCents: totalCents,
+        dueDate: isDube ? dueDate : null,
+        note: note,
+        legacy: false,
+        createdAtMs: nowMs,
+      );
+
+      // B. Record movements referencing sale.id
+      for (final item in items) {
+        await db.recordMovement(
+          productId: item.product.id,
+          type: 'sale',
+          qtyMilli: -item.qtyMilli.abs(),
+          unitPriceCents: item.unitPriceCents,
+          note: note ?? 'Sale',
+          locationId: targetLocId,
+          saleId: sale.id,
+          createdAtMs: nowMs,
+        );
+      }
+
+      // C. Record payment(s)
+      if (!isDube) {
+        await db.recordPayment(
+          saleId: sale.id,
+          customerId: customerId,
+          locationId: targetLocId,
+          method: paymentMethod,
+          providerKey: providerKey,
+          amountCents: totalCents,
+          reference: reference,
+          receivedAtMs: nowMs,
+        );
+      } else if (upfrontPaid > 0) {
+        await db.recordPayment(
+          saleId: sale.id,
+          customerId: customerId,
+          locationId: targetLocId,
+          method: paidMethod ?? 'cash',
+          providerKey: paidProviderKey,
+          amountCents: upfrontPaid,
+          reference: reference,
+          receivedAtMs: nowMs,
+        );
+      }
+
+      return sale;
+    });
+  }
+
+  // ==========================================
+  // DUBE FIFO BALANCE & ALLOCATION ENGINE
+  // ==========================================
+
+  Future<CustomerAllocationResult> computeCustomerAllocations(String customerId) async {
+    // 1. Fetch unvoided sales for customer in chronological FIFO order
+    final sales = await (db.select(db.sales)
+          ..where((s) => s.customerId.equals(customerId) & s.voidedAtMs.isNull())
+          ..orderBy([
+            (s) => OrderingTerm(expression: s.createdAtMs, mode: OrderingMode.asc),
+            (s) => OrderingTerm(expression: s.id, mode: OrderingMode.asc),
+          ]))
+        .get();
+
+    // 2. Fetch all repayments for customer (payments with customer_id but NO sale_id)
+    final repayments = await (db.select(db.payments)
+          ..where((p) => p.customerId.equals(customerId) & p.saleId.isNull()))
+        .get();
+
+    final totalRepayments = repayments.fold<int>(0, (sum, p) => sum + p.amountCents);
+    int availableRepayments = totalRepayments > 0 ? totalRepayments : 0;
+
+    final saleAllocations = <String, int>{};
+    final salesBreakdown = <String, OpenSaleBreakdown>{};
+    int totalInitialDebt = 0;
+
+    for (final s in sales) {
+      final explicitPayments = await (db.select(db.payments)
+            ..where((p) => p.saleId.equals(s.id)))
+          .get();
+      final explicitPaid = explicitPayments.fold<int>(0, (sum, p) => sum + p.amountCents);
+
+      final initialRemaining = s.legacy ? 0 : (s.totalCents - explicitPaid > 0 ? s.totalCents - explicitPaid : 0);
+      totalInitialDebt += initialRemaining;
+
+      final allocated = availableRepayments < initialRemaining ? availableRepayments : initialRemaining;
+      availableRepayments -= allocated;
+      final remaining = initialRemaining - allocated;
+
+      saleAllocations[s.id] = allocated;
+      salesBreakdown[s.id] = OpenSaleBreakdown(
+        sale: s,
+        totalCents: s.totalCents,
+        explicitPaidCents: explicitPaid,
+        allocatedRepaymentCents: allocated,
+        remainingBalanceCents: remaining,
+        dueDate: s.dueDate,
+      );
+    }
+
+    final overpaymentCents = availableRepayments;
+    final hasOverpayment = overpaymentCents > 0;
+    final netBalance = totalInitialDebt - totalRepayments;
+
+    return CustomerAllocationResult(
+      saleAllocations: saleAllocations,
+      salesBreakdown: salesBreakdown,
+      totalUnpaidCents: totalInitialDebt,
+      totalRepaymentsCents: totalRepayments,
+      netBalanceCents: netBalance,
+      hasOverpayment: hasOverpayment,
+      overpaymentCents: overpaymentCents,
+    );
+  }
+
+  Future<int> saleBalance(String saleId) async {
+    final sale = await (db.select(db.sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+    if (sale == null || sale.voidedAtMs != null || sale.legacy) {
+      return 0;
+    }
+
+    final explicitPayments = await (db.select(db.payments)..where((p) => p.saleId.equals(sale.id))).get();
+    final explicitPaid = explicitPayments.fold<int>(0, (sum, p) => sum + p.amountCents);
+
+    final initialRemaining = (sale.totalCents - explicitPaid) > 0 ? (sale.totalCents - explicitPaid) : 0;
+    if (initialRemaining == 0 || sale.customerId == null || sale.customerId!.isEmpty) {
+      return initialRemaining;
+    }
+
+    final allocations = await computeCustomerAllocations(sale.customerId!);
+    final allocated = allocations.saleAllocations[sale.id] ?? 0;
+
+    final rem = initialRemaining - allocated;
+    return rem > 0 ? rem : 0;
+  }
+
+  Future<int> customerBalance(String customerId) async {
+    final allocations = await computeCustomerAllocations(customerId);
+    return allocations.netBalanceCents;
+  }
+
+  Future<CustomerCreditProfile> customerCredit(String customerId, {String? asOfDate}) async {
+    final customer = await getCustomer(customerId);
+    if (customer == null) {
+      throw ArgumentError('Customer not found: $customerId');
+    }
+
+    final today = asOfDate ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final allocations = await computeCustomerAllocations(customerId);
+
+    int totalDebt = 0;
+    int overdueCents = 0;
+    int openCount = 0;
+    String? oldestDueDate;
+    int maxDaysOverdue = 0;
+
+    final todayDt = DateTime.parse(today);
+
+    for (final item in allocations.salesBreakdown.values) {
+      final rem = item.remainingBalanceCents;
+      if (rem > 0) {
+        totalDebt += rem;
+        openCount++;
+        final dueDate = item.sale.dueDate;
+        if (dueDate != null && dueDate.isNotEmpty) {
+          if (oldestDueDate == null || dueDate.compareTo(oldestDueDate) < 0) {
+            oldestDueDate = dueDate;
+          }
+          if (dueDate.compareTo(today) < 0) {
+            overdueCents += rem;
+            try {
+              final dueDt = DateTime.parse(dueDate);
+              final days = todayDt.difference(dueDt).inDays;
+              if (days > maxDaysOverdue) {
+                maxDaysOverdue = days;
+              }
+            } catch (_) {}
+          }
+        }
+      }
+    }
+
+    return CustomerCreditProfile(
+      customerId: customer.id,
+      customerName: customer.name,
+      totalDebtCents: totalDebt,
+      overdueCents: overdueCents,
+      openSalesCount: openCount,
+      hasOverpayment: allocations.hasOverpayment,
+      overpaymentCents: allocations.overpaymentCents,
+      netBalanceCents: allocations.netBalanceCents,
+      oldestDueDate: oldestDueDate,
+      maxDaysOverdue: maxDaysOverdue,
+    );
+  }
+
+  Future<List<OpenSaleBreakdown>> openSales(String customerId, {String? asOfDate}) async {
+    final today = asOfDate ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final allocations = await computeCustomerAllocations(customerId);
+
+    final list = <OpenSaleBreakdown>[];
+    for (final item in allocations.salesBreakdown.values) {
+      if (item.remainingBalanceCents > 0) {
+        final isOverdue = item.sale.dueDate != null && item.sale.dueDate!.isNotEmpty && item.sale.dueDate!.compareTo(today) < 0;
+        list.add(OpenSaleBreakdown(
+          sale: item.sale,
+          totalCents: item.totalCents,
+          explicitPaidCents: item.explicitPaidCents,
+          allocatedRepaymentCents: item.allocatedRepaymentCents,
+          remainingBalanceCents: item.remainingBalanceCents,
+          dueDate: item.sale.dueDate,
+          isOverdue: isOverdue,
+        ));
+      }
+    }
+    return list;
+  }
+
+  Future<List<OverdueSaleItem>> overdueSales({String? asOfDate}) async {
+    final today = asOfDate ?? DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final todayDt = DateTime.parse(today);
+
+    final candidateSales = await (db.select(db.sales)
+          ..where((s) => s.voidedAtMs.isNull() & s.legacy.equals(false) & s.dueDate.isNotNull() & s.dueDate.isSmallerThanValue(today))
+          ..orderBy([(s) => OrderingTerm(expression: s.dueDate, mode: OrderingMode.asc)]))
+        .get();
+
+    final result = <OverdueSaleItem>[];
+
+    for (final s in candidateSales) {
+      final bal = await saleBalance(s.id);
+      if (bal > 0) {
+        Customer? cust;
+        if (s.customerId != null) {
+          cust = await getCustomer(s.customerId!);
+        }
+        int days = 0;
+        try {
+          final dueDt = DateTime.parse(s.dueDate!);
+          days = todayDt.difference(dueDt).inDays;
+        } catch (_) {}
+
+        result.add(OverdueSaleItem(
+          sale: s,
+          customer: cust,
+          dueDate: s.dueDate!,
+          daysOverdue: days > 0 ? days : 0,
+          totalCents: s.totalCents,
+          remainingBalanceCents: bal,
+        ));
+      }
+    }
+
+    result.sort((a, b) => b.daysOverdue.compareTo(a.daysOverdue));
+    return result;
+  }
+
+  Future<Payment> receiveCustomerPayment({
+    required String customerId,
+    required int amountCents,
+    required String method,
+    String? providerKey,
+    String? reference,
+    String? locationId,
+  }) async {
+    if (amountCents <= 0) {
+      throw ArgumentError('Payment amount must be greater than zero.');
+    }
+    final targetLocId = locationId ?? await getActiveLocationId();
+
+    return db.recordPayment(
+      customerId: customerId,
+      saleId: null, // repayment
+      locationId: targetLocId,
+      method: method,
+      providerKey: providerKey,
+      amountCents: amountCents,
+      reference: reference,
+    );
+  }
+
+  Future<void> extendSaleDueDate(String saleId, String newDueDate) async {
+    await db.updateSaleDueDate(saleId: saleId, dueDate: newDueDate);
+  }
+
+  // ==========================================
+  // SALE VOID & UNDO
+  // ==========================================
+
+  Future<void> undoSale(String saleId) async {
+    final sale = await (db.select(db.sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+    if (sale == null) {
+      throw ArgumentError('Sale not found: $saleId');
+    }
+    if (sale.voidedAtMs != null) {
+      throw StateError('Sale is already voided.');
+    }
+
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final elapsedMs = nowMs - sale.createdAtMs;
+    const tenMinutesMs = 10 * 60 * 1000;
+
+    if (elapsedMs > tenMinutesMs) {
+      throw UndoExpiredException(
+        'Transaction was performed ${(elapsedMs / 60000).toStringAsFixed(1)} minutes ago. '
+        'Sales can only be undone within 10 minutes.',
+      );
+    }
+
+    final salePayments = await (db.select(db.payments)..where((p) => p.saleId.equals(sale.id))).get();
+
+    return db.transaction(() async {
+      // 1. Mark sale voided
+      await db.markSaleVoided(saleId: sale.id, voidedAtMs: nowMs);
+
+      // 2. Reverse sale payments
+      for (final p in salePayments) {
+        if (p.amountCents > 0) {
+          await db.recordPayment(
+            saleId: sale.id,
+            customerId: p.customerId,
+            locationId: p.locationId,
+            method: p.method,
+            providerKey: p.providerKey,
+            amountCents: -p.amountCents,
+            reference: 'Reversal for [${p.id}]',
+            receivedAtMs: nowMs,
+          );
+        }
+      }
+
+      // 3. Reverse sale movements with compensating adjust
+      final saleMovements = await (db.select(db.movements)..where((m) => m.saleId.equals(sale.id) & m.type.equals('sale'))).get();
+      for (final m in saleMovements) {
+        await db.recordMovement(
+          productId: m.productId,
+          type: 'adjust',
+          qtyMilli: m.qtyMilli.abs(), // Positive restores stock
+          unitPriceCents: m.unitPriceCents,
+          note: 'Compensating undo for [${m.id}] (void sale ${sale.id})',
+          locationId: m.locationId,
+          saleId: sale.id,
+          createdAtMs: nowMs,
+        );
+      }
+    });
+  }
+
+  // ==========================================
+  // DASHBOARD & REPORTS METRICS
+  // ==========================================
+
+  Future<Map<String, int>> getReceivedTodayByMethod() async {
+    final now = DateTime.now();
+    final startTodayMs = DateTime(now.year, now.month, now.day).toUtc().millisecondsSinceEpoch;
+    final endTodayMs = DateTime(now.year, now.month, now.day, 23, 59, 59, 999).toUtc().millisecondsSinceEpoch;
+
+    final paymentsToday = await (db.select(db.payments)
+          ..where((p) => p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
+        .get();
+
+    final result = {'cash': 0, 'bank': 0, 'wallet': 0};
+    for (final p in paymentsToday) {
+      final m = p.method.toLowerCase();
+      result[m] = (result[m] ?? 0) + p.amountCents;
+    }
+    return result;
+  }
+
+  Future<Map<String, int>> getReceivedTodayByProvider() async {
+    final now = DateTime.now();
+    final startTodayMs = DateTime(now.year, now.month, now.day).toUtc().millisecondsSinceEpoch;
+    final endTodayMs = DateTime(now.year, now.month, now.day, 23, 59, 59, 999).toUtc().millisecondsSinceEpoch;
+
+    final paymentsToday = await (db.select(db.payments)
+          ..where((p) => p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
+        .get();
+
+    final result = <String, int>{};
+    for (final p in paymentsToday) {
+      if (p.providerKey != null && p.providerKey!.isNotEmpty) {
+        result[p.providerKey!] = (result[p.providerKey!] ?? 0) + p.amountCents;
+      }
+    }
+    return result;
+  }
+
+  Future<int> getCashExpectedInDrawer() async {
+    final now = DateTime.now();
+    final startTodayMs = DateTime(now.year, now.month, now.day).toUtc().millisecondsSinceEpoch;
+    final endTodayMs = DateTime(now.year, now.month, now.day, 23, 59, 59, 999).toUtc().millisecondsSinceEpoch;
+
+    final cashPayments = await (db.select(db.payments)
+          ..where((p) => p.method.equals('cash') & p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
+        .get();
+
+    return cashPayments.fold<int>(0, (sum, p) => sum + p.amountCents);
+  }
+
+  Future<Map<String, int>> getRevenueVsReceivedVsNewDubeToday() async {
+    final now = DateTime.now();
+    final startTodayMs = DateTime(now.year, now.month, now.day).toUtc().millisecondsSinceEpoch;
+    final endTodayMs = DateTime(now.year, now.month, now.day, 23, 59, 59, 999).toUtc().millisecondsSinceEpoch;
+
+    final salesToday = await (db.select(db.sales)
+          ..where((s) => s.voidedAtMs.isNull() & s.legacy.equals(false) & s.createdAtMs.isBiggerOrEqualValue(startTodayMs) & s.createdAtMs.isSmallerOrEqualValue(endTodayMs)))
+        .get();
+
+    int revenueCents = 0;
+    int newDubeCents = 0;
+
+    for (final s in salesToday) {
+      revenueCents += s.totalCents;
+      final salePayments = await (db.select(db.payments)..where((p) => p.saleId.equals(s.id))).get();
+      final explicitPaid = salePayments.fold<int>(0, (sum, p) => sum + p.amountCents);
+      final unpaid = s.totalCents - explicitPaid;
+      if (unpaid > 0) {
+        newDubeCents += unpaid;
+      }
+    }
+
+    final paymentsToday = await (db.select(db.payments)
+          ..where((p) => p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
+        .get();
+    final moneyReceivedCents = paymentsToday.fold<int>(0, (sum, p) => sum + p.amountCents);
+
+    return {
+      'revenue_cents': revenueCents,
+      'money_received_cents': moneyReceivedCents,
+      'new_dube_cents': newDubeCents,
+    };
+  }
+
+  Future<int> getOutstandingDubeTotal() async {
+    final activeCustomers = await listCustomers();
+    int total = 0;
+    for (final c in activeCustomers) {
+      final bal = await customerBalance(c.id);
+      if (bal > 0) {
+        total += bal;
+      }
+    }
+    return total;
+  }
+
+  Future<int> getOverdueCount() async {
+    final overdue = await overdueSales();
+    return overdue.length;
+  }
+
+  Stream<int> watchOutstandingDubeTotal() {
+    return db.select(db.payments).watch().asyncMap((_) => getOutstandingDubeTotal());
+  }
+
+  Stream<int> watchOverdueCount() {
+    return db.select(db.sales).watch().asyncMap((_) => getOverdueCount());
+  }
+
+  Future<List<SaleWithDetails>> listSalesWithDetails({int? limit, int? fromMs, int? toMs, String? locationId}) async {
+    var q = db.select(db.sales);
+    if (locationId != null) {
+      q = q..where((s) => s.locationId.equals(locationId));
+    }
+    if (fromMs != null) {
+      q = q..where((s) => s.createdAtMs.isBiggerOrEqualValue(fromMs));
+    }
+    if (toMs != null) {
+      q = q..where((s) => s.createdAtMs.isSmallerOrEqualValue(toMs));
+    }
+    q = q..orderBy([(s) => OrderingTerm(expression: s.createdAtMs, mode: OrderingMode.desc)]);
+    if (limit != null) {
+      q = q..limit(limit);
+    }
+
+    final sales = await q.get();
+    final result = <SaleWithDetails>[];
+
+    for (final s in sales) {
+      Customer? cust;
+      if (s.customerId != null) {
+        cust = await getCustomer(s.customerId!);
+      }
+      final payments = await (db.select(db.payments)..where((p) => p.saleId.equals(s.id))).get();
+      final movements = await (db.select(db.movements)..where((m) => m.saleId.equals(s.id))).get();
+
+      final movWithProds = <MovementWithProduct>[];
+      for (final m in movements) {
+        final p = await getProduct(m.productId);
+        final loc = m.locationId != null ? await getLocation(m.locationId!) : null;
+        movWithProds.add(MovementWithProduct(movement: m, product: p, location: loc));
+      }
+
+      final bal = await saleBalance(s.id);
+
+      String statusBadge;
+      String primaryMethod = 'Cash';
+
+      if (s.voidedAtMs != null) {
+        statusBadge = 'Voided';
+      } else if (s.legacy) {
+        statusBadge = 'Paid';
+        primaryMethod = 'Unspecified';
+      } else if (bal == 0) {
+        statusBadge = 'Paid';
+        if (payments.isNotEmpty) {
+          primaryMethod = payments.first.method;
+        }
+      } else {
+        final explicitPaid = payments.fold<int>(0, (sum, p) => sum + p.amountCents);
+        if (explicitPaid > 0) {
+          statusBadge = 'Partial';
+          primaryMethod = 'Dube';
+        } else {
+          statusBadge = 'Dube';
+          primaryMethod = 'Dube';
+        }
+      }
+
+      result.add(SaleWithDetails(
+        sale: s,
+        customer: cust,
+        items: movWithProds,
+        payments: payments,
+        remainingBalanceCents: bal,
+        statusBadge: statusBadge,
+        primaryMethod: primaryMethod,
+      ));
+    }
+
     return result;
   }
 }

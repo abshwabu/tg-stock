@@ -11,6 +11,45 @@ import '../utils/uuid_generator.dart';
 
 part 'app_database.g.dart';
 
+const defaultStarterCatalogBanks = [
+  {'key': 'bank.cbe', 'name': 'Commercial Bank of Ethiopia', 'name_am': 'የኢትዮጵያ ንግድ ባንክ'},
+  {'key': 'bank.awash', 'name': 'Awash Bank', 'name_am': 'አዋሽ ባንክ'},
+  {'key': 'bank.dashen', 'name': 'Dashen Bank', 'name_am': 'ዳሸን ባንክ'},
+  {'key': 'bank.abyssinia', 'name': 'Bank of Abyssinia', 'name_am': 'አቢሲኒያ ባንክ'},
+  {'key': 'bank.wegagen', 'name': 'Wegagen Bank', 'name_am': 'ወጋገን ባንክ'},
+  {'key': 'bank.hibret', 'name': 'Hibret Bank', 'name_am': 'ኅብረት ባንክ'},
+  {'key': 'bank.nib', 'name': 'Nib International Bank', 'name_am': 'ንብ ኢንተርናሽናል ባንክ'},
+  {'key': 'bank.coop', 'name': 'Cooperative Bank of Oromia', 'name_am': 'የኦሮሚያ ኅብረት ሥራ ባንክ'},
+  {'key': 'bank.oromia', 'name': 'Oromia Bank', 'name_am': 'ኦሮሚያ ባንክ'},
+  {'key': 'bank.lion', 'name': 'Lion International Bank', 'name_am': 'አንበሳ ኢንተርናሽናል ባንክ'},
+  {'key': 'bank.zemen', 'name': 'Zemen Bank', 'name_am': 'ዘመን ባንክ'},
+  {'key': 'bank.bunna', 'name': 'Bunna International Bank', 'name_am': 'ቡና ኢንተርናሽናል ባንክ'},
+  {'key': 'bank.berhan', 'name': 'Berhan Bank', 'name_am': 'ብርሃን ባንክ'},
+  {'key': 'bank.abay', 'name': 'Abay Bank', 'name_am': 'ዓባይ ባንክ'},
+  {'key': 'bank.enat', 'name': 'Enat Bank', 'name_am': 'እናት ባንክ'},
+  {'key': 'bank.amhara', 'name': 'Amhara Bank', 'name_am': 'አማራ ባንክ'},
+  {'key': 'bank.ahadu', 'name': 'Ahadu Bank', 'name_am': 'አሃዱ ባንክ'},
+  {'key': 'bank.siinqee', 'name': 'Siinqee Bank', 'name_am': 'ሲንቄ ባንክ'},
+  {'key': 'bank.tsehay', 'name': 'Tsehay Bank', 'name_am': 'ፀሐይ ባንክ'},
+  {'key': 'bank.global', 'name': 'Global Bank Ethiopia', 'name_am': 'ግሎባል ባንክ ኢትዮጵያ'},
+  {'key': 'bank.gadaa', 'name': 'Gadaa Bank', 'name_am': 'ገዳ ባንክ'},
+  {'key': 'bank.hijra', 'name': 'Hijra Bank', 'name_am': 'ሂጅራ ባንክ'},
+  {'key': 'bank.zamzam', 'name': 'ZamZam Bank', 'name_am': 'ዘምዘም ባንክ'},
+  {'key': 'bank.addis', 'name': 'Addis International Bank', 'name_am': 'አዲስ ኢንተርናሽናል ባንክ'},
+  {'key': 'bank.debub', 'name': 'Debub Global Bank', 'name_am': 'ደቡብ ግሎባል ባንክ'},
+  {'key': 'bank.shabelle', 'name': 'Shabelle Bank', 'name_am': 'ሻበሌ ባንክ'},
+];
+
+const defaultStarterCatalogWallets = [
+  {'key': 'wallet.telebirr', 'name': 'Telebirr', 'name_am': 'ቴሌብር'},
+  {'key': 'wallet.mpesa', 'name': 'M-Pesa', 'name_am': 'ኤም-ፔሳ'},
+  {'key': 'wallet.cbebirr', 'name': 'CBE Birr', 'name_am': 'ሲቢኢ ብር'},
+  {'key': 'wallet.hellocash', 'name': 'HelloCash', 'name_am': 'ሄሎካሽ'},
+  {'key': 'wallet.amole', 'name': 'Amole', 'name_am': 'አሞሌ'},
+  {'key': 'wallet.kacha', 'name': 'Kacha', 'name_am': 'ካቻ'},
+  {'key': 'wallet.awashbirr', 'name': 'Awash Birr', 'name_am': 'አዋሽ ብር'},
+];
+
 class Products extends Table {
   TextColumn get id => text()(); // UUIDv7
   TextColumn get name => text()();
@@ -30,6 +69,7 @@ class Products extends Table {
 class Movements extends Table {
   TextColumn get id => text()(); // UUIDv7
   TextColumn get productId => text()();
+  TextColumn get saleId => text().nullable()();
   TextColumn get locationId => text().nullable()();
   TextColumn get transferId => text().nullable()();
   TextColumn get type => text()(); // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in'
@@ -54,9 +94,66 @@ class Locations extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class Sales extends Table {
+  TextColumn get id => text()(); // UUIDv7
+  TextColumn get locationId => text().nullable()();
+  TextColumn get customerId => text().nullable()();
+  IntColumn get totalCents => integer()();
+  TextColumn get dueDate => text().nullable()(); // 'YYYY-MM-DD'
+  TextColumn get note => text().nullable()();
+  BoolColumn get legacy => boolean().withDefault(const Constant(false))();
+  IntColumn get voidedAtMs => integer().nullable()();
+  IntColumn get createdAtMs => integer()();
+  IntColumn get updatedAtMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class Payments extends Table {
+  TextColumn get id => text()(); // UUIDv7
+  TextColumn get saleId => text().nullable()();
+  TextColumn get customerId => text().nullable()();
+  TextColumn get locationId => text().nullable()();
+  TextColumn get method => text()(); // 'cash', 'bank', 'wallet'
+  TextColumn get providerKey => text().nullable()();
+  IntColumn get amountCents => integer()(); // Signed: negative = reversal
+  TextColumn get reference => text().nullable()();
+  IntColumn get receivedAtMs => integer()();
+  IntColumn get createdAtMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class Customers extends Table {
+  TextColumn get id => text()(); // UUIDv7
+  TextColumn get name => text()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get note => text().nullable()();
+  IntColumn get createdAtMs => integer()();
+  IntColumn get updatedAtMs => integer()();
+  IntColumn get deletedAtMs => integer().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class PaymentProviders extends Table {
+  TextColumn get providerKey => text()(); // 'bank.cbe', 'wallet.telebirr', 'custom.<uuid>'
+  TextColumn get kind => text()(); // 'bank', 'wallet'
+  TextColumn get name => text().nullable()(); // Custom name
+  BoolColumn get enabled => boolean().withDefault(const Constant(true))();
+  BoolColumn get favorite => boolean().withDefault(const Constant(false))();
+  IntColumn get updatedAtMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {providerKey};
+}
+
 class OutboxEntries extends Table {
   TextColumn get id => text()(); // Client UUIDv7
-  TextColumn get entity => text()(); // 'product', 'movement'
+  TextColumn get entity => text()(); // 'product', 'movement', 'sale', 'payment', 'customer', 'payment_provider'
   TextColumn get entityId => text()();
   TextColumn get op => text()(); // 'upsert', 'delete'
   TextColumn get payloadJson => text()();
@@ -86,14 +183,25 @@ class AppSettings extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Products, Movements, OutboxEntries, SyncMetaEntries, AppSettings, Locations])
+@DriftDatabase(tables: [
+  Products,
+  Movements,
+  OutboxEntries,
+  SyncMetaEntries,
+  AppSettings,
+  Locations,
+  Sales,
+  Payments,
+  Customers,
+  PaymentProviders,
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -101,6 +209,9 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await _createIndexes();
       await _seedDefaultLocationIfEmpty();
+      await _seedStarterPaymentProviders();
+      await _seedDefaultPaymentSettings();
+      await backfillLegacySales();
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
@@ -131,9 +242,27 @@ class AppDatabase extends _$AppDatabase {
           'UPDATE movements SET location_id = ? WHERE location_id IS NULL;',
           [mainId],
         );
-
-        await _createIndexes();
       }
+
+      if (from < 3) {
+        // 1. Create tables sales, payments, customers, payment_providers
+        await m.createTable(sales);
+        await m.createTable(payments);
+        await m.createTable(customers);
+        await m.createTable(paymentProviders);
+
+        // 2. Add sale_id column to movements
+        await m.addColumn(movements, movements.saleId);
+
+        // 3. Seed starter payment providers and settings
+        await _seedStarterPaymentProviders();
+        await _seedDefaultPaymentSettings();
+
+        // 4. Backfill legacy sales
+        await backfillLegacySales();
+      }
+
+      await _createIndexes();
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
@@ -155,7 +284,28 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS idx_movements_transfer ON movements(transfer_id);',
     );
     await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movements_sale ON movements(sale_id);',
+    );
+    await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted_at_ms);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_sales_created ON sales(created_at_ms);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_payments_sale ON payments(sale_id);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_payments_customer ON payments(customer_id);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_payments_received ON payments(received_at_ms);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);',
     );
   }
 
@@ -173,6 +323,118 @@ class AppDatabase extends _$AppDatabase {
           updatedAtMs: nowMs,
         ),
         mode: InsertMode.insertOrIgnore,
+      );
+    }
+  }
+
+  Future<void> _seedStarterPaymentProviders() async {
+    final existing = await (select(paymentProviders)..limit(1)).get();
+    if (existing.isNotEmpty) return;
+
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    for (final b in defaultStarterCatalogBanks) {
+      final isFav = b['key'] == 'bank.cbe' || b['key'] == 'bank.awash';
+      await into(paymentProviders).insert(
+        PaymentProvidersCompanion.insert(
+          providerKey: b['key']!,
+          kind: 'bank',
+          name: Value(b['name']),
+          enabled: const Value(true),
+          favorite: Value(isFav),
+          updatedAtMs: nowMs,
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+
+    for (final w in defaultStarterCatalogWallets) {
+      final isFav = w['key'] == 'wallet.telebirr' || w['key'] == 'wallet.cbebirr';
+      await into(paymentProviders).insert(
+        PaymentProvidersCompanion.insert(
+          providerKey: w['key']!,
+          kind: 'wallet',
+          name: Value(w['name']),
+          enabled: const Value(true),
+          favorite: Value(isFav),
+          updatedAtMs: nowMs,
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+  }
+
+  Future<void> _seedDefaultPaymentSettings() async {
+    final enabledMethods = await (select(appSettings)..where((s) => s.key.equals('payment_methods_enabled'))).getSingleOrNull();
+    if (enabledMethods == null) {
+      await into(appSettings).insert(
+        const AppSetting(key: 'payment_methods_enabled', value: '["cash","bank","wallet","dube"]'),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+    final dubeDays = await (select(appSettings)..where((s) => s.key.equals('dube_default_days'))).getSingleOrNull();
+    if (dubeDays == null) {
+      await into(appSettings).insert(
+        const AppSetting(key: 'dube_default_days', value: '14'),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+    final reqRef = await (select(appSettings)..where((s) => s.key.equals('require_payment_reference'))).getSingleOrNull();
+    if (reqRef == null) {
+      await into(appSettings).insert(
+        const AppSetting(key: 'require_payment_reference', value: 'false'),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
+  }
+
+  Future<void> backfillLegacySales() async {
+    final legacyMovements = await (select(movements)
+          ..where((m) => m.type.equals('sale') & m.saleId.isNull())
+          ..orderBy([(m) => OrderingTerm(expression: m.createdAtMs, mode: OrderingMode.asc)]))
+        .get();
+
+    if (legacyMovements.isEmpty) return;
+
+    final groups = <String, List<Movement>>{};
+    for (final mov in legacyMovements) {
+      final loc = mov.locationId ?? 'unknown';
+      final minute = mov.createdAtMs ~/ 60000;
+      final key = '$loc:$minute';
+      groups.putIfAbsent(key, () => []).add(mov);
+    }
+
+    for (final entry in groups.entries) {
+      final groupMovs = entry.value;
+      if (groupMovs.isEmpty) continue;
+
+      final saleId = UuidGenerator.v7();
+      final locId = groupMovs.first.locationId;
+      final minCreatedAt = groupMovs.first.createdAtMs;
+      final maxCreatedAt = groupMovs.last.createdAtMs;
+
+      int groupTotalCents = 0;
+      for (final m in groupMovs) {
+        groupTotalCents += ((m.qtyMilli.abs() * m.unitPriceCents) / 1000).round();
+      }
+
+      final sale = Sale(
+        id: saleId,
+        locationId: locId,
+        customerId: null,
+        totalCents: groupTotalCents,
+        dueDate: null,
+        note: 'Legacy sale',
+        legacy: true,
+        voidedAtMs: null,
+        createdAtMs: minCreatedAt,
+        updatedAtMs: maxCreatedAt,
+      );
+
+      await into(sales).insert(sale, mode: InsertMode.insertOrIgnore);
+
+      final movIds = groupMovs.map((m) => m.id).toList();
+      await (update(movements)..where((m) => m.id.isIn(movIds))).write(
+        MovementsCompanion(saleId: Value(saleId)),
       );
     }
   }
@@ -330,6 +592,7 @@ class AppDatabase extends _$AppDatabase {
     String? note,
     String? locationId,
     String? transferId,
+    String? saleId,
     int? createdAtMs,
   }) async {
     final movId = id ?? UuidGenerator.v7();
@@ -355,6 +618,7 @@ class AppDatabase extends _$AppDatabase {
         createdAtMs: nowMs,
         locationId: resolvedLocId,
         transferId: transferId,
+        saleId: saleId,
       );
 
       await into(movements).insert(movement, mode: InsertMode.insertOrIgnore);
@@ -364,6 +628,7 @@ class AppDatabase extends _$AppDatabase {
         'product_id': productId,
         'location_id': resolvedLocId,
         'transfer_id': transferId,
+        'sale_id': saleId,
         'type': type,
         'qty': QuantityFormatter.toWireQty(qtyMilli),
         'unit_price_cents': unitPriceCents,
@@ -518,6 +783,326 @@ class AppDatabase extends _$AppDatabase {
         ),
       );
     });
+  }
+
+  // --- Sales, Payments, Customers & Providers Mutations ---
+
+  /// Creates a sale and writes to Outbox in the same transaction.
+  Future<Sale> createSale({
+    String? id,
+    String? locationId,
+    String? customerId,
+    required int totalCents,
+    String? dueDate,
+    String? note,
+    bool legacy = false,
+    int? createdAtMs,
+  }) async {
+    final saleId = id ?? UuidGenerator.v7();
+    final nowMs = createdAtMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    final sale = Sale(
+      id: saleId,
+      locationId: locationId,
+      customerId: customerId,
+      totalCents: totalCents,
+      dueDate: dueDate,
+      note: note,
+      legacy: legacy,
+      voidedAtMs: null,
+      createdAtMs: nowMs,
+      updatedAtMs: nowMs,
+    );
+
+    await into(sales).insert(sale, mode: InsertMode.insertOrReplace);
+
+    final payload = {
+      'id': saleId,
+      'location_id': locationId,
+      'customer_id': customerId,
+      'total_cents': totalCents,
+      'due_date': dueDate,
+      'note': note,
+      'created_at': nowMs,
+      'voided_at': null,
+    };
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'sale',
+        entityId: saleId,
+        op: 'upsert',
+        payloadJson: jsonEncode(payload),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
+
+    return sale;
+  }
+
+  /// Records a payment (sale payment, customer repayment, or reversal) and writes to Outbox.
+  Future<Payment> recordPayment({
+    String? id,
+    String? saleId,
+    String? customerId,
+    String? locationId,
+    required String method,
+    String? providerKey,
+    required int amountCents,
+    String? reference,
+    int? receivedAtMs,
+  }) async {
+    final payId = id ?? UuidGenerator.v7();
+    final nowMs = receivedAtMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    final payment = Payment(
+      id: payId,
+      saleId: saleId,
+      customerId: customerId,
+      locationId: locationId,
+      method: method,
+      providerKey: providerKey,
+      amountCents: amountCents,
+      reference: reference,
+      receivedAtMs: nowMs,
+      createdAtMs: nowMs,
+    );
+
+    await into(payments).insert(payment, mode: InsertMode.insertOrIgnore);
+
+    final payload = {
+      'id': payId,
+      'sale_id': saleId,
+      'customer_id': customerId,
+      'location_id': locationId,
+      'method': method,
+      'provider_key': providerKey,
+      'amount_cents': amountCents,
+      'reference': reference,
+      'received_at': nowMs,
+    };
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'payment',
+        entityId: payId,
+        op: 'upsert',
+        payloadJson: jsonEncode(payload),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
+
+    return payment;
+  }
+
+  /// Upserts a customer (name, normalized phone, note) and writes to Outbox.
+  Future<Customer> upsertCustomer({
+    String? id,
+    required String name,
+    String? phone,
+    String? note,
+  }) async {
+    final custId = id ?? UuidGenerator.v7();
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    final existing = await (select(customers)..where((c) => c.id.equals(custId))).getSingleOrNull();
+
+    final customer = Customer(
+      id: custId,
+      name: name,
+      phone: phone,
+      note: note,
+      createdAtMs: existing?.createdAtMs ?? nowMs,
+      updatedAtMs: nowMs,
+      deletedAtMs: null,
+    );
+
+    await into(customers).insert(customer, mode: InsertMode.insertOrReplace);
+
+    final payload = {
+      'id': custId,
+      'name': name,
+      'phone': phone,
+      'note': note,
+      'updated_at': nowMs,
+      'deleted_at': null,
+    };
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'customer',
+        entityId: custId,
+        op: 'upsert',
+        payloadJson: jsonEncode(payload),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
+
+    return customer;
+  }
+
+  /// Soft deletes a customer and writes to Outbox.
+  Future<void> deleteCustomer(String id) async {
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final existing = await (select(customers)..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (existing == null) return;
+
+    final updated = existing.copyWith(
+      deletedAtMs: Value(nowMs),
+      updatedAtMs: nowMs,
+    );
+    await update(customers).replace(updated);
+
+    final payload = {
+      'id': id,
+      'name': existing.name,
+      'phone': existing.phone,
+      'note': existing.note,
+      'updated_at': nowMs,
+      'deleted_at': nowMs,
+    };
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'customer',
+        entityId: id,
+        op: 'delete',
+        payloadJson: jsonEncode(payload),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
+  }
+
+  /// Upserts a payment provider (catalog or `custom.<uuid>`) and writes to Outbox.
+  Future<PaymentProvider> upsertPaymentProvider({
+    required String providerKey,
+    required String kind,
+    String? name,
+    bool enabled = true,
+    bool favorite = false,
+  }) async {
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    final provider = PaymentProvider(
+      providerKey: providerKey,
+      kind: kind,
+      name: name,
+      enabled: enabled,
+      favorite: favorite,
+      updatedAtMs: nowMs,
+    );
+
+    await into(paymentProviders).insert(provider, mode: InsertMode.insertOrReplace);
+
+    final payload = {
+      'provider_key': providerKey,
+      'kind': kind,
+      'name': name,
+      'enabled': enabled,
+      'favorite': favorite,
+      'updated_at': nowMs,
+    };
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'payment_provider',
+        entityId: providerKey,
+        op: 'upsert',
+        payloadJson: jsonEncode(payload),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
+
+    return provider;
+  }
+
+  /// Updates a sale's due date and writes to Outbox.
+  Future<void> updateSaleDueDate({required String saleId, required String dueDate}) async {
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final existing = await (select(sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+    if (existing == null) return;
+
+    final updated = existing.copyWith(
+      dueDate: Value(dueDate),
+      updatedAtMs: nowMs,
+    );
+    await update(sales).replace(updated);
+
+    final payload = {
+      'id': saleId,
+      'location_id': existing.locationId,
+      'customer_id': existing.customerId,
+      'total_cents': existing.totalCents,
+      'due_date': dueDate,
+      'note': existing.note,
+      'created_at': existing.createdAtMs,
+      'voided_at': existing.voidedAtMs,
+    };
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'sale',
+        entityId: saleId,
+        op: 'upsert',
+        payloadJson: jsonEncode(payload),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
+  }
+
+  /// Marks a sale voided and writes to Outbox.
+  Future<void> markSaleVoided({required String saleId, required int voidedAtMs}) async {
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final existing = await (select(sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+    if (existing == null) return;
+
+    final updated = existing.copyWith(
+      voidedAtMs: Value(voidedAtMs),
+      updatedAtMs: nowMs,
+    );
+    await update(sales).replace(updated);
+
+    final payload = {
+      'id': saleId,
+      'location_id': existing.locationId,
+      'customer_id': existing.customerId,
+      'total_cents': existing.totalCents,
+      'due_date': existing.dueDate,
+      'note': existing.note,
+      'created_at': existing.createdAtMs,
+      'voided_at': voidedAtMs,
+    };
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'sale',
+        entityId: saleId,
+        op: 'upsert',
+        payloadJson: jsonEncode(payload),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
   }
 
   // --- Stock Queries ---
@@ -682,6 +1267,7 @@ class AppDatabase extends _$AppDatabase {
             'product_id': m.productId,
             'location_id': m.locationId,
             'transfer_id': m.transferId,
+            'sale_id': m.saleId,
             'type': m.type,
             'qty': QuantityFormatter.toWireQty(m.qtyMilli),
             'unit_price_cents': m.unitPriceCents,
@@ -727,6 +1313,131 @@ class AppDatabase extends _$AppDatabase {
               op: l.isActive ? 'upsert' : 'delete',
               payloadJson: jsonEncode(payload),
               clientTs: l.updatedAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 4. All customers
+      final allCusts = await select(customers).get();
+      for (final c in allCusts) {
+        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(c.id))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'id': c.id,
+            'name': c.name,
+            'phone': c.phone,
+            'note': c.note,
+            'updated_at': c.updatedAtMs,
+            'deleted_at': c.deletedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'customer',
+              entityId: c.id,
+              op: c.deletedAtMs != null ? 'delete' : 'upsert',
+              payloadJson: jsonEncode(payload),
+              clientTs: c.updatedAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 5. All payment providers
+      final allProvs = await select(paymentProviders).get();
+      for (final p in allProvs) {
+        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(p.providerKey))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'provider_key': p.providerKey,
+            'kind': p.kind,
+            'name': p.name,
+            'enabled': p.enabled,
+            'favorite': p.favorite,
+            'updated_at': p.updatedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'payment_provider',
+              entityId: p.providerKey,
+              op: 'upsert',
+              payloadJson: jsonEncode(payload),
+              clientTs: p.updatedAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 6. All sales (excluding legacy sales)
+      final allSales = await (select(sales)..where((s) => s.legacy.equals(false))).get();
+      for (final s in allSales) {
+        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(s.id))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'id': s.id,
+            'location_id': s.locationId,
+            'customer_id': s.customerId,
+            'total_cents': s.totalCents,
+            'due_date': s.dueDate,
+            'note': s.note,
+            'created_at': s.createdAtMs,
+            'voided_at': s.voidedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'sale',
+              entityId: s.id,
+              op: 'upsert',
+              payloadJson: jsonEncode(payload),
+              clientTs: s.createdAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 7. All payments
+      final allPayments = await select(payments).get();
+      for (final pay in allPayments) {
+        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(pay.id))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'id': pay.id,
+            'sale_id': pay.saleId,
+            'customer_id': pay.customerId,
+            'location_id': pay.locationId,
+            'method': pay.method,
+            'provider_key': pay.providerKey,
+            'amount_cents': pay.amountCents,
+            'reference': pay.reference,
+            'received_at': pay.receivedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'payment',
+              entityId: pay.id,
+              op: 'upsert',
+              payloadJson: jsonEncode(payload),
+              clientTs: pay.receivedAtMs,
               status: const Value('pending'),
               createdAt: nowMs,
             ),

@@ -6,6 +6,7 @@ import '../../services/notification_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
 import '../widgets/location_selector_chip.dart';
+import '../widgets/payment_step_sheet.dart';
 
 class SaleScreen extends StatefulWidget {
   final LedgerRepository repository;
@@ -231,72 +232,93 @@ class _SaleScreenState extends State<SaleScreen> {
   }
 
   Future<void> _finishSale() async {
-    if (_cart.isEmpty) return;
+    if (_cart.isEmpty || _isLoading) return;
 
     setState(() => _isLoading = true);
     try {
+      final targetLocId = _activeLocation?.id;
+      final allowNegative = await widget.repository.getAllowNegativeStock();
+
+      if (!allowNegative) {
+        for (final item in _cart) {
+          final currentStock = await widget.repository.stockOf(item.product.id, locationId: targetLocId);
+          if (currentStock < item.qtyMilli) {
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('⚠️ Insufficient Stock'),
+                  content: Text(
+                    'Cannot complete sale because "${item.product.name}" has only '
+                    '${QuantityFormatter.formatDisplay(currentStock)} available in stock.\n\n'
+                    'To allow selling into negative stock, enable "Allow Negative Stock" in Settings.',
+                  ),
+                  actions: [
+                    FilledButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return;
+          }
+        }
+      }
+
       final itemsToNotify = List<SaleLineItem>.from(_cart);
-      await widget.repository.recordSale(
-        items: _cart,
-        locationId: _activeLocation?.id,
-      );
+      final totalCents = _cartTotalCents;
 
-      // Check and dispatch local low-stock notifications
-      final notifService = NotificationService(repository: widget.repository);
-      for (final item in itemsToNotify) {
-        final currentStock = await widget.repository.stockOf(
-          item.product.id,
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (ctx) => PaymentStepSheet(
+          repository: widget.repository,
+          totalCents: totalCents,
+          items: itemsToNotify,
           locationId: _activeLocation?.id,
-        );
-        await notifService.notifyLowStock(
-          product: item.product,
-          currentStockMilli: currentStock,
-          locationName: _activeLocation?.name,
-        );
-      }
+          onComplete: () async {
+            final notifService = NotificationService(repository: widget.repository);
+            for (final item in itemsToNotify) {
+              final currentStock = await widget.repository.stockOf(
+                item.product.id,
+                locationId: _activeLocation?.id,
+              );
+              await notifService.notifyLowStock(
+                product: item.product,
+                currentStockMilli: currentStock,
+                locationName: _activeLocation?.name,
+              );
+            }
 
-      widget.onMutation?.call();
+            widget.onMutation?.call();
 
-      if (mounted) {
-        final totalFormatted = MoneyFormatter.formatCents(_cartTotalCents);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            backgroundColor: Colors.green,
-            content: Text('🎉 Sale completed! Total: $totalFormatted'),
-          ),
-        );
-        setState(() {
-          _cart.clear();
-        });
-      }
-    } on InsufficientStockException catch (e) {
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('⚠️ Insufficient Stock'),
-            content: Text(
-              'Cannot complete sale because "${e.productName}" has only '
-              '${QuantityFormatter.formatDisplay(e.currentStockMilli)} available in stock.\n\n'
-              'To allow selling into negative stock, enable "Allow Negative Stock" in Settings.',
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sale failed: $e')),
-        );
-      }
+            if (mounted) {
+              final totalFormatted = MoneyFormatter.formatCents(totalCents);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  backgroundColor: Colors.green,
+                  content: Text('🎉 Sale completed! Total: $totalFormatted'),
+                ),
+              );
+              setState(() {
+                _cart.clear();
+              });
+            }
+          },
+        ),
+      );
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

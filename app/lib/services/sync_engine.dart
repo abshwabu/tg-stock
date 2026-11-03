@@ -337,6 +337,7 @@ class SyncEngine {
           : int.tryParse(data['created_at']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch;
       final locId = data['location_id'] as String?;
       final transferId = data['transfer_id'] as String?;
+      final saleId = data['sale_id'] as String?;
 
       final movement = Movement(
         id: movId,
@@ -348,10 +349,136 @@ class SyncEngine {
         createdAtMs: createdAt,
         locationId: locId,
         transferId: transferId,
+        saleId: saleId,
       );
 
       // Append-only: insert or ignore duplicate IDs
       await db.into(db.movements).insert(movement, mode: InsertMode.insertOrIgnore);
+      return;
+    }
+
+    if (entity == 'sale') {
+      final saleId = (data['id'] ?? change['id']) as String;
+      final totalCents = data['total_cents'] is int
+          ? data['total_cents'] as int
+          : int.tryParse(data['total_cents']?.toString() ?? '0') ?? 0;
+      final createdAt = data['created_at'] is int
+          ? data['created_at'] as int
+          : int.tryParse(data['created_at']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch;
+      final voidedAt = data['voided_at'] is int
+          ? data['voided_at'] as int
+          : (data['voided_at'] != null ? int.tryParse(data['voided_at'].toString()) : null);
+      final dueDate = data['due_date']?.toString();
+      final customerId = data['customer_id']?.toString();
+      final locId = data['location_id']?.toString();
+      final note = data['note']?.toString();
+
+      final existing = await (db.select(db.sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+      final sale = Sale(
+        id: saleId,
+        locationId: locId,
+        customerId: customerId,
+        totalCents: totalCents,
+        dueDate: dueDate,
+        note: note,
+        legacy: existing?.legacy ?? false,
+        voidedAtMs: voidedAt,
+        createdAtMs: existing?.createdAtMs ?? createdAt,
+        updatedAtMs: DateTime.now().millisecondsSinceEpoch,
+      );
+
+      await db.into(db.sales).insert(sale, mode: InsertMode.insertOrReplace);
+      return;
+    }
+
+    if (entity == 'payment') {
+      final payId = (data['id'] ?? change['id']) as String;
+      final saleId = data['sale_id']?.toString();
+      final customerId = data['customer_id']?.toString();
+      final locId = data['location_id']?.toString();
+      final method = data['method']?.toString() ?? 'cash';
+      final providerKey = data['provider_key']?.toString();
+      final amountCents = data['amount_cents'] is int
+          ? data['amount_cents'] as int
+          : int.tryParse(data['amount_cents']?.toString() ?? '0') ?? 0;
+      final reference = data['reference']?.toString();
+      final receivedAt = data['received_at'] is int
+          ? data['received_at'] as int
+          : int.tryParse(data['received_at']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch;
+
+      final payment = Payment(
+        id: payId,
+        saleId: saleId,
+        customerId: customerId,
+        locationId: locId,
+        method: method,
+        providerKey: providerKey,
+        amountCents: amountCents,
+        reference: reference,
+        receivedAtMs: receivedAt,
+        createdAtMs: receivedAt,
+      );
+
+      await db.into(db.payments).insert(payment, mode: InsertMode.insertOrIgnore);
+      return;
+    }
+
+    if (entity == 'customer') {
+      final custId = (data['id'] ?? change['id']) as String;
+      final incomingUpdatedAt = data['updated_at'] is int
+          ? data['updated_at'] as int
+          : int.tryParse(data['updated_at']?.toString() ?? '0') ?? 0;
+
+      final existing = await (db.select(db.customers)..where((c) => c.id.equals(custId))).getSingleOrNull();
+      if (existing != null && existing.updatedAtMs > incomingUpdatedAt) {
+        return;
+      }
+
+      final isDelete = op == 'delete' || data['deleted_at'] != null;
+      final name = data['name']?.toString() ?? (existing?.name ?? 'Customer');
+      final phone = data['phone']?.toString();
+      final note = data['note']?.toString() ?? existing?.note;
+
+      final customer = Customer(
+        id: custId,
+        name: name,
+        phone: phone,
+        note: note,
+        createdAtMs: existing?.createdAtMs ?? incomingUpdatedAt,
+        updatedAtMs: incomingUpdatedAt,
+        deletedAtMs: isDelete ? incomingUpdatedAt : null,
+      );
+
+      await db.into(db.customers).insert(customer, mode: InsertMode.insertOrReplace);
+      return;
+    }
+
+    if (entity == 'payment_provider') {
+      final providerKey = (data['provider_key'] ?? change['id']) as String;
+      final incomingUpdatedAt = data['updated_at'] is int
+          ? data['updated_at'] as int
+          : int.tryParse(data['updated_at']?.toString() ?? '0') ?? 0;
+
+      final existing = await (db.select(db.paymentProviders)..where((p) => p.providerKey.equals(providerKey))).getSingleOrNull();
+      if (existing != null && existing.updatedAtMs > incomingUpdatedAt) {
+        return;
+      }
+
+      final kind = data['kind']?.toString() ?? (existing?.kind ?? 'bank');
+      final name = data['name']?.toString() ?? existing?.name;
+      final enabled = data['enabled'] == true || data['enabled'] == 1;
+      final favorite = data['favorite'] == true || data['favorite'] == 1;
+
+      final provider = PaymentProvider(
+        providerKey: providerKey,
+        kind: kind,
+        name: name,
+        enabled: enabled,
+        favorite: favorite,
+        updatedAtMs: incomingUpdatedAt,
+      );
+
+      await db.into(db.paymentProviders).insert(provider, mode: InsertMode.insertOrReplace);
       return;
     }
 

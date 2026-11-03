@@ -61,6 +61,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _lowStockNotifications = true;
   bool _dailySummaryEnabled = false;
   String _dailySummaryTime = '20:00';
+  bool _dubeReminderEnabled = false;
+  String _dubeReminderTime = '09:00';
+
+  // Payment Methods & Dube
+  List<String> _paymentMethodsEnabled = ['cash', 'bank', 'wallet', 'dube'];
+  int _dubeDefaultDays = 14;
+  bool _requireReference = false;
 
   // Locations state
   bool _locationsEnabled = false;
@@ -122,6 +129,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Backups
     final backups = await _backupService.listAllBackups();
 
+    // Payments & Dube
+    final payMethods = await widget.repository.getPaymentMethodsEnabled();
+    final dubeDays = await widget.repository.getDubeDefaultDays();
+    final reqRef = await widget.repository.getRequirePaymentReference();
+    final dubeTime = await widget.repository.getDubeReminderTime();
+
     if (mounted) {
       setState(() {
         _isOnline = online;
@@ -136,6 +149,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _lowStockNotifications = lowNotifs;
         _dailySummaryEnabled = dailySummary;
         _dailySummaryTime = dailyTime;
+        _paymentMethodsEnabled = payMethods;
+        _dubeDefaultDays = dubeDays;
+        _requireReference = reqRef;
+        _dubeReminderTime = dubeTime;
         _locationsEnabled = locEnabled;
         _transferRequiresReceipt = reqReceipt;
         _activeLocation = activeLoc;
@@ -720,6 +737,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const SizedBox(height: 20),
 
+                // Section: Payment Methods & Dube
+                _buildSectionHeader(isAm ? 'የክፍያ ዘዴዎች እና ዱቤ' : 'Payment Methods & Dube'),
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.payment),
+                        title: const Text('Enabled Payment Methods / የተፈቀዱ የክፍያ ዘዴዎች'),
+                        subtitle: Text(_paymentMethodsEnabled.map((m) => m.toUpperCase()).join(', ')),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _showPaymentMethodsDialog,
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.calendar_month),
+                        title: const Text('Default Dube Days / ነባሪ የዱቤ ቀናት'),
+                        subtitle: Text('$_dubeDefaultDays days'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _pickDubeDefaultDays,
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.pin_outlined),
+                        title: const Text('Require Payment Reference'),
+                        subtitle: const Text('Require transaction/reference number for Bank & Wallet'),
+                        value: _requireReference,
+                        onChanged: (val) async {
+                          await widget.repository.setRequirePaymentReference(val);
+                          await _loadAllSettings();
+                        },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.star_outline),
+                        title: const Text('Favorite Banks & Wallets / ተመራጭ ባንኮች'),
+                        subtitle: const Text('Configure star favorites for quick selection'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _manageFavoriteProviders,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 // Section 2: Notifications
                 _buildSectionHeader(isAm ? 'ማሳወቂያዎች' : 'Notifications'),
                 Card(
@@ -770,6 +832,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             subtitle: Text(_dailySummaryTime),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: _pickDailySummaryTime,
+                          ),
+                        ],
+                        const Divider(height: 1),
+                        SwitchListTile(
+                          secondary: const Icon(Icons.alarm, color: Colors.deepOrange),
+                          title: const Text('Dube Due Reminders'),
+                          subtitle: Text('Offline reminder at $_dubeReminderTime for dube due today'),
+                          value: _dubeReminderEnabled,
+                          onChanged: (val) async {
+                            setState(() => _dubeReminderEnabled = val);
+                            await _notificationService.scheduleDubeDueReminder(
+                              enabled: val,
+                              timeStr: _dubeReminderTime,
+                            );
+                          },
+                        ),
+                        if (_dubeReminderEnabled) ...[
+                          const Divider(height: 1),
+                          ListTile(
+                            leading: const Icon(Icons.schedule),
+                            title: const Text('Dube Reminder Time'),
+                            subtitle: Text(_dubeReminderTime),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: _pickDubeReminderTime,
                           ),
                         ],
                       ],
@@ -1008,5 +1094,185 @@ class _SettingsScreenState extends State<SettingsScreen> {
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey),
       ),
     );
+  }
+
+  Future<void> _showPaymentMethodsDialog() async {
+    final available = ['cash', 'bank', 'wallet', 'dube'];
+    final selected = List<String>.from(_paymentMethodsEnabled);
+
+    final updated = await showDialog<List<String>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) {
+          return AlertDialog(
+            title: const Text('Payment Methods / የክፍያ ዘዴዎች'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: available.map((m) {
+                final isChecked = selected.contains(m);
+                final label = switch (m) {
+                  'cash' => '💵 Cash (ጥሬ ገንዘብ)',
+                  'bank' => '🏦 Bank (ባንክ)',
+                  'wallet' => '📱 Wallet (ዋሌት)',
+                  'dube' => '📝 Dube (ዱቤ)',
+                  _ => m,
+                };
+                return CheckboxListTile(
+                  title: Text(label),
+                  value: isChecked,
+                  onChanged: (val) {
+                    if (val == true) {
+                      selected.add(m);
+                    } else if (selected.length > 1) {
+                      selected.remove(m);
+                    }
+                    setDlgState(() {});
+                  },
+                );
+              }).toList(),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(selected),
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (updated != null) {
+      await widget.repository.setPaymentMethodsEnabled(updated);
+      await _loadAllSettings();
+    }
+  }
+
+  Future<void> _pickDubeDefaultDays() async {
+    final ctrl = TextEditingController(text: _dubeDefaultDays.toString());
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Default Dube Days / ነባሪ የዱቤ ቀናት'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Days / ቀናት', border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                ActionChip(label: const Text('7 Days'), onPressed: () => Navigator.of(ctx).pop(7)),
+                ActionChip(label: const Text('14 Days'), onPressed: () => Navigator.of(ctx).pop(14)),
+                ActionChip(label: const Text('30 Days'), onPressed: () => Navigator.of(ctx).pop(30)),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              final d = int.tryParse(ctrl.text);
+              if (d != null && d > 0) Navigator.of(ctx).pop(d);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (picked != null) {
+      await widget.repository.setDubeDefaultDays(picked);
+      await _loadAllSettings();
+    }
+  }
+
+  Future<void> _manageFavoriteProviders() async {
+    final allBanks = await widget.repository.listPaymentProviders(kind: 'bank');
+    final allWallets = await widget.repository.listPaymentProviders(kind: 'wallet');
+
+    if (!mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheetState) {
+          return Container(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.8),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Favorite Providers / ተመራጭ ባንኮች እና ዋሌቶች', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 6),
+                const Text('Star your frequent banks and mobile wallets for quick access at checkout.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                const Divider(height: 16),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      const Text('Banks / ባንኮች', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                      ...allBanks.map((b) => CheckboxListTile(
+                        dense: true,
+                        secondary: Icon(b.favorite ? Icons.star : Icons.star_border, color: b.favorite ? Colors.amber : Colors.grey),
+                        title: Text(b.name ?? b.providerKey),
+                        value: b.favorite,
+                        onChanged: (val) async {
+                          await widget.repository.setPaymentProviderFavorite(b.providerKey, val ?? false);
+                          final updated = await widget.repository.listPaymentProviders(kind: 'bank');
+                          setSheetState(() {
+                            allBanks.clear();
+                            allBanks.addAll(updated);
+                          });
+                        },
+                      )),
+                      const SizedBox(height: 12),
+                      const Text('Wallets / ዋሌቶች', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                      ...allWallets.map((w) => CheckboxListTile(
+                        dense: true,
+                        secondary: Icon(w.favorite ? Icons.star : Icons.star_border, color: w.favorite ? Colors.amber : Colors.grey),
+                        title: Text(w.name ?? w.providerKey),
+                        value: w.favorite,
+                        onChanged: (val) async {
+                          await widget.repository.setPaymentProviderFavorite(w.providerKey, val ?? false);
+                          final updated = await widget.repository.listPaymentProviders(kind: 'wallet');
+                          setSheetState(() {
+                            allWallets.clear();
+                            allWallets.addAll(updated);
+                          });
+                        },
+                      )),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _pickDubeReminderTime() async {
+    final parts = _dubeReminderTime.split(':');
+    final initial = TimeOfDay(
+      hour: int.tryParse(parts.first) ?? 9,
+      minute: parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0,
+    );
+
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked != null) {
+      final formatted = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+      await widget.repository.setDubeReminderTime(formatted);
+      await _notificationService.scheduleDubeDueReminder(enabled: _dubeReminderEnabled, timeStr: formatted);
+      await _loadAllSettings();
+    }
   }
 }

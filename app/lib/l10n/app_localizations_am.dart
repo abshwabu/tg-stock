@@ -241,4 +241,25 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get dailySummary => 'የቀን ማጠቃለያ ማሳወቂያ';
+
+  @override
+  String get dubeTitle => 'ዱቤ';
+
+  @override
+  String get btnDube => 'ዱቤ';
+
+  @override
+  String get cashInDrawer => 'በካዝና ውስጥ ያለ ጥሬ ገንዘብ';
+
+  @override
+  String get outstandingDube => 'ያልተከፈለ ዱቤ';
+
+  @override
+  String get paymentMethods => 'የክፍያ መንገዶች';
+
+  @override
+  String get dueToday => 'ዛሬ የሚከፈል';
+
+  @override
+  String get overdue => 'ጊዜው ያለፈበት';
 }

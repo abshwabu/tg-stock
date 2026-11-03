@@ -565,6 +565,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Daily Summary Notification'**
   String get dailySummary;
+
+  /// No description provided for @dubeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Dube / Pay Later'**
+  String get dubeTitle;
+
+  /// No description provided for @btnDube.
+  ///
+  /// In en, this message translates to:
+  /// **'Dube'**
+  String get btnDube;
+
+  /// No description provided for @cashInDrawer.
+  ///
+  /// In en, this message translates to:
+  /// **'Cash in Drawer'**
+  String get cashInDrawer;
+
+  /// No description provided for @outstandingDube.
+  ///
+  /// In en, this message translates to:
+  /// **'Outstanding Dube'**
+  String get outstandingDube;
+
+  /// No description provided for @paymentMethods.
+  ///
+  /// In en, this message translates to:
+  /// **'Payment Methods'**
+  String get paymentMethods;
+
+  /// No description provided for @dueToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Due Today'**
+  String get dueToday;
+
+  /// No description provided for @overdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get overdue;
 }
 
 class _AppLocalizationsDelegate

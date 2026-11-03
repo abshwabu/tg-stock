@@ -1,0 +1,205 @@
+{
+  "verification_status": "verify before release",
+  "banks": [
+    {
+      "provider_key": "bank.cbe",
+      "kind": "bank",
+      "name": "Commercial Bank of Ethiopia",
+      "name_am": "የኢትዮጵያ ንግድ ባንክ"
+    },
+    {
+      "provider_key": "bank.awash",
+      "kind": "bank",
+      "name": "Awash Bank",
+      "name_am": "አዋሽ ባንክ"
+    },
+    {
+      "provider_key": "bank.dashen",
+      "kind": "bank",
+      "name": "Dashen Bank",
+      "name_am": "ዳሸን ባንክ"
+    },
+    {
+      "provider_key": "bank.abyssinia",
+      "kind": "bank",
+      "name": "Bank of Abyssinia",
+      "name_am": "አቢሲኒያ ባንክ"
+    },
+    {
+      "provider_key": "bank.wegagen",
+      "kind": "bank",
+      "name": "Wegagen Bank",
+      "name_am": "ወጋገን ባንክ"
+    },
+    {
+      "provider_key": "bank.hibret",
+      "kind": "bank",
+      "name": "Hibret Bank",
+      "name_am": "ኅብረት ባንክ"
+    },
+    {
+      "provider_key": "bank.nib",
+      "kind": "bank",
+      "name": "Nib International Bank",
+      "name_am": "ንብ ኢንተርናሽናል ባንክ"
+    },
+    {
+      "provider_key": "bank.coop",
+      "kind": "bank",
+      "name": "Cooperative Bank of Oromia",
+      "name_am": "የኦሮሚያ ኅብረት ሥራ ባንክ"
+    },
+    {
+      "provider_key": "bank.oromia",
+      "kind": "bank",
+      "name": "Oromia Bank",
+      "name_am": "ኦሮሚያ ባንክ"
+    },
+    {
+      "provider_key": "bank.lion",
+      "kind": "bank",
+      "name": "Lion International Bank",
+      "name_am": "አንበሳ ኢንተርናሽናል ባንክ"
+    },
+    {
+      "provider_key": "bank.zemen",
+      "kind": "bank",
+      "name": "Zemen Bank",
+      "name_am": "ዘመን ባንክ"
+    },
+    {
+      "provider_key": "bank.bunna",
+      "kind": "bank",
+      "name": "Bunna International Bank",
+      "name_am": "ቡና ኢንተርናሽናል ባንክ"
+    },
+    {
+      "provider_key": "bank.berhan",
+      "kind": "bank",
+      "name": "Berhan Bank",
+      "name_am": "ብርሃን ባንክ"
+    },
+    {
+      "provider_key": "bank.abay",
+      "kind": "bank",
+      "name": "Abay Bank",
+      "name_am": "ዓባይ ባንክ"
+    },
+    {
+      "provider_key": "bank.enat",
+      "kind": "bank",
+      "name": "Enat Bank",
+      "name_am": "እናት ባንክ"
+    },
+    {
+      "provider_key": "bank.amhara",
+      "kind": "bank",
+      "name": "Amhara Bank",
+      "name_am": "አማራ ባንክ"
+    },
+    {
+      "provider_key": "bank.ahadu",
+      "kind": "bank",
+      "name": "Ahadu Bank",
+      "name_am": "አሃዱ ባንክ"
+    },
+    {
+      "provider_key": "bank.siinqee",
+      "kind": "bank",
+      "name": "Siinqee Bank",
+      "name_am": "ሲንቄ ባንክ"
+    },
+    {
+      "provider_key": "bank.tsehay",
+      "kind": "bank",
+      "name": "Tsehay Bank",
+      "name_am": "ፀሐይ ባንክ"
+    },
+    {
+      "provider_key": "bank.global",
+      "kind": "bank",
+      "name": "Global Bank Ethiopia",
+      "name_am": "ግሎባል ባንክ ኢትዮጵያ"
+    },
+    {
+      "provider_key": "bank.gadaa",
+      "kind": "bank",
+      "name": "Gadaa Bank",
+      "name_am": "ገዳ ባንክ"
+    },
+    {
+      "provider_key": "bank.hijra",
+      "kind": "bank",
+      "name": "Hijra Bank",
+      "name_am": "ሒጅራ ባንክ"
+    },
+    {
+      "provider_key": "bank.zamzam",
+      "kind": "bank",
+      "name": "ZamZam Bank",
+      "name_am": "ዘምዘም ባንክ"
+    },
+    {
+      "provider_key": "bank.addis",
+      "kind": "bank",
+      "name": "Addis International Bank",
+      "name_am": "አዲስ ኢንተርናሽናል ባንክ"
+    },
+    {
+      "provider_key": "bank.debub_global",
+      "kind": "bank",
+      "name": "Debub Global Bank",
+      "name_am": "ደቡብ ግሎባል ባንክ"
+    },
+    {
+      "provider_key": "bank.shabelle",
+      "kind": "bank",
+      "name": "Shabelle Bank",
+      "name_am": "ሻበሌ ባንክ"
+    }
+  ],
+  "wallets": [
+    {
+      "provider_key": "wallet.telebirr",
+      "kind": "wallet",
+      "name": "Telebirr",
+      "name_am": "ቴሌብር"
+    },
+    {
+      "provider_key": "wallet.mpesa",
+      "kind": "wallet",
+      "name": "M-Pesa",
+      "name_am": "ኤም-ፔሳ"
+    },
+    {
+      "provider_key": "wallet.cbe_birr",
+      "kind": "wallet",
+      "name": "CBE Birr",
+      "name_am": "ሲቢኢ ብር"
+    },
+    {
+      "provider_key": "wallet.hellocash",
+      "kind": "wallet",
+      "name": "HelloCash",
+      "name_am": "ሄሎካሽ"
+    },
+    {
+      "provider_key": "wallet.amole",
+      "kind": "wallet",
+      "name": "Amole",
+      "name_am": "አሞሌ"
+    },
+    {
+      "provider_key": "wallet.kacha",
+      "kind": "wallet",
+      "name": "Kacha",
+      "name_am": "ካቻ"
+    },
+    {
+      "provider_key": "wallet.awash_birr",
+      "kind": "wallet",
+      "name": "Awash Birr",
+      "name_am": "አዋሽ ብር"
+    }
+  ]
+}

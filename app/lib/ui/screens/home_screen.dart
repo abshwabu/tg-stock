@@ -10,6 +10,7 @@ import '../widgets/location_selector_chip.dart';
 import '../widgets/sync_status_header.dart';
 import '../widgets/warehouse_setup_sheet.dart';
 import 'adjust_screen.dart';
+import 'dube_screen.dart';
 import 'history_screen.dart';
 import 'products_screen.dart';
 import 'reports_screen.dart';
@@ -340,6 +341,118 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ],
                 ),
+                const SizedBox(height: 10),
+
+                // Cash in Drawer & Outstanding Dube
+                Row(
+                  children: [
+                    // Cash in Drawer
+                    Expanded(
+                      child: FutureBuilder<int>(
+                        future: widget.repository.getCashExpectedInDrawer(),
+                        builder: (context, snapshot) {
+                          final cents = snapshot.data ?? 0;
+                          return Card(
+                            elevation: 1,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            color: Colors.blue.shade50,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.point_of_sale, size: 16, color: Colors.blue.shade900),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isAm ? 'ጥሬ ገንዘብ በካዝና' : 'Cash in Drawer',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11.5,
+                                          color: Colors.blue.shade900,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    MoneyFormatter.formatCents(cents),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Colors.blue.shade900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Outstanding Dube
+                    Expanded(
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (ctx) => DubeScreen(
+                                repository: widget.repository,
+                                onMutation: _notifyMutation,
+                              ),
+                            ),
+                          );
+                        },
+                        child: StreamBuilder<int>(
+                          stream: widget.repository.watchOutstandingDubeTotal(),
+                          builder: (context, snapshot) {
+                            final cents = snapshot.data ?? 0;
+                            return Card(
+                              elevation: 1,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              color: Colors.amber.shade50,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.edit_note, size: 16, color: Colors.amber.shade900),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          isAm ? 'ጠቅላላ ዱቤ' : 'Outstanding Dube',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 11.5,
+                                            color: Colors.amber.shade900,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      MoneyFormatter.formatCents(cents),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: Colors.amber.shade900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 16),
 
                 // Primary Big Action Button: [🛒 Sale / ሽያጭ]
@@ -550,6 +663,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ],
                   ),
                 ],
+                const SizedBox(height: 10),
+
+                // Dube & Customers Button
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.amber.shade100,
+                    foregroundColor: Colors.amber.shade900,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => DubeScreen(
+                          repository: widget.repository,
+                          onMutation: _notifyMutation,
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit_note, size: 22),
+                  label: Text(
+                    isAm ? '📝 ዱቤ እና ደንበኞች (Dube & Customers)' : '📝 Dube & Customers',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ),
                 const SizedBox(height: 10),
 
                 // Reports & Analytics Button

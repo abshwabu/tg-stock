@@ -69,8 +69,11 @@ void main() {
     expect(find.textContaining('2 kg × 250.00 ETB'), findsOneWidget);
     expect(find.text('500.00 ETB'), findsWidgets); // line item total & grand total
 
-    // 6. Finish Sale
+    // 6. Finish Sale opens Payment step (Cash preselected, 1-tap finish)
     await tester.tap(find.text('Finish Sale / ሽጥ'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Finish Sale (500.00 ETB)'));
     await tester.pumpAndSettle();
 
     // Verify success SnackBar

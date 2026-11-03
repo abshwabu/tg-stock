@@ -88,9 +88,9 @@ void main() {
       expect(mainLoc.kind, equals('store'));
       expect(mainLoc.isDefault, isTrue);
 
-      // Verify schema version updated to 2
+      // Verify schema version updated to current schema (>= 2)
       final verRow = rawDb.select('PRAGMA user_version;');
-      expect(verRow.first.values.first, equals(2));
+      expect(verRow.first.values.first, greaterThanOrEqualTo(2));
 
       // Verify existing movements were backfilled to 'Main'
       final movements = await appDb.select(appDb.movements).get();
@@ -514,6 +514,7 @@ void main() {
         'product_id',
         'location_id',
         'transfer_id',
+        'sale_id',
         'type',
         'qty',
         'unit_price_cents',

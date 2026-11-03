@@ -39,6 +39,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
   SalesReportData? _salesReport;
   StockReportData? _stockReport;
 
+  Map<String, int> _receivedByMethod = {};
+  Map<String, int> _receivedByProvider = {};
+  int _cashInDrawer = 0;
+  Map<String, int> _revenueVsReceivedVsNewDube = {};
+  int _outstandingDubeTotal = 0;
+  int _overdueDubeCount = 0;
+
   late final ExportService _exportService;
 
   @override
@@ -110,6 +117,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
       locationId: _selectedLocationId,
     );
 
+    final recMethod = await widget.repository.getReceivedTodayByMethod();
+    final recProvider = await widget.repository.getReceivedTodayByProvider();
+    final cashDrawer = await widget.repository.getCashExpectedInDrawer();
+    final revVsRec = await widget.repository.getRevenueVsReceivedVsNewDubeToday();
+    final outDube = await widget.repository.getOutstandingDubeTotal();
+    final overdueCount = await widget.repository.getOverdueCount();
+
     if (mounted) {
       setState(() {
         _locationsEnabled = locEnabled;
@@ -119,6 +133,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _discrepancies = disc;
         _salesReport = sales;
         _stockReport = stock;
+        _receivedByMethod = recMethod;
+        _receivedByProvider = recProvider;
+        _cashInDrawer = cashDrawer;
+        _revenueVsReceivedVsNewDube = revVsRec;
+        _outstandingDubeTotal = outDube;
+        _overdueDubeCount = overdueCount;
         _isLoading = false;
       });
     }
@@ -288,6 +308,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         _buildSalesKpiCards(),
                         const SizedBox(height: 18),
 
+                        // Section 1.5: Payments & Cash Drawer & Dube
+                        _buildPaymentsAndDubeSection(),
+                        const SizedBox(height: 18),
+
                         // Section 2: Top Products by Revenue
                         _buildTopProductsSection(
                           title: '🏆 Top Products by Revenue / በገቢ ቀዳሚ',
@@ -432,6 +456,151 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentsAndDubeSection() {
+    final cashRec = _receivedByMethod['cash'] ?? 0;
+    final bankRec = _receivedByMethod['bank'] ?? 0;
+    final walletRec = _receivedByMethod['wallet'] ?? 0;
+
+    final rev = _revenueVsReceivedVsNewDube['revenue_cents'] ?? 0;
+    final received = _revenueVsReceivedVsNewDube['money_received_cents'] ?? 0;
+    final newDube = _revenueVsReceivedVsNewDube['new_dube_cents'] ?? 0;
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.payments_outlined, color: Color(0xFF0F766E), size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Payments & Cash Drawer / ክፍያዎች እና ካዝና',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Cash Drawer & Outstanding Dube
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Cash in Drawer (Net)',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          MoneyFormatter.formatCents(_cashInDrawer),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Outstanding Dube',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          MoneyFormatter.formatCents(_outstandingDubeTotal),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                        ),
+                        if (_overdueDubeCount > 0)
+                          Text(
+                            '$_overdueDubeCount overdue',
+                            style: const TextStyle(fontSize: 10.5, color: Colors.red, fontWeight: FontWeight.bold),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Methods Breakdown
+            const Text('Received Today by Method:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('💵 Cash: ${MoneyFormatter.formatCents(cashRec)}'),
+                Text('🏦 Bank: ${MoneyFormatter.formatCents(bankRec)}'),
+                Text('📱 Wallet: ${MoneyFormatter.formatCents(walletRec)}'),
+              ],
+            ),
+
+            if (_receivedByProvider.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              const Text('By Bank / Wallet Provider:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: _receivedByProvider.entries.map((e) {
+                  return Chip(
+                    visualDensity: VisualDensity.compact,
+                    label: Text('${e.key}: ${MoneyFormatter.formatCents(e.value)}', style: const TextStyle(fontSize: 11)),
+                  );
+                }).toList(),
+              ),
+            ],
+
+            const Divider(height: 20),
+
+            // Comparison: Revenue vs Received vs New Dube
+            const Text('Today: Revenue vs Received vs New Dube:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildSummaryCol('Sales Revenue', rev, Colors.black87),
+                _buildSummaryCol('Money Received', received, Colors.green.shade800),
+                _buildSummaryCol('New Dube', newDube, Colors.deepOrange.shade800),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryCol(String label, int cents, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 2),
+        Text(MoneyFormatter.formatCents(cents), style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: color)),
       ],
     );
   }
