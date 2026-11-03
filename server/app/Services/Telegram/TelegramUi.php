@@ -27,7 +27,7 @@ class TelegramUi
      * @param bool $oneTime
      * @return array{keyboard: array, resize_keyboard: bool, one_time_keyboard: bool}
      */
-    public static function replyKeyboard(array $rows, bool $resize = true, bool $oneTime = false): array
+    public static function replyKeyboard(array $rows, bool $resize = true, bool $oneTime = false, bool $isPersistent = true): array
     {
         $formatted = [];
         foreach ($rows as $row) {
@@ -42,6 +42,7 @@ class TelegramUi
             'keyboard' => $formatted,
             'resize_keyboard' => $resize,
             'one_time_keyboard' => $oneTime,
+            'is_persistent' => $isPersistent,
         ];
     }
 

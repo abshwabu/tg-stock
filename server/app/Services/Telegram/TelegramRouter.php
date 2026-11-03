@@ -661,13 +661,14 @@ class TelegramRouter
             $this->telegram->sendMessage(
                 $chatId,
                 __('action_cancelled'),
-                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale)]
+                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user)]
             );
             return;
         }
 
         // Handle /start command (including /start pair_<code>)
         if (str_starts_with($text, '/start')) {
+            $this->botState->clear($chatId);
             $cmdParts = explode(' ', $text, 2);
             $param = isset($cmdParts[1]) ? trim($cmdParts[1]) : null;
             $this->startHandler->handle($chatId, $from, $param, $user);

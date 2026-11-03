@@ -52,7 +52,7 @@ class StartHandler
             $this->telegram->sendMessage(
                 $chatId,
                 __('welcome_existing', ['name' => $user->name, 'shop' => $shopName]),
-                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale)]
+                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user)]
             );
             return;
         }
@@ -121,10 +121,12 @@ class StartHandler
         // Clear conversation state
         $this->botState->clear($chatId);
 
+        $ownerUser = User::withoutGlobalScope(ShopScope::class)->where('telegram_id', (int) $chatId)->first();
+
         $this->telegram->sendMessage(
             $chatId,
             __('onboarding_shop_created', ['name' => $shop->name]),
-            ['reply_markup' => TelegramUi::mainMenuKeyboard($locale)]
+            ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $ownerUser)]
         );
     }
 
