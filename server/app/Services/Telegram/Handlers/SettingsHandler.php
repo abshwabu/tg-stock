@@ -61,6 +61,13 @@ class SettingsHandler
             ];
         }
 
+        // Linked devices (owner only)
+        if ($user?->role === 'owner') {
+            $rows[] = [
+                ['text' => '📱 ' . ($locale === 'en' ? 'Manage Linked Devices' : 'የተገናኙ ስልኮች አስተዳደር'), 'callback_data' => 'devices:list:0'],
+            ];
+        }
+
         // Owner only options
         if ($user?->role === 'owner') {
             $toggleNegLabel = ($shop?->allow_negative_stock)

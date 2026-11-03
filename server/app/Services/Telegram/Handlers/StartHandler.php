@@ -145,7 +145,7 @@ class StartHandler
     /**
      * Initiate phone pairing prompt: "Link this phone to <shop>?".
      */
-    protected function handlePairStart(int $chatId, array $from, string $code, ?User $user, string $locale): void
+    public function handlePairStart(int $chatId, array $from, string $code, ?User $user, string $locale): void
     {
         $codeHash = hash('sha256', trim($code));
         $pairing = PairingCode::where('code_hash', $codeHash)->first();

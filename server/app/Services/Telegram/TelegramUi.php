@@ -153,16 +153,21 @@ class TelegramUi
 
         $row3 = [];
         if ($user !== null && $user->role === 'owner') {
+            $row3[] = ['text' => $locale === 'en' ? '📱 Link Phone' : '📱 ስልክ አገናኝ', 'callback_data' => 'menu:pair:0'];
             $row3[] = ['text' => $locale === 'en' ? '🚚 Transfer' : '🚚 ዝውውር', 'callback_data' => 'menu:transfer:0'];
-            $row3[] = ['text' => $locale === 'en' ? '👥 Team' : '👥 ቡድን', 'callback_data' => 'menu:team:0'];
         }
         if (!empty($row3)) {
             $rows[] = $row3;
         }
 
-        $rows[] = [
-            ['text' => $locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች', 'callback_data' => 'menu:settings:0'],
-        ];
+        $row4 = [];
+        if ($user !== null && $user->role === 'owner') {
+            $row4[] = ['text' => $locale === 'en' ? '👥 Team' : '👥 ቡድን', 'callback_data' => 'menu:team:0'];
+            $row4[] = ['text' => $locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች', 'callback_data' => 'menu:settings:0'];
+        } else {
+            $row4[] = ['text' => $locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች', 'callback_data' => 'menu:settings:0'];
+        }
+        $rows[] = $row4;
 
         return self::inlineKeyboard($rows);
     }

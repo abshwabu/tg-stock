@@ -131,6 +131,12 @@ class TelegramRouter
             return;
         }
 
+        // 1.8 Devices Management
+        if ($module === 'devices') {
+            $this->handleDevicesCallback($cqId, $chatId, $messageId, $action, $id, $user);
+            return;
+        }
+
         // 2. Language & Settings
         if ($module === 'lang') {
             $this->settingsHandler->handleLanguageCallback($cqId, $chatId, $messageId, $action, $id, $user);
@@ -227,8 +233,93 @@ class TelegramRouter
             'transfer' => $this->transferHandler->start($chatId, null, $user),
             'switch_loc' => $this->locationHandler->handleSwitchMenu($chatId, $user),
             'review' => $this->reviewQueueHandler->handleReviewMenu($chatId, $user),
+            'pair' => $this->promptPairingCode($chatId, $user),
+            'devices' => $this->handleDevicesList($chatId, $user),
             default => null,
         };
+    }
+
+    /**
+     * Prompt user to enter 6-digit code shown on phone screen.
+     */
+    public function promptPairingCode(int|string $chatId, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        $this->botState->start((int) $chatId, 'pairing', 'await_code', ['language' => $locale]);
+        $this->telegram->sendMessage(
+            $chatId,
+            $locale === 'en'
+                ? "📱 <b>Link Mobile App</b>\n\nPlease enter the <b>6-digit code</b> shown on your phone's screen (e.g. 104442):"
+                : "📱 <b>ስልክ ማገናኛ</b>\n\nእባክዎ በስልክዎ ላይ የሚታየውን ባለ <b>6-አሃዝ ኮድ</b> ያስገቡ (ለምሳሌ 104442):",
+            ['reply_markup' => TelegramUi::cancelKeyboard($locale)]
+        );
+    }
+
+    /**
+     * List all linked devices for the shop with revoke action buttons.
+     */
+    public function handleDevicesList(int|string $chatId, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        $shopId = (string) $user?->shop_id;
+
+        $devices = \App\Models\Device::withoutGlobalScope(\App\Scopes\ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->whereNull('revoked_at')
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        $rows = [];
+        foreach ($devices as $d) {
+            $rows[] = [
+                ['text' => "📱 {$d->name}", 'callback_data' => 'devices:none:0'],
+                ['text' => '🗑️ ' . ($locale === 'en' ? 'Revoke' : 'ሰርዝ'), 'callback_data' => "devices:revoke:{$d->id}"],
+            ];
+        }
+
+        $rows[] = [
+            ['text' => $locale === 'en' ? '➕ Pair New Phone' : '➕ አዲስ ስልክ አገናኝ', 'callback_data' => 'menu:pair:0'],
+        ];
+
+        $title = $locale === 'en'
+            ? "📱 <b>Linked Devices ({$devices->count()} active)</b>\n\nManage phones connected to your shop:"
+            : "📱 <b>የተገናኙ ስልኮች ({$devices->count()} ንቁ)</b>\n\nከሱቅዎ ጋር የተገናኙ ስልኮች ዝርዝር:";
+
+        $this->telegram->sendMessage($chatId, $title, [
+            'reply_markup' => TelegramUi::inlineKeyboard($rows),
+        ]);
+    }
+
+    /**
+     * Handle device management callbacks.
+     */
+    protected function handleDevicesCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+
+        if ($action === 'list') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->handleDevicesList($chatId, $user);
+            return;
+        }
+
+        if ($action === 'revoke') {
+            $shopId = (string) $user?->shop_id;
+            $device = \App\Models\Device::withoutGlobalScope(\App\Scopes\ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $id)
+                ->first();
+
+            if ($device) {
+                $device->revoked_at = now();
+                $device->save();
+                $this->telegram->answerCallbackQuery($cqId, $locale === 'en' ? "Device {$device->name} revoked." : "ስልክ {$device->name} ተሰርዟል።");
+                $this->handleDevicesList($chatId, $user);
+                return;
+            }
+        }
+
+        $this->telegram->answerCallbackQuery($cqId);
     }
 
     /**
@@ -702,6 +793,26 @@ class TelegramRouter
             return;
         }
 
+        // Direct 6-digit numeric pairing code (e.g. "104442" or "104-442" or "/pair 104442")
+        $digitsOnly = preg_replace('/[^0-9]/', '', $text);
+        if (strlen($digitsOnly) === 6 && preg_match('/^(\/pair\s*)?[0-9]{3}-?[0-9]{3}$/i', $text)) {
+            $this->botState->clear($chatId);
+            $this->startHandler->handlePairStart((int) $chatId, $from, $digitsOnly, $user, $locale);
+            return;
+        }
+
+        // Shortcut /pair command
+        if (in_array($text, ['/pair', 'pair', 'አገናኝ', 'ስልክ አገናኝ'], true)) {
+            $this->promptPairingCode($chatId, $user);
+            return;
+        }
+
+        // Shortcut /devices command
+        if (in_array($text, ['/devices', 'devices', 'ስልኮች', 'መሣሪያዎች'], true)) {
+            $this->handleDevicesList($chatId, $user);
+            return;
+        }
+
         // Check active conversation state
         $state = $this->botState->get($chatId);
         if ($state !== null) {
@@ -730,6 +841,26 @@ class TelegramRouter
      */
     protected function handleStatefulInput(int $chatId, string $text, BotState $state, ?User $user): void
     {
+        $locale = $user?->language ?? 'am';
+
+        // 0. Pairing flow: awaiting code
+        if ($state->flow === 'pairing' && $state->step === 'await_code') {
+            $digits = preg_replace('/[^0-9]/', '', $text);
+            if (strlen($digits) === 6) {
+                $this->botState->clear($chatId);
+                $this->startHandler->handlePairStart((int) $chatId, ['id' => $chatId], $digits, $user, $locale);
+            } else {
+                $this->telegram->sendMessage(
+                    $chatId,
+                    $locale === 'en'
+                        ? "⚠️ Invalid code. Please enter the 6-digit numeric pairing code (e.g. 104442):"
+                        : "⚠️ የተሳሳተ ኮድ። እባክዎ ባለ 6-አሃዝ ቁጥር ያስገቡ (ለምሳሌ 104442):",
+                    ['reply_markup' => TelegramUi::cancelKeyboard($locale)]
+                );
+            }
+            return;
+        }
+
         // 1. Onboarding
         if ($state->flow === 'onboarding' && $state->step === 'await_shop_name') {
             $this->startHandler->handleShopNameInput($chatId, $text, $state->data ?? []);
