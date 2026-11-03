@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Shop;
 use App\Models\User;
 use App\Scopes\ShopScope;
+use App\Services\ActivityLogger;
 use App\Services\LedgerService;
 use App\Services\Telegram\BotStateService;
 use App\Services\Telegram\TelegramClient;
@@ -167,7 +168,10 @@ class ProductHandler
         // Owner only actions
         if ($user?->role === 'owner') {
             $buttons[] = [
+                ['text' => '✏️ ' . ($locale === 'en' ? 'Edit Price' : 'ዋጋ ቀይር'), 'callback_data' => "prod:price:{$product->id}"],
                 ['text' => __('btn_adjust'), 'callback_data' => "adj:start:{$product->id}"],
+            ];
+            $buttons[] = [
                 ['text' => __('btn_delete'), 'callback_data' => "prod:del:{$product->id}"],
             ];
         }
@@ -390,6 +394,13 @@ class ProductHandler
             'entity_id' => $product->id,
         ]);
 
+        \App\Services\ActivityLogger::log(
+            $shopId,
+            $user->id,
+            'product.create',
+            "Created product {$product->name} (Unit: {$product->unit}, Sell: " . number_format($product->sell_price_cents / 100, 2) . " ETB)"
+        );
+
         // Record opening stock if > 0
         $openingStockMilli = (int) ($data['opening_stock_milli'] ?? 0);
         if ($openingStockMilli > 0) {
@@ -557,7 +568,117 @@ class ProductHandler
             'entity_id' => $product->id,
         ]);
 
+        \App\Services\ActivityLogger::log(
+            (string) $user->shop_id,
+            $user->id,
+            'product.delete',
+            "Soft-deleted product {$product->name}"
+        );
+
         $this->telegram->answerCallbackQuery($callbackId, __('delete_success', ['product' => $product->name]));
         $this->telegram->editMessageText($chatId, $messageId, __('delete_success', ['product' => $product->name]));
+    }
+
+    /**
+     * Start Edit Price flow (Owner only).
+     */
+    public function startEditPrice(string $callbackId, int|string $chatId, int $messageId, string $productId, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        if ($user?->role !== 'owner') {
+            $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
+            return;
+        }
+
+        $product = Product::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $user->shop_id)
+            ->where('id', $productId)
+            ->first();
+
+        if ($product === null) {
+            $this->telegram->answerCallbackQuery($callbackId, 'Product not found');
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($callbackId);
+
+        $this->botState->start($chatId, 'edit_price', 'await_price', [
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'old_price_cents' => $product->sell_price_cents,
+        ]);
+
+        $currentPrice = number_format($product->sell_price_cents / 100, 2);
+        $prompt = $locale === 'en'
+            ? "✏️ Enter new selling price in ETB for <b>{$product->name}</b> (Current: {$currentPrice} ETB):"
+            : "✏️ ለ <b>{$product->name}</b> አዲሱን መሸጫ ዋጋ በብር ያስገቡ (የአሁኑ: {$currentPrice} ብር):";
+
+        $this->telegram->sendMessage($chatId, $prompt, [
+            'reply_markup' => TelegramUi::cancelKeyboard($locale),
+        ]);
+    }
+
+    /**
+     * Finalize price update from owner input.
+     */
+    public function handleNewPriceInput(int|string $chatId, float $newPrice, array $data, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        if ($user?->role !== 'owner') {
+            $this->botState->clear($chatId);
+            $this->telegram->sendMessage($chatId, __('permission_denied'));
+            return;
+        }
+
+        $productId = (string) $data['product_id'];
+        $product = Product::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $user->shop_id)
+            ->where('id', $productId)
+            ->first();
+
+        if ($product === null) {
+            $this->botState->clear($chatId);
+            $this->telegram->sendMessage($chatId, 'Product not found.');
+            return;
+        }
+
+        $oldPriceCents = (int) $data['old_price_cents'];
+        $newPriceCents = (int) round($newPrice * 100);
+
+        $nowMs = (int) (microtime(true) * 1000);
+        $product->sell_price_cents = $newPriceCents;
+        $product->updated_at_ms = $nowMs;
+        $product->save();
+
+        Change::withoutGlobalScope(ShopScope::class)->create([
+            'shop_id' => $user->shop_id,
+            'device_id' => null,
+            'entity' => 'product',
+            'entity_id' => $product->id,
+        ]);
+
+        $oldFormatted = number_format($oldPriceCents / 100, 2);
+        $newFormatted = number_format($newPriceCents / 100, 2);
+
+        ActivityLogger::log(
+            (string) $user->shop_id,
+            $user->id,
+            'price.change',
+            "Changed {$product->name} sell price from {$oldFormatted} to {$newFormatted} ETB"
+        );
+
+        $this->botState->clear($chatId);
+
+        $msg = $locale === 'en'
+            ? "✅ Price updated for <b>{$product->name}</b>: <b>{$newFormatted} ETB</b>"
+            : "✅ ለ <b>{$product->name}</b> አዲስ ዋጋ ተመዝግቧል: <b>{$newFormatted} ብር</b>";
+
+        $this->telegram->sendMessage($chatId, $msg, [
+            'reply_markup' => TelegramUi::mainMenuKeyboard($locale),
+        ]);
     }
 }

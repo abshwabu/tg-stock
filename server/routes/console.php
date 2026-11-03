@@ -27,3 +27,8 @@ Schedule::call(function (): void {
     \App\Models\BotState::where('expires_at', '<', now())->delete();
     \App\Models\BotUpdate::where('created_at', '<', now()->subHours(24))->delete();
 })->everyFiveMinutes()->name('bot:prune-states');
+
+// Daily evening summary to shop owners
+Schedule::command('bot:daily-summary')
+    ->everyFiveMinutes()
+    ->name('bot:daily-summary');

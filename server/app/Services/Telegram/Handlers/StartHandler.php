@@ -18,18 +18,26 @@ class StartHandler
 {
     public function __construct(
         protected TelegramClient $telegram,
-        protected BotStateService $botState
+        protected BotStateService $botState,
+        protected TeamHandler $teamHandler
     ) {}
 
     /**
-     * Handle the /start command, with optional parameter (e.g. "pair_123456").
+     * Handle the /start command, with optional parameter (e.g. "pair_123456" or "join_abcdef").
      */
     public function handle(int|string $chatId, array $from, ?string $param = null, ?User $user = null): void
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        // 1. Check if start parameter is an app pairing code: /start pair_<code>
+        // 1. Check if start parameter is a team join token: /start join_<token>
+        if (!empty($param) && str_starts_with($param, 'join_')) {
+            $token = substr($param, 5);
+            $this->teamHandler->handleJoinInvite($chatId, $from, $token);
+            return;
+        }
+
+        // 2. Check if start parameter is an app pairing code: /start pair_<code>
         if (!empty($param) && str_starts_with($param, 'pair_')) {
             $code = substr($param, 5);
             $this->handlePairStart((int) $chatId, $from, $code, $user, $locale);

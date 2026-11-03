@@ -6,8 +6,10 @@ namespace App\Services\Telegram\Handlers;
 
 use App\Models\Movement;
 use App\Models\Product;
+use App\Models\Shop;
 use App\Models\User;
 use App\Scopes\ShopScope;
+use App\Services\ActivityLogger;
 use App\Services\LedgerService;
 use App\Services\Telegram\BotStateService;
 use App\Services\Telegram\TelegramClient;
@@ -30,7 +32,10 @@ class AdjustHandler
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        $shop = Shop::find($user?->shop_id);
+        $canAdjust = ($user?->role === 'owner') || ($user?->role === 'staff' && (bool) ($shop?->staff_can_adjust));
+
+        if (!$canAdjust) {
             $this->telegram->sendMessage($chatId, __('permission_denied'));
             return;
         }
@@ -125,6 +130,14 @@ class AdjustHandler
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
+        $shop = Shop::find($user?->shop_id);
+        $canAdjust = ($user?->role === 'owner') || ($user?->role === 'staff' && (bool) ($shop?->staff_can_adjust));
+
+        if (!$canAdjust) {
+            $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
+            return;
+        }
+
         $state = $this->botState->get($chatId);
         if ($state === null || $state->flow !== 'adjust' || $state->step !== 'await_reason') {
             $this->telegram->answerCallbackQuery($callbackId, 'Adjustment already recorded.', showAlert: true);
@@ -177,6 +190,13 @@ class AdjustHandler
         $newStockMilli = $this->ledger->stockOf($product);
 
         $diffFormatted = ($diffMilli > 0 ? '+' : '') . LedgerService::formatQty($diffMilli);
+
+        \App\Services\ActivityLogger::log(
+            $shopId,
+            $user?->id,
+            'stock.adjust',
+            "Adjusted {$product->name} by {$diffFormatted} {$product->unit} (Reason: {$reasonText})"
+        );
 
         $msg = __('adjust_success', [
             'product' => $product->name,

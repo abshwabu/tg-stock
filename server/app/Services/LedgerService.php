@@ -102,8 +102,37 @@ class LedgerService
                 'entity_id' => $movement->id,
             ]);
 
+            // Check low-stock / out-of-stock alert with 24h debouncing
+            $this->checkLowStockAlert($product, $movement, $shopId);
+
             return $movement;
         });
+    }
+
+    /**
+     * Check low stock thresholds and dispatch queued alerts with 24h debounce.
+     */
+    protected function checkLowStockAlert(Product $product, Movement $movement, string $shopId): void
+    {
+        $shop = Shop::find($shopId);
+        $threshold = $product->low_stock_at_milli ?? $shop?->low_stock_default_milli ?? 5000;
+        $currentStockMilli = $this->stockOf($product, $shopId);
+        $nowMs = (int) (microtime(true) * 1000);
+        $debounceMs = 86400000; // 24 hours
+
+        if ($movement->qty_milli < 0 && $currentStockMilli <= $threshold) {
+            if ($product->low_stock_alerted_at_ms === null || ($nowMs - $product->low_stock_alerted_at_ms) >= $debounceMs) {
+                $product->low_stock_alerted_at_ms = $nowMs;
+                $product->save();
+                \App\Jobs\SendLowStockAlertJob::dispatch($product->id, $currentStockMilli, $shopId);
+            }
+        } elseif ($movement->qty_milli > 0 && $currentStockMilli > $threshold) {
+            // Restocked: clear debounce so subsequent drops will alert again
+            if ($product->low_stock_alerted_at_ms !== null) {
+                $product->low_stock_alerted_at_ms = null;
+                $product->save();
+            }
+        }
     }
 
     /**

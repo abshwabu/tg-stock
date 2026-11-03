@@ -30,6 +30,7 @@ class Product extends Model
         'is_active',
         'updated_at_ms',
         'deleted_at_ms',
+        'low_stock_alerted_at_ms',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class Product extends Model
         'is_active' => 'boolean',
         'updated_at_ms' => 'integer',
         'deleted_at_ms' => 'integer',
+        'low_stock_alerted_at_ms' => 'integer',
     ];
 
     protected static function booted(): void

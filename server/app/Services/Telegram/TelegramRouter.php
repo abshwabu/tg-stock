@@ -11,10 +11,12 @@ use App\Services\Telegram\Handlers\AdjustHandler;
 use App\Services\Telegram\Handlers\MenuHandler;
 use App\Services\Telegram\Handlers\PairingHandler;
 use App\Services\Telegram\Handlers\ProductHandler;
+use App\Services\Telegram\Handlers\ReportHandler;
 use App\Services\Telegram\Handlers\SaleHandler;
 use App\Services\Telegram\Handlers\SettingsHandler;
 use App\Services\Telegram\Handlers\StartHandler;
 use App\Services\Telegram\Handlers\StockInHandler;
+use App\Services\Telegram\Handlers\TeamHandler;
 use App\Services\Telegram\Handlers\UndoHandler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -32,7 +34,9 @@ class TelegramRouter
         protected StockInHandler $stockInHandler,
         protected SaleHandler $saleHandler,
         protected AdjustHandler $adjustHandler,
-        protected UndoHandler $undoHandler
+        protected UndoHandler $undoHandler,
+        protected ReportHandler $reportHandler,
+        protected TeamHandler $teamHandler
     ) {}
 
     /**
@@ -104,9 +108,23 @@ class TelegramRouter
         if ($module === 'settings') {
             if ($action === 'toggle' && $id === 'neg_stock') {
                 $this->settingsHandler->handleToggleNegativeStock($cqId, $chatId, $messageId, $user);
+            } elseif ($action === 'toggle' && $id === 'calendar') {
+                $this->settingsHandler->handleToggleCalendar($cqId, $chatId, $messageId, $user);
             } else {
                 $this->telegram->answerCallbackQuery($cqId);
             }
+            return;
+        }
+
+        // 3. Reports
+        if ($module === 'rep') {
+            $this->handleReportCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
+            return;
+        }
+
+        // 4. Team & Staff Management
+        if ($module === 'team') {
+            $this->handleTeamCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
             return;
         }
 
@@ -198,6 +216,11 @@ class TelegramRouter
                     $this->productHandler->finalizeProductCreation($chatId, 0, $state->data, $user);
                 }
             }
+            return;
+        }
+
+        if ($action === 'price') {
+            $this->productHandler->startEditPrice($cqId, $chatId, $messageId, $id, $user);
             return;
         }
 
@@ -323,6 +346,99 @@ class TelegramRouter
     }
 
     /**
+     * Dispatch report callbacks.
+     */
+    protected function handleReportCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
+    {
+        if ($action === 'menu') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->reportHandler->handleMenu($chatId, $user);
+            return;
+        }
+
+        if ($action === 'p') {
+            $this->reportHandler->handlePeriodReport($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'stock' && $id === 'val') {
+            $this->reportHandler->handleStockValuation($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'exp' && $id === 'menu') {
+            $this->reportHandler->handleExportMenu($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'exp') {
+            $this->reportHandler->dispatchExport($cqId, $chatId, $id, $user);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
+     * Dispatch team callbacks.
+     */
+    protected function handleTeamCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
+    {
+        if ($action === 'menu') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->teamHandler->handleTeamMenu($chatId, $user);
+            return;
+        }
+
+        if ($action === 'invite' && $id === 'create') {
+            $this->teamHandler->createInviteLink($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'view') {
+            $this->teamHandler->viewStaffMember($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'toggle_active') {
+            $this->teamHandler->toggleStaffActive($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'remove') {
+            $this->teamHandler->removeStaff($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'toggle' && $id === 'adjust') {
+            $this->teamHandler->toggleStaffAdjust($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'transfer_init') {
+            $this->teamHandler->transferInit($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'transfer_confirm') {
+            $this->teamHandler->transferConfirm($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'transfer_execute') {
+            $this->teamHandler->transferExecute($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'log' && $id === 'view') {
+            $this->teamHandler->viewActivityLogs($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
      * Handle incoming chat message.
      */
     protected function handleMessage(array $message): void
@@ -440,6 +556,17 @@ class TelegramRouter
             $qty = TelegramUi::parseNumber($text);
             if ($qty !== null) {
                 $this->adjustHandler->handleCountedQty($chatId, $qty, $user);
+            } else {
+                $this->telegram->sendMessage($chatId, __('invalid_number'));
+            }
+            return;
+        }
+
+        // 6. Edit Price
+        if ($state->flow === 'edit_price' && $state->step === 'await_price') {
+            $price = TelegramUi::parseNumber($text);
+            if ($price !== null && $price >= 0) {
+                $this->productHandler->handleNewPriceInput($chatId, $price, $state->data ?? [], $user);
             } else {
                 $this->telegram->sendMessage($chatId, __('invalid_number'));
             }

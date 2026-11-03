@@ -25,12 +25,18 @@ class Shop extends Model
         'language',
         'low_stock_default_milli',
         'allow_negative_stock',
+        'daily_summary_time',
+        'daily_summary_last_sent_date',
+        'staff_can_adjust',
+        'use_ethiopian_calendar',
         'timezone',
     ];
 
     protected $casts = [
         'low_stock_default_milli' => 'integer',
         'allow_negative_stock' => 'boolean',
+        'staff_can_adjust' => 'boolean',
+        'use_ethiopian_calendar' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
