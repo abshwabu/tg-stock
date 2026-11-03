@@ -25,6 +25,8 @@ class Shop extends Model
         'language',
         'low_stock_default_milli',
         'allow_negative_stock',
+        'locations_enabled',
+        'transfer_requires_receipt',
         'daily_summary_time',
         'daily_summary_last_sent_date',
         'staff_can_adjust',
@@ -35,6 +37,8 @@ class Shop extends Model
     protected $casts = [
         'low_stock_default_milli' => 'integer',
         'allow_negative_stock' => 'boolean',
+        'locations_enabled' => 'boolean',
+        'transfer_requires_receipt' => 'boolean',
         'staff_can_adjust' => 'boolean',
         'use_ethiopian_calendar' => 'boolean',
         'created_at' => 'datetime',
@@ -48,6 +52,49 @@ class Shop extends Model
                 $shop->id = (string) Str::uuid7();
             }
         });
+
+        static::created(function (Shop $shop): void {
+            // Guarantee one default "Main" location per shop
+            $shop->getDefaultLocation();
+        });
+    }
+
+    public function locations(): HasMany
+    {
+        return $this->hasMany(Location::class, 'shop_id');
+    }
+
+    /**
+     * Retrieve or create the default location ("Main") for this shop.
+     */
+    public function getDefaultLocation(): Location
+    {
+        /** @var Location|null $defaultLoc */
+        $defaultLoc = Location::withoutGlobalScope(\App\Scopes\ShopScope::class)
+            ->where('shop_id', $this->id)
+            ->where('is_default', true)
+            ->first();
+
+        if ($defaultLoc !== null) {
+            return $defaultLoc;
+        }
+
+        $nowMs = (int) (microtime(true) * 1000);
+        $locationId = (string) Str::uuid7();
+
+        \Illuminate\Support\Facades\DB::table('locations')->insert([
+            'id' => $locationId,
+            'shop_id' => $this->id,
+            'name' => 'Main',
+            'kind' => 'store',
+            'is_default' => 1,
+            'is_active' => 1,
+            'updated_at_ms' => $nowMs,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return Location::withoutGlobalScope(\App\Scopes\ShopScope::class)->find($locationId);
     }
 
     public function users(): HasMany

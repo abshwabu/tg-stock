@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Change;
 use App\Models\Device;
+use App\Models\Location;
 use App\Models\Movement;
 use App\Models\Product;
 use App\Scopes\ShopScope;
@@ -64,13 +65,16 @@ class SyncService
         $rejected = [];
 
         // 3. Ingest incoming client changes within an immediate write transaction
-        // Sort items so products are processed before movements to guarantee foreign key integrity
+        // Sort items so locations and products are processed before movements to guarantee foreign key integrity
+        $locationItems = [];
         $productItems = [];
         $movementItems = [];
         $otherItems = [];
         foreach ($incomingChanges as $item) {
             $entity = is_array($item) ? ($item['entity'] ?? '') : '';
-            if ($entity === 'product') {
+            if ($entity === 'location') {
+                $locationItems[] = $item;
+            } elseif ($entity === 'product') {
                 $productItems[] = $item;
             } elseif ($entity === 'movement') {
                 $movementItems[] = $item;
@@ -78,7 +82,7 @@ class SyncService
                 $otherItems[] = $item;
             }
         }
-        $sortedItems = array_merge($productItems, $movementItems, $otherItems);
+        $sortedItems = array_merge($locationItems, $productItems, $movementItems, $otherItems);
 
         ImmediateTransaction::run(function () use (
             $device,
@@ -184,6 +188,8 @@ class SyncService
             $this->processMovementChange($device, $shopId, $id, $op, $data, $clientTs, $nowMs, $accepted, $rejected);
         } elseif ($entity === 'product') {
             $this->processProductChange($device, $shopId, $id, $op, $data, $clientTs, $nowMs, $accepted, $rejected);
+        } elseif ($entity === 'location') {
+            $this->processLocationChange($device, $shopId, $id, $op, $data, $clientTs, $nowMs, $accepted, $rejected);
         } else {
             $rejected[] = ['id' => $id, 'reason' => "Unsupported entity [{$entity}]."];
         }
@@ -209,7 +215,7 @@ class SyncService
         }
 
         // Strict data field check
-        $allowedFields = ['id', 'product_id', 'type', 'qty', 'unit_price_cents', 'note', 'created_at'];
+        $allowedFields = ['id', 'product_id', 'location_id', 'transfer_id', 'type', 'qty', 'unit_price_cents', 'note', 'created_at'];
         $unknown = array_diff(array_keys($data), $allowedFields);
         if (!empty($unknown)) {
             $rejected[] = ['id' => $id, 'reason' => 'Unknown field(s) in movement data: ' . implode(', ', $unknown)];
@@ -220,8 +226,8 @@ class SyncService
         $type = (string) ($data['type'] ?? '');
         $rawQty = $data['qty'] ?? '0.000';
 
-        if (!in_array($type, ['in', 'sale', 'adjust'], true)) {
-            $rejected[] = ['id' => $id, 'reason' => "Invalid movement type [{$type}]. Must be in, sale, or adjust."];
+        if (!in_array($type, ['in', 'sale', 'adjust', 'transfer_out', 'transfer_in'], true)) {
+            $rejected[] = ['id' => $id, 'reason' => "Invalid movement type [{$type}]. Must be in, sale, adjust, transfer_out, or transfer_in."];
             return;
         }
 
@@ -241,10 +247,15 @@ class SyncService
             return;
         }
 
+        $locationId = !empty($data['location_id']) ? (string) $data['location_id'] : null;
+        $transferId = !empty($data['transfer_id']) ? (string) $data['transfer_id'] : null;
+
         $movement = new Movement([
             'id' => $id,
             'shop_id' => $shopId,
             'product_id' => $productId,
+            'location_id' => $locationId,
+            'transfer_id' => $transferId,
             'user_id' => $device->user_id,
             'device_id' => $device->id,
             'type' => $type,
@@ -409,6 +420,171 @@ class SyncService
     }
 
     /**
+     * Ingest an incoming location change (Owner only, LWW).
+     */
+    protected function processLocationChange(
+        Device $device,
+        string $shopId,
+        string $id,
+        string $op,
+        array $data,
+        int $clientTs,
+        int $nowMs,
+        array &$accepted,
+        array &$rejected
+    ): void {
+        // Enforce owner-only authorization
+        $user = !empty($device->user_id)
+            ? \App\Models\User::withoutGlobalScope(ShopScope::class)->find($device->user_id)
+            : null;
+
+        if ($user === null || $user->role !== 'owner') {
+            $rejected[] = ['id' => $id, 'reason' => 'Only shop owners can manage locations.'];
+            return;
+        }
+
+        // Strict data field check
+        $allowedFields = ['id', 'name', 'kind', 'is_default', 'is_active', 'updated_at'];
+        $unknown = array_diff(array_keys($data), $allowedFields);
+        if (!empty($unknown)) {
+            $rejected[] = ['id' => $id, 'reason' => 'Unknown field(s) in location data: ' . implode(', ', $unknown)];
+            return;
+        }
+
+        $updatedMs = (int) ($data['updated_at'] ?? $clientTs);
+        if ($updatedMs > $nowMs + self::MAX_FUTURE_DRIFT_MS) {
+            $updatedMs = $nowMs;
+        }
+
+        $locId = (string) ($data['id'] ?? $id);
+
+        /** @var Location|null $existing */
+        $existing = Location::withoutGlobalScope(ShopScope::class)
+            ->where('id', $locId)
+            ->where('shop_id', $shopId)
+            ->first();
+
+        if ($op === 'delete') {
+            if ($existing !== null) {
+                if ($existing->updated_at_ms > $updatedMs) {
+                    $rejected[] = ['id' => $id, 'reason' => 'stale_conflict: location updated_at is newer than delete client_ts'];
+                    return;
+                }
+
+                $reason = null;
+                if (!$existing->canArchive($reason)) {
+                    $rejected[] = ['id' => $id, 'reason' => $reason];
+                    return;
+                }
+
+                $existing->deleted_at_ms = $updatedMs;
+                $existing->is_active = false;
+                $existing->updated_at_ms = $updatedMs;
+                $existing->save();
+
+                Change::withoutGlobalScope(ShopScope::class)->create([
+                    'shop_id' => $shopId,
+                    'device_id' => $device->id,
+                    'entity' => 'location',
+                    'entity_id' => $id,
+                ]);
+            }
+
+            $accepted[] = $id;
+            return;
+        }
+
+        // Upsert
+        if ($existing !== null) {
+            if ($updatedMs < $existing->updated_at_ms) {
+                $rejected[] = [
+                    'id' => $id,
+                    'reason' => 'stale_conflict: incoming updated_at is older than server location updated_at',
+                ];
+                return;
+            }
+
+            // Check archival constraints if setting is_active = false
+            if (isset($data['is_active']) && !(bool) $data['is_active'] && $existing->is_active) {
+                $reason = null;
+                if (!$existing->canArchive($reason)) {
+                    $rejected[] = ['id' => $id, 'reason' => $reason];
+                    return;
+                }
+            }
+
+            // If becoming default, unset other defaults in this shop
+            if (!empty($data['is_default'])) {
+                Location::withoutGlobalScope(ShopScope::class)
+                    ->where('shop_id', $shopId)
+                    ->where('id', '!=', $locId)
+                    ->update(['is_default' => false]);
+            }
+
+            $existing->name = (string) ($data['name'] ?? $existing->name);
+            if (isset($data['kind']) && in_array($data['kind'], ['store', 'warehouse', 'other'], true)) {
+                $existing->kind = (string) $data['kind'];
+            }
+            if (isset($data['is_default'])) {
+                $existing->is_default = (bool) $data['is_default'];
+            }
+            if (isset($data['is_active'])) {
+                $existing->is_active = (bool) $data['is_active'];
+            }
+            $existing->updated_at_ms = $updatedMs;
+            $existing->deleted_at_ms = null;
+            $existing->save();
+
+            Change::withoutGlobalScope(ShopScope::class)->create([
+                'shop_id' => $shopId,
+                'device_id' => $device->id,
+                'entity' => 'location',
+                'entity_id' => $id,
+            ]);
+
+            $accepted[] = $id;
+            return;
+        }
+
+        // Insert new location
+        $name = (string) ($data['name'] ?? '');
+        if (empty($name)) {
+            $rejected[] = ['id' => $id, 'reason' => 'Location name is required.'];
+            return;
+        }
+
+        $isDefault = isset($data['is_default']) ? (bool) $data['is_default'] : false;
+        if ($isDefault) {
+            Location::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->update(['is_default' => false]);
+        }
+
+        $kind = isset($data['kind']) && in_array($data['kind'], ['store', 'warehouse', 'other'], true)
+            ? (string) $data['kind']
+            : 'store';
+
+        Location::withoutGlobalScope(ShopScope::class)->create([
+            'id' => $locId,
+            'shop_id' => $shopId,
+            'name' => $name,
+            'kind' => $kind,
+            'is_default' => $isDefault,
+            'is_active' => isset($data['is_active']) ? (bool) $data['is_active'] : true,
+            'updated_at_ms' => $updatedMs,
+        ]);
+
+        Change::withoutGlobalScope(ShopScope::class)->create([
+            'shop_id' => $shopId,
+            'device_id' => $device->id,
+            'entity' => 'location',
+            'entity_id' => $id,
+        ]);
+
+        $accepted[] = $id;
+    }
+
+    /**
      * Format a Change record into wire format.
      */
     protected function formatChangeRecord(string $shopId, Change $change): ?array
@@ -431,6 +607,8 @@ class SyncService
                 'data' => [
                     'id' => $m->id,
                     'product_id' => $m->product_id,
+                    'location_id' => $m->location_id,
+                    'transfer_id' => $m->transfer_id,
                     'type' => $m->type,
                     'qty' => LedgerService::formatQty($m->qty_milli),
                     'unit_price_cents' => $m->unit_price_cents,
@@ -468,6 +646,35 @@ class SyncService
                     'low_stock_at' => $p->low_stock_at_milli !== null ? LedgerService::formatQty($p->low_stock_at_milli) : null,
                     'is_active' => (bool) $p->is_active,
                     'updated_at' => $p->updated_at_ms,
+                ],
+                'cursor' => $change->seq,
+            ];
+        }
+
+        if ($change->entity === 'location') {
+            /** @var Location|null $loc */
+            $loc = Location::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $change->entity_id)
+                ->first();
+
+            if ($loc === null) {
+                return null;
+            }
+
+            $isDeleted = $loc->deleted_at_ms !== null;
+
+            return [
+                'id' => $loc->id,
+                'entity' => 'location',
+                'op' => $isDeleted ? 'delete' : 'upsert',
+                'data' => [
+                    'id' => $loc->id,
+                    'name' => $loc->name,
+                    'kind' => $loc->kind,
+                    'is_default' => (bool) $loc->is_default,
+                    'is_active' => (bool) $loc->is_active,
+                    'updated_at' => $loc->updated_at_ms,
                 ],
                 'cursor' => $change->seq,
             ];

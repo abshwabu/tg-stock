@@ -22,6 +22,8 @@ class Movement extends Model
         'id',
         'shop_id',
         'product_id',
+        'location_id',
+        'transfer_id',
         'user_id',
         'device_id',
         'type',
@@ -54,6 +56,11 @@ class Movement extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function location(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     public function user(): BelongsTo
