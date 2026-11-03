@@ -312,6 +312,13 @@ class ReportHandler
             }
         }
 
+        if ($this->permissionService->can($user, 'export')) {
+            $locParam = !empty($locationId) ? $locationId : 'all';
+            $buttons[] = [
+                ['text' => '📥 ' . ($locale === 'en' ? 'Export CSV' : 'በኤክሴል አውርድ'), 'callback_data' => "rep:exp:p:{$period}:{$locParam}"],
+            ];
+        }
+
         $buttons[] = [
             ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
         ];
@@ -370,14 +377,18 @@ class ReportHandler
             ? "🏢 <b>Stock by Location — {$shop->name}</b>\n\n{$body}"
             : "🏢 <b>ስቶክ በየቦታው — {$shop->name}</b>\n\n{$body}";
 
-        $buttons = TelegramUi::inlineKeyboard([
-            [
-                ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
-            ],
-        ]);
+        $buttons = [];
+        if ($this->permissionService->can($user, 'export')) {
+            $buttons[] = [
+                ['text' => '📥 ' . ($locale === 'en' ? 'Export CSV' : 'በኤክሴል አውርድ'), 'callback_data' => 'rep:exp:stock_by_loc'],
+            ];
+        }
+        $buttons[] = [
+            ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
+        ];
 
         $this->telegram->editMessageText($chatId, $messageId, $text, [
-            'reply_markup' => $buttons,
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
     }
 
@@ -421,14 +432,18 @@ class ReportHandler
             }
         }
 
-        $buttons = TelegramUi::inlineKeyboard([
-            [
-                ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
-            ],
-        ]);
+        $buttons = [];
+        if (!$transits->isEmpty() && $this->permissionService->can($user, 'export')) {
+            $buttons[] = [
+                ['text' => '📥 ' . ($locale === 'en' ? 'Export CSV' : 'በኤክሴል አውርድ'), 'callback_data' => 'rep:exp:transit'],
+            ];
+        }
+        $buttons[] = [
+            ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
+        ];
 
         $this->telegram->editMessageText($chatId, $messageId, $text, [
-            'reply_markup' => $buttons,
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
     }
 
@@ -476,14 +491,18 @@ class ReportHandler
             }
         }
 
-        $buttons = TelegramUi::inlineKeyboard([
-            [
-                ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
-            ],
-        ]);
+        $buttons = [];
+        if (!$discrepancies->isEmpty() && $this->permissionService->can($user, 'export')) {
+            $buttons[] = [
+                ['text' => '📥 ' . ($locale === 'en' ? 'Export CSV' : 'በኤክሴል አውርድ'), 'callback_data' => 'rep:exp:discrepancies'],
+            ];
+        }
+        $buttons[] = [
+            ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
+        ];
 
         $this->telegram->editMessageText($chatId, $messageId, $text, [
-            'reply_markup' => $buttons,
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
     }
 
@@ -540,14 +559,18 @@ class ReportHandler
                 . "📈 የሚጠበቅ ጠቅላላ ትርፍ: <b>{$marginFormatted}</b>";
         }
 
-        $buttons = TelegramUi::inlineKeyboard([
-            [
-                ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
-            ],
-        ]);
+        $buttons = [];
+        if ($this->permissionService->can($user, 'export')) {
+            $buttons[] = [
+                ['text' => '📥 ' . ($locale === 'en' ? 'Export CSV' : 'በኤክሴል አውርድ'), 'callback_data' => 'rep:exp:valuation'],
+            ];
+        }
+        $buttons[] = [
+            ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
+        ];
 
         $this->telegram->editMessageText($chatId, $messageId, $text, [
-            'reply_markup' => $buttons,
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
     }
 
@@ -573,9 +596,15 @@ class ReportHandler
         $buttons = TelegramUi::inlineKeyboard([
             [
                 ['text' => '📦 ' . ($locale === 'en' ? 'Products List' : 'የዕቃዎች ዝርዝር'), 'callback_data' => 'rep:exp:products'],
+                ['text' => '🛒 ' . ($locale === 'en' ? 'Sales History' : 'የሽያጭ ታሪክ'), 'callback_data' => 'rep:exp:sales'],
             ],
             [
-                ['text' => '🛒 ' . ($locale === 'en' ? 'Sales History' : 'የሽያጭ ታሪክ'), 'callback_data' => 'rep:exp:sales'],
+                ['text' => '🏢 ' . ($locale === 'en' ? 'Stock by Location' : 'ስቶክ በየቦታው'), 'callback_data' => 'rep:exp:stock_by_loc'],
+                ['text' => '📦 ' . ($locale === 'en' ? 'Stock Valuation' : 'የስቶክ ዋጋ ግምት'), 'callback_data' => 'rep:exp:valuation'],
+            ],
+            [
+                ['text' => '🚚 ' . ($locale === 'en' ? 'In Transit' : 'በመንገድ ላይ'), 'callback_data' => 'rep:exp:transit'],
+                ['text' => '⚠️ ' . ($locale === 'en' ? 'Discrepancies' : 'የዝውውር ልዩነቶች'), 'callback_data' => 'rep:exp:discrepancies'],
             ],
             [
                 ['text' => '📜 ' . ($locale === 'en' ? 'Complete Ledger Movements' : 'ሙሉ የስቶክ እንቅስቃሴ መዝገብ'), 'callback_data' => 'rep:exp:movements'],
@@ -593,8 +622,13 @@ class ReportHandler
     /**
      * Dispatch CSV export generation job.
      */
-    public function dispatchExport(string $callbackId, int|string $chatId, string $type, ?User $user): void
-    {
+    public function dispatchExport(
+        string $callbackId,
+        int|string $chatId,
+        string $type,
+        ?User $user,
+        array $parts = []
+    ): void {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
@@ -603,16 +637,30 @@ class ReportHandler
             return;
         }
 
+        $period = null;
+        $locationId = null;
+
+        if ($type === 'p') {
+            $type = 'period_sales';
+            $period = $parts[3] ?? 'today';
+            $locationId = $parts[4] ?? null;
+            if ($locationId === 'all') {
+                $locationId = null;
+            }
+        }
+
         $this->telegram->answerCallbackQuery(
             $callbackId,
             $locale === 'en' ? 'Generating export file...' : 'የኤክስፖርት ፋይል እየተዘጋጀ ነው...'
         );
 
-        GenerateExportJob::dispatch(
+        GenerateExportJob::dispatchSync(
             $type,
             (string) $user->shop_id,
             $chatId,
-            $locale
+            $locale,
+            $period,
+            $locationId
         );
     }
 }

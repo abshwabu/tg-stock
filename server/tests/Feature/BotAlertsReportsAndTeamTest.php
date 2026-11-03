@@ -8,6 +8,7 @@ use App\Context\CurrentShopContext;
 use App\Jobs\GenerateExportJob;
 use App\Jobs\SendLowStockAlertJob;
 use App\Models\ActivityLog;
+use App\Models\Location;
 use App\Models\Movement;
 use App\Models\Product;
 use App\Models\Shop;
@@ -412,6 +413,108 @@ class BotAlertsReportsAndTeamTest extends TestCase
         if (is_dir($dir)) {
             $files = array_diff(scandir($dir) ?: [], ['.', '..']);
             $this->assertEmpty($files, 'Export temporary files should be unlinked immediately after sending.');
+        }
+    }
+
+    public function test_export_sales_and_period_sales_csv_job(): void
+    {
+        $location = Location::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Main Store',
+            'kind' => 'store',
+        ]);
+
+        $prod = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Sugar (ስኳር)',
+            'unit' => 'kg',
+            'cost_price_cents' => 7000,
+            'sell_price_cents' => 9500,
+            'is_active' => true,
+            'updated_at_ms' => 1000,
+        ]);
+
+        $this->ledger->record(new Movement([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'product_id' => $prod->id,
+            'type' => 'sale',
+            'qty_milli' => -5000,
+            'unit_price_cents' => 9500,
+            'user_id' => $this->owner->id,
+            'location_id' => $location->id,
+            'note' => 'Test sale',
+            'created_at_ms' => now()->timestamp * 1000,
+        ]));
+
+        // Export general sales
+        Http::fake();
+        $salesJob = new GenerateExportJob('sales', $this->shop->id, $this->owner->telegram_id, 'am');
+        $salesJob->handle(app(TelegramClient::class), $this->ledger);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'sendDocument');
+        });
+
+        // Export period sales (today)
+        Http::fake();
+        $periodJob = new GenerateExportJob('period_sales', $this->shop->id, $this->owner->telegram_id, 'am', 'today', $location->id);
+        $periodJob->handle(app(TelegramClient::class), $this->ledger);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'sendDocument');
+        });
+    }
+
+    public function test_export_webhook_callbacks_and_all_types(): void
+    {
+        Http::fake();
+
+        // 1. Webhook callback for products export
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 925,
+                'callback_query' => [
+                    'id' => 'cq_exp_prod',
+                    'from' => ['id' => $this->owner->telegram_id],
+                    'message' => ['chat' => ['id' => $this->owner->telegram_id], 'message_id' => 15],
+                    'data' => 'rep:exp:products',
+                ],
+            ])->assertStatus(200);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'sendDocument');
+        });
+
+        // 2. Webhook callback for period report export
+        Http::fake();
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 926,
+                'callback_query' => [
+                    'id' => 'cq_exp_period',
+                    'from' => ['id' => $this->owner->telegram_id],
+                    'message' => ['chat' => ['id' => $this->owner->telegram_id], 'message_id' => 16],
+                    'data' => 'rep:exp:p:today:all',
+                ],
+            ])->assertStatus(200);
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'sendDocument');
+        });
+
+        // 3. Test remaining export types directly
+        $types = ['movements', 'stock_by_loc', 'valuation', 'transit', 'discrepancies'];
+        foreach ($types as $type) {
+            Http::fake();
+            $job = new GenerateExportJob($type, $this->shop->id, $this->owner->telegram_id, 'en');
+            $job->handle(app(TelegramClient::class), $this->ledger);
+
+            Http::assertSent(function ($request) {
+                return str_contains($request->url(), 'sendDocument');
+            });
         }
     }
 

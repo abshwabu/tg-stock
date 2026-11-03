@@ -657,7 +657,7 @@ class TelegramRouter
         }
 
         if ($action === 'exp') {
-            $this->reportHandler->dispatchExport($cqId, $chatId, $id, $user);
+            $this->reportHandler->dispatchExport($cqId, $chatId, $id, $user, $parts);
             return;
         }
 
