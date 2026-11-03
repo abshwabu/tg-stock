@@ -57,6 +57,8 @@ The mobile application is an offline-first Flutter application. To prevent packa
 | `path_provider` | File System | Locating local device storage directories to house the SQLite database and exported reports. |
 | `intl` | Localization | Date, time, currency formatting, and pluralization for Amharic (`am`) and English (`en`). |
 | `uuid` | Identity | Client-side UUIDv7 generation for append-only movement records, products, and outbox mutations before synchronization. |
+| `path` | File System | Platform-agnostic file path operations for locating and managing local SQLite database files. |
+| `url_launcher` | Networking / UX | Securely launching Telegram deep link (`https://t.me/<bot>?start=pair_<code>`) during device pairing. |
 
 ### 2.2 Dev Tooling Justifications
 
