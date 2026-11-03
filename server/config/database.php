@@ -35,13 +35,28 @@ return [
         'sqlite' => [
             'driver' => 'sqlite',
             'url' => env('DB_URL'),
-            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'database' => (function () {
+                $db = env('DB_DATABASE', storage_path('app/db/inventory.sqlite'));
+                if ($db !== ':memory:' && !str_starts_with($db, 'file:') && !str_starts_with($db, '/')) {
+                    $db = base_path($db);
+                }
+                if ($db !== ':memory:' && !str_starts_with($db, 'file:')) {
+                    $dir = dirname($db);
+                    if (!is_dir($dir)) {
+                        @mkdir($dir, 0755, true);
+                    }
+                    if (!file_exists($db)) {
+                        @touch($db);
+                    }
+                }
+                return $db;
+            })(),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
-            'transaction_mode' => 'DEFERRED',
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_JOURNAL_MODE', null),
+            'synchronous' => env('DB_SYNCHRONOUS', 'NORMAL'),
+            'transaction_mode' => env('DB_TRANSACTION_MODE', 'IMMEDIATE'),
         ],
 
         'mysql' => [
