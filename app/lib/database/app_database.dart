@@ -64,7 +64,15 @@ class SyncMetaEntries extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Products, Movements, OutboxEntries, SyncMetaEntries])
+class AppSettings extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
+@DriftDatabase(tables: [Products, Movements, OutboxEntries, SyncMetaEntries, AppSettings])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 

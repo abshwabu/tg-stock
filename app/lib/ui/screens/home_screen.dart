@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../database/app_database.dart';
+import '../../repositories/ledger_repository.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_storage.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/money_formatter.dart';
-import '../../utils/quantity_formatter.dart';
 import '../widgets/sync_status_header.dart';
+import 'adjust_screen.dart';
+import 'history_screen.dart';
+import 'products_screen.dart';
+import 'sale_screen.dart';
 import 'settings_screen.dart';
+import 'stock_in_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final AppDatabase db;
+  final LedgerRepository repository;
   final ApiClient apiClient;
   final AuthStorage authStorage;
   final SyncEngine syncEngine;
@@ -18,6 +24,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.db,
+    required this.repository,
     required this.apiClient,
     required this.authStorage,
     required this.syncEngine,
@@ -28,10 +35,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  String _shopName = 'Inventory';
+  String _language = 'am';
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadShopInfo();
   }
 
   @override
@@ -44,164 +55,67 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       widget.syncEngine.onAppResume();
+      _loadShopInfo();
     }
   }
 
-  Future<void> _showAddProductDialog() async {
-    final nameCtrl = TextEditingController();
-    final sellPriceCtrl = TextEditingController();
-    final costPriceCtrl = TextEditingController();
-    final unitCtrl = TextEditingController(text: 'pcs');
-    final openingStockCtrl = TextEditingController(text: '0');
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Product / አዲስ ዕቃ መዝግብ'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name / ስም (e.g. Sugar, ጤፍ)'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: sellPriceCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Sell Price ETB / መሸጫ ዋጋ'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: costPriceCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Cost Price ETB / መግዣ ዋጋ (Optional)'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: unitCtrl,
-                decoration: const InputDecoration(labelText: 'Unit / መለኪያ (pcs, kg, lt, pack)'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: openingStockCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Opening Stock / የመጀመሪያ ስቶክ'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (nameCtrl.text.trim().isEmpty) return;
-              Navigator.of(ctx).pop(true);
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      final name = nameCtrl.text.trim();
-      final sellPriceCents = MoneyFormatter.parseCents(sellPriceCtrl.text);
-      final costPriceCents = MoneyFormatter.parseCents(costPriceCtrl.text);
-      final unit = unitCtrl.text.trim().isNotEmpty ? unitCtrl.text.trim() : 'pcs';
-      final openingMilli = QuantityFormatter.parseQty(openingStockCtrl.text);
-
-      final product = await widget.db.createProduct(
-        name: name,
-        unit: unit,
-        sellPriceCents: sellPriceCents,
-        costPriceCents: costPriceCents,
-      );
-
-      if (openingMilli > 0) {
-        await widget.db.recordMovement(
-          productId: product.id,
-          type: 'in',
-          qtyMilli: openingMilli,
-          unitPriceCents: costPriceCents,
-          note: 'Opening stock',
-        );
-      }
-
-      widget.syncEngine.notifyLocalMutation();
+  Future<void> _loadShopInfo() async {
+    final name = await widget.repository.getShopName();
+    final lang = await widget.repository.getLanguage();
+    if (mounted) {
+      setState(() {
+        _shopName = name;
+        _language = lang;
+      });
     }
   }
 
-  Future<void> _recordQuickMovement({
-    required Product product,
-    required bool isSale,
-  }) async {
-    final qtyCtrl = TextEditingController(text: '1');
-    final title = isSale ? 'Record Sale (ሽያጭ)' : 'Stock Intake (ገቢ ስቶክ)';
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('$title — ${product.name}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: qtyCtrl,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Quantity (${product.unit})',
-                suffixText: product.unit,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: isSale ? Colors.deepOrange : Colors.green,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(isSale ? 'Sell' : 'Add Stock'),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true) {
-      final qtyInput = QuantityFormatter.parseQty(qtyCtrl.text);
-      if (qtyInput <= 0) return;
-
-      final signedQtyMilli = isSale ? -qtyInput : qtyInput;
-      final type = isSale ? 'sale' : 'in';
-      final unitPrice = isSale ? product.sellPriceCents : product.costPriceCents;
-
-      await widget.db.recordMovement(
-        productId: product.id,
-        type: type,
-        qtyMilli: signedQtyMilli,
-        unitPriceCents: unitPrice,
-        note: isSale ? 'Mobile app sale' : 'Stock in',
-      );
-
-      widget.syncEngine.notifyLocalMutation();
-    }
+  void _notifyMutation() {
+    widget.syncEngine.notifyLocalMutation();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
+    final isAm = _language == 'am';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inventory / እቃ ዝርዝር'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _shopName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text(
+              isAm ? 'የቀን መዝገብ / Offline POS' : 'Offline Inventory & POS',
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings),
+            tooltip: 'Language / ቋንቋ',
+            icon: CircleAvatar(
+              radius: 13,
+              backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.15),
+              child: Text(
+                isAm ? 'አማ' : 'EN',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
+              ),
+            ),
+            onPressed: () async {
+              final newLang = isAm ? 'en' : 'am';
+              await widget.repository.setLanguage(newLang);
+              await _loadShopInfo();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings / ቅንብሮች',
-            onPressed: () {
-              Navigator.of(context).push(
+            onPressed: () async {
+              await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (ctx) => SettingsScreen(
                     apiClient: widget.apiClient,
@@ -210,6 +124,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
               );
+              _loadShopInfo();
             },
           ),
         ],
@@ -218,130 +133,342 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           SyncStatusHeader(syncEngine: widget.syncEngine),
           Expanded(
-            child: StreamBuilder<List<ProductWithStock>>(
-              stream: widget.db.watchAllProductsWithStock(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final items = snapshot.data ?? [];
-                if (items.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade400),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'No products yet / ምንም ዕቃዎች አልተመዘገቡም',
-                          style: TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Tap + below to add your first product.',
-                          style: TextStyle(fontSize: 13, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final p = item.product;
-                    final stock = item.stockMilli;
-                    final isNegative = item.isNegative;
-                    final isLow = item.isLow;
-
-                    Color stockColor = Colors.green.shade800;
-                    if (isNegative) {
-                      stockColor = Colors.amber.shade900;
-                    } else if (isLow) {
-                      stockColor = Colors.red.shade800;
-                    }
-
-                    return Card(
-                      elevation: 1,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        child: Row(
-                          children: [
-                            Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              children: [
+                // Top KPI Metrics (Today's Sales & Low Stock Count)
+                Row(
+                  children: [
+                    // Today's Sales Total
+                    Expanded(
+                      child: StreamBuilder<int>(
+                        stream: widget.repository.watchTodaySalesTotalCents(),
+                        builder: (context, snapshot) {
+                          final cents = snapshot.data ?? 0;
+                          return Card(
+                            elevation: 1,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            color: Colors.green.shade50,
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    p.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${MoneyFormatter.formatCents(p.sellPriceCents)} • Stock: ${QuantityFormatter.formatDisplay(stock)} ${p.unit}',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: stockColor,
-                                    ),
-                                  ),
-                                  if (isNegative) ...[
-                                    const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.amber.shade100,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '⚠️ Check Stock / የስቶክ መጠን ያረጋግጡ',
+                                  Row(
+                                    children: [
+                                      Icon(Icons.point_of_sale_rounded, size: 18, color: Colors.green.shade900),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isAm ? 'የዛሬ ሽያጭ' : "Today's Sales",
                                         style: TextStyle(
-                                          fontSize: 11,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.amber.shade900,
+                                          fontSize: 12,
+                                          color: Colors.green.shade900,
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    MoneyFormatter.formatCents(cents),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Colors.green.shade900,
                                     ),
-                                  ],
+                                  ),
                                 ],
                               ),
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton.filledTonal(
-                                  icon: const Icon(Icons.add, size: 18),
-                                  tooltip: 'Stock in',
-                                  onPressed: () => _recordQuickMovement(product: p, isSale: false),
-                                ),
-                                const SizedBox(width: 6),
-                                IconButton.filled(
-                                  style: IconButton.styleFrom(backgroundColor: Colors.deepOrange),
-                                  icon: const Icon(Icons.shopping_cart_checkout, size: 18),
-                                  tooltip: 'Record sale',
-                                  onPressed: () => _recordQuickMovement(product: p, isSale: true),
-                                ),
-                              ],
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Low Stock Count
+                    Expanded(
+                      child: StreamBuilder<int>(
+                        stream: widget.repository.watchLowStockCount(),
+                        builder: (context, snapshot) {
+                          final count = snapshot.data ?? 0;
+                          final isWarning = count > 0;
+                          return Card(
+                            elevation: 1,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            color: isWarning ? Colors.red.shade50 : Colors.grey.shade100,
+                            child: Padding(
+                              padding: const EdgeInsets.all(14),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.warning_amber_rounded,
+                                        size: 18,
+                                        color: isWarning ? Colors.red.shade900 : Colors.grey.shade800,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isAm ? 'ያነሱ ዕቃዎች' : 'Low Stock',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                          color: isWarning ? Colors.red.shade900 : Colors.grey.shade800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    isWarning ? '$count items' : 'All good',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: isWarning ? Colors.red.shade900 : Colors.grey.shade800,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Primary Big Action Button: [🛒 Sale / ሽያጭ]
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(60),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => SaleScreen(
+                          repository: widget.repository,
+                          onMutation: _notifyMutation,
                         ),
                       ),
                     );
                   },
-                );
-              },
+                  icon: const Icon(Icons.shopping_cart_checkout, size: 28),
+                  label: Text(
+                    isAm ? '🛒 አዲስ ሽያጭ ጀምር (Sale)' : '🛒 Record New Sale',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Secondary Action Buttons Row: [➕ Stock In] and [📦 Products]
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(54),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (ctx) => StockInScreen(
+                                repository: widget.repository,
+                                onMutation: _notifyMutation,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add_box_outlined, size: 22, color: Color(0xFF0F766E)),
+                        label: Text(
+                          isAm ? '➕ ገቢ ዕቃ' : '➕ Stock In',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: FilledButton.tonalIcon(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(54),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (ctx) => ProductsScreen(
+                                repository: widget.repository,
+                                onMutation: _notifyMutation,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.inventory_2_outlined, size: 22),
+                        label: Text(
+                          isAm ? '📦 ዕቃዎች' : '📦 Products',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Tertiary Buttons: [🔧 Adjust Stock] & [📜 History & Undo]
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (ctx) => AdjustScreen(
+                                repository: widget.repository,
+                                onMutation: _notifyMutation,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.tune, size: 18),
+                        label: Text(
+                          isAm ? '🔧 ስቶክ ማስተካከል' : '🔧 Adjust',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (ctx) => HistoryScreen(
+                                repository: widget.repository,
+                                onMutation: _notifyMutation,
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.history, size: 18),
+                        label: Text(
+                          isAm ? '📜 ታሪክ / Undo' : '📜 History / Undo',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Recent Transactions Header
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isAm ? 'የቅርብ ጊዜ እንቅስቃሴዎች' : 'Recent Transactions',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (ctx) => HistoryScreen(
+                              repository: widget.repository,
+                              onMutation: _notifyMutation,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(isAm ? 'ሁሉንም እይ' : 'View All'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+
+                // Recent movements list preview
+                StreamBuilder<List<MovementWithProduct>>(
+                  stream: widget.repository.watchMovements(),
+                  builder: (context, snapshot) {
+                    final items = (snapshot.data ?? []).take(5).toList();
+                    if (items.isEmpty) {
+                      return Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Center(
+                            child: Text(
+                              isAm
+                                  ? 'ምንም እንቅስቃሴ አልተመዘገበም። ሽያጭ ወይም ገቢ ዕቃ ይጀምሩ።'
+                                  : 'No movements yet. Start by recording a sale or stock intake.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(color: Colors.grey, fontSize: 13),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        itemBuilder: (context, idx) {
+                          final item = items[idx];
+                          final m = item.movement;
+                          final p = item.product;
+                          final isPositive = m.qtyMilli > 0;
+                          final qtyStr = (isPositive ? '+' : '') +
+                              (m.qtyMilli / 1000).toStringAsFixed(1);
+
+                          IconData icon = m.type == 'sale'
+                              ? Icons.shopping_cart
+                              : (m.type == 'in' ? Icons.add_box : Icons.tune);
+                          Color color = m.type == 'sale'
+                              ? Colors.deepOrange
+                              : (m.type == 'in' ? Colors.green : Colors.blue);
+
+                          return ListTile(
+                            dense: true,
+                            leading: Icon(icon, color: color, size: 20),
+                            title: Text(
+                              p?.name ?? 'Item',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(m.type.toUpperCase()),
+                            trailing: Text(
+                              '$qtyStr ${p?.unit ?? ""}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isPositive ? Colors.green.shade800 : Colors.red.shade800,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddProductDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
       ),
     );
   }

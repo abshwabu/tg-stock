@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   drift: 2.31.0
   sqlite3_flutter_libs: 0.5.42
@@ -39,7 +41,7 @@ dependencies:
   flutter_local_notifications: 20.1.0
   share_plus: 12.0.2
   path_provider: 2.1.5
-  intl: 0.20.3
+  intl: 0.20.2
   uuid: 4.6.0
   path: ^1.9.1
   url_launcher: ^6.3.1
@@ -56,10 +58,7 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
+  generate: true
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
