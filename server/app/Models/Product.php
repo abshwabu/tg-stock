@@ -51,10 +51,6 @@ class Product extends Model
                 $product->updated_at_ms = (int) (microtime(true) * 1000);
             }
         });
-
-        static::updating(function (Product $product): void {
-            $product->updated_at_ms = (int) (microtime(true) * 1000);
-        });
     }
 
     public function movements(): HasMany

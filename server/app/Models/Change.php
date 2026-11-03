@@ -19,6 +19,7 @@ class Change extends Model
     protected $fillable = [
         'seq',
         'shop_id',
+        'device_id',
         'entity',
         'entity_id',
         'created_at',

@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('changes', function (Blueprint $table) {
             $table->bigIncrements('seq'); // High-water mark cursor
             $table->uuid('shop_id')->index();
+            $table->uuid('device_id')->nullable()->index();
             $table->string('entity', 30); // movement | product | device
             $table->string('entity_id'); // UUID or identifier of mutated entity
             $table->timestamp('created_at')->useCurrent();

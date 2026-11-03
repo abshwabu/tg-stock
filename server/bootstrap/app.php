@@ -13,7 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // API routes are stateless; session middleware is explicitly not included in API group.
+        $middleware->alias([
+            'auth.device' => \App\Http\Middleware\DeviceTokenAuth::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

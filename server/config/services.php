@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'telegram' => [
+        'bot_username' => env('TELEGRAM_BOT_USERNAME', 'InventoryEtBot'),
+        'bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET', ''),
+    ],
+
 ];

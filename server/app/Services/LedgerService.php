@@ -97,6 +97,7 @@ class LedgerService
             // Append change cursor entry for sync clients
             Change::withoutGlobalScope(ShopScope::class)->create([
                 'shop_id' => $shopId,
+                'device_id' => $movement->device_id,
                 'entity' => 'movement',
                 'entity_id' => $movement->id,
             ]);
