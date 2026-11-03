@@ -34,6 +34,23 @@ class MenuHandler
 
         $clean = trim($text);
 
+        // Menu shortcut
+        if (in_array($clean, ['/menu', 'menu', 'ማውጫ'], true)) {
+            $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+            $shopName = $shop?->name ?? 'Shop';
+            $this->telegram->sendMessage(
+                $chatId,
+                __('welcome_existing', ['name' => $user?->name ?? 'User', 'shop' => $shopName]),
+                ['reply_markup' => TelegramUi::mainMenuInlineKeyboard($locale, $user)]
+            );
+            $this->telegram->sendMessage(
+                $chatId,
+                $locale === 'en' ? '📍 Quick actions menu:' : '📍 ፈጣን ማውጫ:',
+                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user)]
+            );
+            return;
+        }
+
         // 0. Location Switcher: e.g. "📍 Store ▾", "📍 Warehouse ▾", or command /switch, /location
         if (preg_match('/^📍.+▾$/u', $clean) || in_array($clean, ['/switch', '/location', '/locations'], true)) {
             $this->locationHandler->handleSwitchMenu($chatId, $user);

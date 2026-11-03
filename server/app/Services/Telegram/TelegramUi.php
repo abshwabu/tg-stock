@@ -120,6 +120,54 @@ class TelegramUi
     }
 
     /**
+     * Inline keyboard for the main menu, directly embedded under messages.
+     */
+    public static function mainMenuInlineKeyboard(string $locale = 'am', ?\App\Models\User $user = null): array
+    {
+        $rows = [];
+
+        // 1. Location Switcher (if multi-location)
+        if ($user !== null) {
+            $locHandler = app(\App\Services\Telegram\Handlers\LocationHandler::class);
+            $allowedLocations = $locHandler->getAllowedLocations($user);
+            if ($allowedLocations->count() > 1) {
+                $curLoc = $locHandler->getCurrentLocation($user);
+                $locName = $curLoc ? $curLoc->name : 'Location';
+                $rows[] = [
+                    ['text' => "📍 {$locName} ▾", 'callback_data' => 'menu:switch_loc:0'],
+                ];
+            }
+        }
+
+        $row1 = [
+            ['text' => $locale === 'en' ? '📦 Products' : '📦 ዕቃዎች', 'callback_data' => 'menu:products:0'],
+            ['text' => $locale === 'en' ? '➕ Stock In' : '➕ ገቢ ዕቃ', 'callback_data' => 'menu:stockin:0'],
+        ];
+        $rows[] = $row1;
+
+        $row2 = [
+            ['text' => $locale === 'en' ? '🛒 Sale' : '🛒 ሽያጭ', 'callback_data' => 'menu:sale:0'],
+            ['text' => $locale === 'en' ? '📊 Reports' : '📊 ሪፖርት', 'callback_data' => 'menu:reports:0'],
+        ];
+        $rows[] = $row2;
+
+        $row3 = [];
+        if ($user !== null && $user->role === 'owner') {
+            $row3[] = ['text' => $locale === 'en' ? '🚚 Transfer' : '🚚 ዝውውር', 'callback_data' => 'menu:transfer:0'];
+            $row3[] = ['text' => $locale === 'en' ? '👥 Team' : '👥 ቡድን', 'callback_data' => 'menu:team:0'];
+        }
+        if (!empty($row3)) {
+            $rows[] = $row3;
+        }
+
+        $rows[] = [
+            ['text' => $locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች', 'callback_data' => 'menu:settings:0'],
+        ];
+
+        return self::inlineKeyboard($rows);
+    }
+
+    /**
      * Cancel keyboard shown during active conversation steps.
      */
     public static function cancelKeyboard(string $locale = 'am'): array

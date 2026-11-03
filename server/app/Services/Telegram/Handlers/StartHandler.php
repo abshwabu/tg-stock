@@ -54,6 +54,12 @@ class StartHandler
                 __('welcome_existing', ['name' => $user->name, 'shop' => $shopName]),
                 ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user)]
             );
+
+            $this->telegram->sendMessage(
+                $chatId,
+                $locale === 'en' ? '📋 <b>Main Menu:</b>' : '📋 <b>ዋና ማውጫ:</b>',
+                ['reply_markup' => TelegramUi::mainMenuInlineKeyboard($locale, $user)]
+            );
             return;
         }
 
@@ -127,6 +133,12 @@ class StartHandler
             $chatId,
             __('onboarding_shop_created', ['name' => $shop->name]),
             ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $ownerUser)]
+        );
+
+        $this->telegram->sendMessage(
+            $chatId,
+            $locale === 'en' ? '📋 <b>Main Menu:</b>' : '📋 <b>ዋና ማውጫ:</b>',
+            ['reply_markup' => TelegramUi::mainMenuInlineKeyboard($locale, $ownerUser)]
         );
     }
 

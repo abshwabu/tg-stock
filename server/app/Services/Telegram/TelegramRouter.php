@@ -101,6 +101,12 @@ class TelegramRouter
         $action = $parts[1] ?? '';
         $id = $parts[2] ?? '';
 
+        // 0.5 Main Menu Navigation Callbacks
+        if ($module === 'menu') {
+            $this->handleMenuCallback($cqId, $chatId, $messageId, $action, $id, $user);
+            return;
+        }
+
         // 1. Pairing
         if ($module === 'pair') {
             $this->pairingHandler->handleCallback($cqId, $chatId, $messageId, $action, $id, $from, $user);
@@ -202,6 +208,27 @@ class TelegramRouter
 
         // Default: acknowledge callback query
         $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
+     * Dispatch main menu inline button callbacks.
+     */
+    protected function handleMenuCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, ?User $user): void
+    {
+        $this->telegram->answerCallbackQuery($cqId);
+
+        match ($action) {
+            'products' => $this->productHandler->handleList($chatId, $user, 1),
+            'stockin' => $this->stockInHandler->start($chatId, null, $user),
+            'sale' => $this->saleHandler->start($chatId, null, $user),
+            'reports' => $this->reportHandler->handleMenu($chatId, $user),
+            'settings' => $this->settingsHandler->handleSettings($chatId, $user),
+            'team' => $this->teamHandler->handleTeamMenu($chatId, $user),
+            'transfer' => $this->transferHandler->start($chatId, null, $user),
+            'switch_loc' => $this->locationHandler->handleSwitchMenu($chatId, $user),
+            'review' => $this->reviewQueueHandler->handleReviewMenu($chatId, $user),
+            default => null,
+        };
     }
 
     /**

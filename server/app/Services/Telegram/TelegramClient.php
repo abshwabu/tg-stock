@@ -23,12 +23,15 @@ class TelegramClient
     }
 
     /**
-     * Build standard configured HTTP client (5s connect / 10s total, 1 retry).
+     * Build standard configured HTTP client (8s connect / 15s total, 1 retry, forced IPv4).
      */
     protected function httpClient(): PendingRequest
     {
-        return Http::connectTimeout(5)
-            ->timeout(10)
+        return Http::connectTimeout(8)
+            ->timeout(15)
+            ->withOptions([
+                'force_ip_resolve' => 'v4',
+            ])
             ->retry(1, 100, throw: false);
     }
 
