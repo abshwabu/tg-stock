@@ -47,7 +47,7 @@ void main() {
       expect(bytes[2], 0xBF);
 
       final content = await file.readAsString();
-      expect(content, contains('Product ID,Name,SKU,Unit,Cost Price (ETB),Sell Price (ETB),Low Stock Limit,Current Stock,Status'));
+      expect(content, contains('Product ID,Name,SKU,Unit,Cost Price (ETB),Sell Price (ETB),Low Stock Limit,Current Stock,Location,Status'));
       expect(content, contains(p1.id));
       expect(content, contains('Berbere (በርበሬ)'));
       expect(content, contains('150.00'));
@@ -80,7 +80,7 @@ void main() {
       expect(bytes[2], 0xBF);
 
       final content = await file.readAsString();
-      expect(content, contains('Date,Time,Sale Movement ID,Product Name,SKU,Quantity,Unit,Unit Price (ETB),Total (ETB),Note'));
+      expect(content, contains('Date,Time,Sale Movement ID,Product Name,SKU,Quantity,Unit,Unit Price (ETB),Total (ETB),Location,Note'));
       expect(content, contains('Coffee (ቡና)'));
       expect(content, contains('2.5,kg,350.00,875.00'));
       expect(content, contains('Customer table 4'));
@@ -108,7 +108,7 @@ void main() {
       expect(bytes[2], 0xBF);
 
       final content = await file.readAsString();
-      expect(content, contains('Date,Time,Movement ID,Product Name,Type,Signed Quantity,Unit,Unit Price (ETB),Note'));
+      expect(content, contains('Date,Time,Movement ID,Product Name,Type,Signed Quantity,Unit,Unit Price (ETB),Location,Transfer ID,Note'));
       expect(content, contains('Sugar (ስኳር)'));
       expect(content, contains('in'));
       expect(content, contains('5.000'));

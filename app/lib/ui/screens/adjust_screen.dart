@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../utils/quantity_formatter.dart';
+import '../widgets/location_selector_chip.dart';
 
 class AdjustScreen extends StatefulWidget {
   final LedgerRepository repository;
@@ -20,12 +21,24 @@ class AdjustScreen extends StatefulWidget {
 
 class _AdjustScreenState extends State<AdjustScreen> {
   Product? _selectedProduct;
+  Location? _activeLocation;
   int _currentStock = 0;
   final _countedController = TextEditingController();
   final _noteController = TextEditingController();
 
   String _reason = 'damaged';
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocation();
+  }
+
+  Future<void> _loadLocation() async {
+    final active = await widget.repository.getActiveLocation();
+    if (mounted) setState(() => _activeLocation = active);
+  }
 
   @override
   void dispose() {
@@ -35,7 +48,7 @@ class _AdjustScreenState extends State<AdjustScreen> {
   }
 
   Future<void> _onProductSelected(Product p) async {
-    final stock = await widget.repository.stockOf(p.id);
+    final stock = await widget.repository.stockOf(p.id, locationId: _activeLocation?.id);
     setState(() {
       _selectedProduct = p;
       _currentStock = stock;
@@ -81,11 +94,12 @@ class _AdjustScreenState extends State<AdjustScreen> {
         countedQtyMilli: _countedMilli,
         reason: _reason,
         note: note.isNotEmpty ? note : null,
+        locationId: _activeLocation?.id,
       );
 
       widget.onMutation?.call();
 
-      final newStock = await widget.repository.stockOf(_selectedProduct!.id);
+      final newStock = await widget.repository.stockOf(_selectedProduct!.id, locationId: _activeLocation?.id);
       final diffStr = (_diffMilli > 0 ? '+' : '') + QuantityFormatter.formatDisplay(_diffMilli);
       final newStockStr = QuantityFormatter.formatDisplay(newStock);
 
@@ -124,6 +138,17 @@ class _AdjustScreenState extends State<AdjustScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stock Adjustment / ስቶክ ማስተካከል'),
+        actions: [
+          LocationSelectorChip(
+            repository: widget.repository,
+            onLocationChanged: (loc) {
+              setState(() => _activeLocation = loc);
+              if (_selectedProduct != null) {
+                _onProductSelected(_selectedProduct!);
+              }
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),

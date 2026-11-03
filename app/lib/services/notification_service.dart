@@ -47,6 +47,7 @@ class NotificationService {
   Future<void> notifyLowStock({
     required Product product,
     required int currentStockMilli,
+    String? locationName,
   }) async {
     try {
       final masterEnabled = await repository.isNotificationsEnabled();
@@ -73,10 +74,11 @@ class NotificationService {
         iOS: DarwinNotificationDetails(),
       );
 
+      final locSuffix = (locationName != null && locationName.isNotEmpty) ? ' at $locationName' : '';
       await _plugin.show(
         id: id,
-        title: '⚠️ Low Stock Alert: ${product.name}',
-        body: 'Only $availableDisplay ${product.unit} remaining (Threshold: $thresholdDisplay ${product.unit}).',
+        title: '⚠️ Low Stock Alert: ${product.name}$locSuffix',
+        body: 'Only $availableDisplay ${product.unit} remaining$locSuffix (Threshold: $thresholdDisplay ${product.unit}).',
         notificationDetails: details,
       );
     } catch (_) {}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../services/export_service.dart';
 import '../../utils/money_formatter.dart';
@@ -27,6 +28,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
   ReportRange _selectedRange = ReportRange.today;
   DateTimeRange? _customDateRange;
   bool _isLoading = true;
+
+  bool _locationsEnabled = false;
+  List<Location> _locations = [];
+  String? _selectedLocationId; // null = all locations
+  List<StockByLocationReportData>? _stockByLocationReport;
+  List<InTransitTransfer> _inTransitTransfers = [];
+  List<TransferDiscrepancy> _discrepancies = [];
 
   SalesReportData? _salesReport;
   StockReportData? _stockReport;
@@ -80,11 +88,35 @@ class _ReportsScreenState extends State<ReportsScreen> {
     setState(() => _isLoading = true);
     final (fromMs, toMs) = _calculateTimeWindow();
 
-    final sales = await widget.repository.getSalesReport(fromMs: fromMs, toMs: toMs);
-    final stock = await widget.repository.getStockReport();
+    final locEnabled = await widget.repository.getLocationsEnabled();
+    List<Location> locs = [];
+    List<StockByLocationReportData>? stockByLoc;
+    List<InTransitTransfer> inTransit = [];
+    List<TransferDiscrepancy> disc = [];
+
+    if (locEnabled) {
+      locs = await widget.repository.listLocations();
+      stockByLoc = await widget.repository.getStockByLocationReport();
+      inTransit = await widget.repository.getInTransitTransfers();
+      disc = await widget.repository.getDiscrepancies();
+    }
+
+    final sales = await widget.repository.getSalesReport(
+      fromMs: fromMs,
+      toMs: toMs,
+      locationId: _selectedLocationId,
+    );
+    final stock = await widget.repository.getStockReport(
+      locationId: _selectedLocationId,
+    );
 
     if (mounted) {
       setState(() {
+        _locationsEnabled = locEnabled;
+        _locations = locs;
+        _stockByLocationReport = stockByLoc;
+        _inTransitTransfers = inTransit;
+        _discrepancies = disc;
         _salesReport = sales;
         _stockReport = stock;
         _isLoading = false;
@@ -134,7 +166,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Future<void> _exportSalesReport() async {
     final (fromMs, toMs) = _calculateTimeWindow();
-    final file = await _exportService.exportSalesCsv(fromMs: fromMs, toMs: toMs);
+    final file = await _exportService.exportSalesCsv(
+      fromMs: fromMs,
+      toMs: toMs,
+      locationId: _selectedLocationId,
+    );
     await _exportService.shareFile(file, subject: 'Sales Report (${_getRangeLabel()})');
   }
 
@@ -183,6 +219,42 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
           const Divider(height: 1),
+
+          if (_locationsEnabled) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF0F766E)),
+                  const SizedBox(width: 8),
+                  const Text('ቦታ / Location:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButton<String?>(
+                      isExpanded: true,
+                      value: _selectedLocationId,
+                      underline: const SizedBox(),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('ሁሉም ቦታዎች (All Locations)', style: TextStyle(fontSize: 13)),
+                        ),
+                        ..._locations.map((l) => DropdownMenuItem<String?>(
+                          value: l.id,
+                          child: Text(l.name, style: const TextStyle(fontSize: 13)),
+                        )),
+                      ],
+                      onChanged: (val) {
+                        setState(() => _selectedLocationId = val);
+                        _loadReport();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+          ],
 
           Expanded(
             child: _isLoading
@@ -234,7 +306,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                         // Section 4: Stock Valuation Report
                         _buildStockValuationCard(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 18),
+
+                        if (_locationsEnabled) ...[
+                          // Section 5: Stock by Location
+                          _buildStockByLocationCard(),
+                          const SizedBox(height: 18),
+
+                          // Section 6: In-Transit Transfers
+                          _buildInTransitCard(),
+                          const SizedBox(height: 18),
+
+                          // Section 7: Discrepancies
+                          _buildDiscrepanciesCard(),
+                          const SizedBox(height: 18),
+                        ],
+                        const SizedBox(height: 12),
                       ],
                     ),
                   ),
@@ -534,6 +621,246 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStockByLocationCard() {
+    final report = _stockByLocationReport ?? [];
+
+    // Aggregate stock by location
+    final locTotals = <String, ({String kind, int unitsMilli})>{};
+    for (final item in report) {
+      for (final loc in item.locations) {
+        final existing = locTotals[loc.locationName];
+        locTotals[loc.locationName] = (
+          kind: loc.locationKind,
+          unitsMilli: (existing?.unitsMilli ?? 0) + loc.stockMilli,
+        );
+      }
+    }
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.warehouse_rounded, size: 20, color: Color(0xFF0F766E)),
+                SizedBox(width: 8),
+                Text(
+                  'Stock by Location / የስቶክ ክፍፍል በቦታ',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (locTotals.isEmpty)
+              const Text('No location stock data available.', style: TextStyle(color: Colors.grey, fontSize: 13))
+            else
+              ...locTotals.entries.map((e) {
+                final isWarehouse = e.value.kind == 'warehouse';
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isWarehouse ? Icons.warehouse_outlined : Icons.storefront_outlined,
+                        color: const Color(0xFF0F766E),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          e.key,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ),
+                      Text(
+                        '${QuantityFormatter.formatDisplay(e.value.unitsMilli)} units',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F766E)),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInTransitCard() {
+    final inTransit = _inTransitTransfers;
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.local_shipping_outlined, size: 20, color: Color(0xFF0F766E)),
+                const SizedBox(width: 8),
+                const Text(
+                  'In Transit / በመንገድ ላይ ያሉ ዝውውሮች',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const Spacer(),
+                if (inTransit.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${inTransit.length}',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (inTransit.isEmpty)
+              const Text(
+                'No shipments currently in transit / ምንም በመንገድ ላይ ያለ ዝውውር የለም',
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: inTransit.length,
+                separatorBuilder: (_, __) => const Divider(height: 12),
+                itemBuilder: (context, index) {
+                  final t = inTransit[index];
+                  final timeStr = DateFormat('MMM d, HH:mm').format(
+                    DateTime.fromMillisecondsSinceEpoch(t.sentAtMs),
+                  );
+
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t.productName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            ),
+                            Text(
+                              '${t.fromLocationName} ➔ ${t.toLocationName} • $timeStr',
+                              style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${QuantityFormatter.formatDisplay(t.qtyMilli)} ${t.unit}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF0F766E)),
+                      ),
+                    ],
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDiscrepanciesCard() {
+    final disc = _discrepancies;
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 20, color: disc.isNotEmpty ? Colors.amber.shade900 : Colors.grey),
+                const SizedBox(width: 8),
+                const Text(
+                  'Transfer Discrepancies / የዝውውር ልዩነቶች',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+                const Spacer(),
+                if (disc.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${disc.length}',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (disc.isEmpty)
+              const Text(
+                'No discrepancies reported / ምንም የዝውውር ልዩነት አልተመዘገበም',
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: disc.length,
+                separatorBuilder: (_, __) => const Divider(height: 12),
+                itemBuilder: (context, index) {
+                  final d = disc[index];
+                  final diff = d.diffMilli;
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              d.productName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            ),
+                            Text(
+                              'Sent: ${QuantityFormatter.formatDisplay(d.sentQtyMilli)} • Recv: ${QuantityFormatter.formatDisplay(d.receivedQtyMilli)}',
+                              style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                            ),
+                            if (d.reason != null && d.reason!.isNotEmpty)
+                              Text(
+                                'Reason: ${d.reason}',
+                                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '${diff > 0 ? "+" : ""}${QuantityFormatter.formatDisplay(diff)} ${d.unit}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: diff < 0 ? Colors.red.shade800 : Colors.orange.shade800,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
           ],
         ),
       ),

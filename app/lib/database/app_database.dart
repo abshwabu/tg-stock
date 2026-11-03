@@ -30,11 +30,25 @@ class Products extends Table {
 class Movements extends Table {
   TextColumn get id => text()(); // UUIDv7
   TextColumn get productId => text()();
-  TextColumn get type => text()(); // 'in', 'sale', 'adjust'
+  TextColumn get locationId => text().nullable()();
+  TextColumn get transferId => text().nullable()();
+  TextColumn get type => text()(); // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in'
   IntColumn get qtyMilli => integer()(); // signed integer thousandths (e.g. 5000 = 5.000, -2500 = -2.500)
   IntColumn get unitPriceCents => integer().withDefault(const Constant(0))();
   TextColumn get note => text().nullable()();
   IntColumn get createdAtMs => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class Locations extends Table {
+  TextColumn get id => text()(); // UUIDv7
+  TextColumn get name => text()();
+  TextColumn get kind => text().withDefault(const Constant('store'))(); // 'store', 'warehouse', 'other'
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  IntColumn get updatedAtMs => integer()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -72,20 +86,54 @@ class AppSettings extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Products, Movements, OutboxEntries, SyncMetaEntries, AppSettings])
+@DriftDatabase(tables: [Products, Movements, OutboxEntries, SyncMetaEntries, AppSettings, Locations])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
   AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
       await _createIndexes();
+      await _seedDefaultLocationIfEmpty();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // 1. Create locations table
+        await m.createTable(locations);
+
+        // 2. Add columns to movements
+        await m.addColumn(movements, movements.locationId);
+        await m.addColumn(movements, movements.transferId);
+
+        // 3. Create default location ("Main")
+        final mainId = UuidGenerator.v7();
+        final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+        await into(locations).insert(
+          LocationsCompanion.insert(
+            id: mainId,
+            name: 'Main',
+            kind: const Value('store'),
+            isDefault: const Value(true),
+            isActive: const Value(true),
+            updatedAtMs: nowMs,
+          ),
+          mode: InsertMode.insertOrIgnore,
+        );
+
+        // 4. Backfill every existing movement to default location ("Main")
+        await customStatement(
+          'UPDATE movements SET location_id = ? WHERE location_id IS NULL;',
+          [mainId],
+        );
+
+        await _createIndexes();
+      }
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
@@ -101,8 +149,32 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS idx_movements_product ON movements(product_id);',
     );
     await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movements_location ON movements(location_id);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movements_transfer ON movements(transfer_id);',
+    );
+    await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted_at_ms);',
     );
+  }
+
+  Future<void> _seedDefaultLocationIfEmpty() async {
+    final count = await (select(locations)..limit(1)).get();
+    if (count.isEmpty) {
+      final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+      await into(locations).insert(
+        LocationsCompanion.insert(
+          id: UuidGenerator.v7(),
+          name: 'Main',
+          kind: const Value('store'),
+          isDefault: const Value(true),
+          isActive: const Value(true),
+          updatedAtMs: nowMs,
+        ),
+        mode: InsertMode.insertOrIgnore,
+      );
+    }
   }
 
   static Future<File> getDatabaseFile() async {
@@ -252,15 +324,27 @@ class AppDatabase extends _$AppDatabase {
   Future<Movement> recordMovement({
     String? id,
     required String productId,
-    required String type, // 'in', 'sale', 'adjust'
+    required String type, // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in'
     required int qtyMilli, // signed: positive for intake, negative for sale
     int unitPriceCents = 0,
     String? note,
+    String? locationId,
+    String? transferId,
+    int? createdAtMs,
   }) async {
     final movId = id ?? UuidGenerator.v7();
-    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final nowMs = createdAtMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
 
     return transaction(() async {
+      String? resolvedLocId = locationId;
+      if (resolvedLocId == null) {
+        final defLoc = await (select(locations)
+              ..where((l) => l.isDefault.equals(true) & l.isActive.equals(true))
+              ..limit(1))
+            .getSingleOrNull();
+        resolvedLocId = defLoc?.id;
+      }
+
       final movement = Movement(
         id: movId,
         productId: productId,
@@ -269,6 +353,8 @@ class AppDatabase extends _$AppDatabase {
         unitPriceCents: unitPriceCents,
         note: note,
         createdAtMs: nowMs,
+        locationId: resolvedLocId,
+        transferId: transferId,
       );
 
       await into(movements).insert(movement, mode: InsertMode.insertOrIgnore);
@@ -276,6 +362,8 @@ class AppDatabase extends _$AppDatabase {
       final payload = {
         'id': movId,
         'product_id': productId,
+        'location_id': resolvedLocId,
+        'transfer_id': transferId,
         'type': type,
         'qty': QuantityFormatter.toWireQty(qtyMilli),
         'unit_price_cents': unitPriceCents,
@@ -300,23 +388,163 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Creates a new location and writes to Outbox in the same transaction.
+  Future<Location> createLocation({
+    String? id,
+    required String name,
+    String kind = 'store',
+    bool isDefault = false,
+  }) async {
+    final locId = id ?? UuidGenerator.v7();
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    return transaction(() async {
+      if (isDefault) {
+        await (update(locations)..where((l) => l.isDefault.equals(true))).write(
+          const LocationsCompanion(isDefault: Value(false)),
+        );
+      }
+
+      final location = Location(
+        id: locId,
+        name: name,
+        kind: kind,
+        isDefault: isDefault,
+        isActive: true,
+        updatedAtMs: nowMs,
+      );
+
+      await into(locations).insert(location, mode: InsertMode.insertOrReplace);
+
+      final payload = {
+        'id': locId,
+        'name': name,
+        'kind': kind,
+        'is_default': isDefault,
+        'is_active': true,
+        'updated_at': nowMs,
+      };
+
+      await into(outboxEntries).insert(
+        OutboxEntriesCompanion.insert(
+          id: UuidGenerator.v7(),
+          entity: 'location',
+          entityId: locId,
+          op: 'upsert',
+          payloadJson: jsonEncode(payload),
+          clientTs: nowMs,
+          status: const Value('pending'),
+          createdAt: nowMs,
+        ),
+      );
+
+      return location;
+    });
+  }
+
+  /// Updates an existing location and writes to Outbox in the same transaction.
+  Future<void> updateLocation(Location location) async {
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final updated = location.copyWith(updatedAtMs: nowMs);
+
+    await transaction(() async {
+      if (updated.isDefault) {
+        await (update(locations)..where((l) => l.id.isNotValue(updated.id) & l.isDefault.equals(true))).write(
+          const LocationsCompanion(isDefault: Value(false)),
+        );
+      }
+
+      await update(locations).replace(updated);
+
+      final payload = {
+        'id': updated.id,
+        'name': updated.name,
+        'kind': updated.kind,
+        'is_default': updated.isDefault,
+        'is_active': updated.isActive,
+        'updated_at': nowMs,
+      };
+
+      await into(outboxEntries).insert(
+        OutboxEntriesCompanion.insert(
+          id: UuidGenerator.v7(),
+          entity: 'location',
+          entityId: updated.id,
+          op: 'upsert',
+          payloadJson: jsonEncode(payload),
+          clientTs: nowMs,
+          status: const Value('pending'),
+          createdAt: nowMs,
+        ),
+      );
+    });
+  }
+
+  /// Deactivates a location and writes to Outbox.
+  Future<void> deleteLocation(String id) async {
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+    await transaction(() async {
+      final existing = await (select(locations)..where((l) => l.id.equals(id))).getSingleOrNull();
+      if (existing == null) return;
+
+      final updated = existing.copyWith(
+        isActive: false,
+        isDefault: false,
+        updatedAtMs: nowMs,
+      );
+
+      await update(locations).replace(updated);
+
+      final payload = {
+        'id': id,
+        'name': existing.name,
+        'kind': existing.kind,
+        'is_default': false,
+        'is_active': false,
+        'updated_at': nowMs,
+      };
+
+      await into(outboxEntries).insert(
+        OutboxEntriesCompanion.insert(
+          id: UuidGenerator.v7(),
+          entity: 'location',
+          entityId: id,
+          op: 'delete',
+          payloadJson: jsonEncode(payload),
+          clientTs: nowMs,
+          status: const Value('pending'),
+          createdAt: nowMs,
+        ),
+      );
+    });
+  }
+
   // --- Stock Queries ---
 
-  /// Computes the authoritative stock for a product: SUM(movements).
-  Future<int> getStock(String productId) async {
-    final query = selectOnly(movements)
+  /// Computes the authoritative stock for a product: SUM(movements), optionally filtered by location.
+  Future<int> getStock(String productId, {String? locationId}) async {
+    var query = selectOnly(movements)
       ..addColumns([movements.qtyMilli.sum()])
       ..where(movements.productId.equals(productId));
+
+    if (locationId != null) {
+      query = query..where(movements.locationId.equals(locationId));
+    }
 
     final row = await query.getSingle();
     return row.read(movements.qtyMilli.sum()) ?? 0;
   }
 
-  /// Watches the stock for a given product reactively.
-  Stream<int> watchStock(String productId) {
-    final query = selectOnly(movements)
+  /// Watches the stock for a given product reactively, optionally filtered by location.
+  Stream<int> watchStock(String productId, {String? locationId}) {
+    var query = selectOnly(movements)
       ..addColumns([movements.qtyMilli.sum()])
       ..where(movements.productId.equals(productId));
+
+    if (locationId != null) {
+      query = query..where(movements.locationId.equals(locationId));
+    }
 
     return query.watchSingle().map((row) => row.read(movements.qtyMilli.sum()) ?? 0);
   }
@@ -452,6 +680,8 @@ class AppDatabase extends _$AppDatabase {
           final payload = {
             'id': m.id,
             'product_id': m.productId,
+            'location_id': m.locationId,
+            'transfer_id': m.transferId,
             'type': m.type,
             'qty': QuantityFormatter.toWireQty(m.qtyMilli),
             'unit_price_cents': m.unitPriceCents,
@@ -467,6 +697,36 @@ class AppDatabase extends _$AppDatabase {
               op: 'upsert',
               payloadJson: jsonEncode(payload),
               clientTs: m.createdAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 3. All locations
+      final allLocs = await select(locations).get();
+      for (final l in allLocs) {
+        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(l.id))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'id': l.id,
+            'name': l.name,
+            'kind': l.kind,
+            'is_default': l.isDefault,
+            'is_active': l.isActive,
+            'updated_at': l.updatedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'location',
+              entityId: l.id,
+              op: l.isActive ? 'upsert' : 'delete',
+              payloadJson: jsonEncode(payload),
+              clientTs: l.updatedAtMs,
               status: const Value('pending'),
               createdAt: nowMs,
             ),
@@ -517,8 +777,15 @@ class AppDatabase extends _$AppDatabase {
 class ProductWithStock {
   final Product product;
   final int stockMilli;
+  final Map<String, int> stockByLocation;
+  final int inTransitMilli;
 
-  ProductWithStock({required this.product, required this.stockMilli});
+  ProductWithStock({
+    required this.product,
+    required this.stockMilli,
+    this.stockByLocation = const {},
+    this.inTransitMilli = 0,
+  });
 
   bool get isNegative => stockMilli < 0;
   bool get isLow => product.lowStockAtMilli != null && stockMilli <= product.lowStockAtMilli!;

@@ -14,6 +14,7 @@ import '../../services/export_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/quantity_formatter.dart';
+import '../widgets/warehouse_setup_sheet.dart';
 import 'pairing_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -61,6 +62,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _dailySummaryEnabled = false;
   String _dailySummaryTime = '20:00';
 
+  // Locations state
+  bool _locationsEnabled = false;
+  bool _transferRequiresReceipt = false;
+  Location? _activeLocation;
+  List<Location> _locations = [];
+
   // Security state
   bool _appLockEnabled = false;
   bool _canUseBiometrics = false;
@@ -106,6 +113,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       bioSupported = await auth.canCheckBiometrics || await auth.isDeviceSupported();
     } catch (_) {}
 
+    // Locations
+    final locEnabled = await widget.repository.getLocationsEnabled();
+    final reqReceipt = await widget.repository.getTransferRequiresReceipt();
+    final activeLoc = await widget.repository.getActiveLocation();
+    final allLocs = await widget.repository.listLocations();
+
     // Backups
     final backups = await _backupService.listAllBackups();
 
@@ -123,6 +136,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _lowStockNotifications = lowNotifs;
         _dailySummaryEnabled = dailySummary;
         _dailySummaryTime = dailyTime;
+        _locationsEnabled = locEnabled;
+        _transferRequiresReceipt = reqReceipt;
+        _activeLocation = activeLoc;
+        _locations = allLocs;
         _appLockEnabled = lockEnabled;
         _canUseBiometrics = bioSupported;
         _localBackups = backups;
@@ -211,6 +228,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (milli > 0) {
         await widget.repository.setDefaultLowStockThresholdMilli(milli);
         await _loadAllSettings();
+      }
+    }
+  }
+
+  // --- Warehouse & Locations ---
+
+  Future<void> _pickActiveDeviceLocation() async {
+    final selected = await showModalBottomSheet<Location>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'የመሳሪያው የስራ ቦታ / Active Device Location',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+              ),
+              const Divider(height: 1),
+              ..._locations.map((loc) {
+                final isSelected = loc.id == _activeLocation?.id;
+                return ListTile(
+                  leading: Icon(
+                    loc.kind == 'warehouse' ? Icons.warehouse_rounded : Icons.storefront_rounded,
+                    color: isSelected ? const Color(0xFF0F766E) : Colors.grey,
+                  ),
+                  title: Text(loc.name, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                  trailing: isSelected ? const Icon(Icons.check, color: Color(0xFF0F766E)) : null,
+                  onTap: () => Navigator.of(ctx).pop(loc),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null) {
+      await widget.repository.setActiveLocationId(selected.id);
+      await _loadAllSettings();
+    }
+  }
+
+  Future<void> _disableWarehouseAndStore() async {
+    final check = await widget.repository.canDisableLocations();
+    if (!check.canDisable) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('⚠️ Cannot Turn Off Warehouse & Store'),
+            content: Text(
+              check.reason ??
+                  'Stock exists in multiple locations. All stock must be transferred into one location before turning off warehouse & store.',
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Turn Off Warehouse & Store?'),
+        content: const Text(
+          'This will consolidate inventory into a single place and hide warehouse features.\n\nAre you sure you want to proceed?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Turn Off / አጥፋ'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await widget.repository.disableWarehouseAndStore();
+      await _loadAllSettings();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Warehouse & Store turned off.')),
+        );
       }
     }
   }
@@ -541,6 +662,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           await _loadAllSettings();
                         },
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Section: Warehouse & Locations
+                _buildSectionHeader(isAm ? 'መጋዘን እና ስቶክ ቦታዎች' : 'Warehouse & Locations'),
+                Card(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    children: [
+                      if (!_locationsEnabled) ...[
+                        ListTile(
+                          leading: const Icon(Icons.warehouse_outlined, color: Color(0xFF0F766E)),
+                          title: const Text('Use warehouse and store / መጋዘን እና ሱቅ ተጠቀም'),
+                          subtitle: const Text('Separate stock between store front and warehouse, with transfers.'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => showWarehouseSetupSheet(
+                            context,
+                            repository: widget.repository,
+                            onComplete: _loadAllSettings,
+                          ),
+                        ),
+                      ] else ...[
+                        ListTile(
+                          leading: const Icon(Icons.storefront_outlined, color: Color(0xFF0F766E)),
+                          title: const Text('Active Device Location / የዚህ ስልክ ነባሪ ቦታ'),
+                          subtitle: Text(_activeLocation?.name ?? 'Store'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: _pickActiveDeviceLocation,
+                        ),
+                        const Divider(height: 1),
+                        SwitchListTile(
+                          secondary: const Icon(Icons.receipt_long_outlined),
+                          title: const Text('Transfers Require Receipt / የዝውውር ደረሰኝ ማረጋገጫ'),
+                          subtitle: const Text('Sender dispatches; receiver must verify and confirm received quantity.'),
+                          value: _transferRequiresReceipt,
+                          onChanged: (val) async {
+                            await widget.repository.setTransferRequiresReceipt(val);
+                            await _loadAllSettings();
+                          },
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.power_settings_new_rounded, color: Colors.red),
+                          title: const Text(
+                            'Turn off warehouse and store / መጋዘን እና ሱቅ አጥፋ',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                          subtitle: const Text('Allowed only if all stock sits in a single location.'),
+                          onTap: _disableWarehouseAndStore,
+                        ),
+                      ],
                     ],
                   ),
                 ),

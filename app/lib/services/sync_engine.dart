@@ -335,6 +335,8 @@ class SyncEngine {
       final createdAt = data['created_at'] is int
           ? data['created_at'] as int
           : int.tryParse(data['created_at']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch;
+      final locId = data['location_id'] as String?;
+      final transferId = data['transfer_id'] as String?;
 
       final movement = Movement(
         id: movId,
@@ -344,10 +346,43 @@ class SyncEngine {
         unitPriceCents: unitPrice,
         note: note,
         createdAtMs: createdAt,
+        locationId: locId,
+        transferId: transferId,
       );
 
       // Append-only: insert or ignore duplicate IDs
       await db.into(db.movements).insert(movement, mode: InsertMode.insertOrIgnore);
+      return;
+    }
+
+    if (entity == 'location') {
+      final locId = (data['id'] ?? change['id']) as String;
+      final incomingUpdatedAt = data['updated_at'] is int
+          ? data['updated_at'] as int
+          : int.tryParse(data['updated_at']?.toString() ?? '0') ?? 0;
+
+      final existing = await (db.select(db.locations)..where((l) => l.id.equals(locId))).getSingleOrNull();
+
+      if (existing != null && existing.updatedAtMs > incomingUpdatedAt) {
+        return;
+      }
+
+      final isDelete = op == 'delete';
+      final name = data['name']?.toString() ?? (existing?.name ?? 'Location');
+      final kind = data['kind']?.toString() ?? (existing?.kind ?? 'store');
+      final isDefault = data['is_default'] == true || data['is_default'] == 1;
+      final isActive = isDelete ? false : (data['is_active'] == true || data['is_active'] == 1);
+
+      final location = Location(
+        id: locId,
+        name: name,
+        kind: kind,
+        isDefault: isDefault,
+        isActive: isActive,
+        updatedAtMs: incomingUpdatedAt,
+      );
+
+      await db.into(db.locations).insert(location, mode: InsertMode.insertOrReplace);
       return;
     }
 

@@ -6,7 +6,9 @@ import '../../services/api_client.dart';
 import '../../services/auth_storage.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/money_formatter.dart';
+import '../widgets/location_selector_chip.dart';
 import '../widgets/sync_status_header.dart';
+import '../widgets/warehouse_setup_sheet.dart';
 import 'adjust_screen.dart';
 import 'history_screen.dart';
 import 'products_screen.dart';
@@ -14,6 +16,7 @@ import 'reports_screen.dart';
 import 'sale_screen.dart';
 import 'settings_screen.dart';
 import 'stock_in_screen.dart';
+import 'transfer_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final AppDatabase db;
@@ -38,6 +41,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _shopName = 'Inventory';
   String _language = 'am';
+  bool _locationsEnabled = false;
+  bool _locationsPromptDismissed = false;
 
   @override
   void initState() {
@@ -63,10 +68,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Future<void> _loadShopInfo() async {
     final name = await widget.repository.getShopName();
     final lang = await widget.repository.getLanguage();
+    final locEnabled = await widget.repository.getLocationsEnabled();
+    final promptDismissed = await widget.repository.getLocationsPromptDismissed();
     if (mounted) {
       setState(() {
         _shopName = name;
         _language = lang;
+        _locationsEnabled = locEnabled;
+        _locationsPromptDismissed = promptDismissed;
       });
     }
   }
@@ -85,9 +94,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              _shopName,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            Row(
+              children: [
+                Text(
+                  _shopName,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                if (_locationsEnabled) ...[
+                  const SizedBox(width: 8),
+                  LocationSelectorChip(
+                    repository: widget.repository,
+                    onLocationChanged: (_) => _notifyMutation(),
+                  ),
+                ],
+              ],
             ),
             Text(
               isAm ? 'የቀን መዝገብ / Offline POS' : 'Offline Inventory & POS',
@@ -150,6 +170,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
+                // Dismissible Home Card: Ask about warehouse & store for existing installs
+                if (!_locationsEnabled && !_locationsPromptDismissed) ...[
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    color: const Color(0xFF0F766E).withValues(alpha: 0.08),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.warehouse_rounded, color: Color(0xFF0F766E), size: 24),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  isAm ? 'ዕቃ ከአንድ ቦታ በላይ ያስቀምጣሉ?' : 'Keep stock in more than one place?',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            isAm
+                                ? 'ለሱቅ እና ለመጋዘን የተለያዩ ስቶኮችን መያዝ እና ማዘዋወር ይችላሉ።'
+                                : 'Separate stock for store front and warehouse, with offline transfers.',
+                            style: const TextStyle(fontSize: 12.5, color: Colors.black87),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton(
+                                onPressed: () async {
+                                  await widget.repository.setLocationsPromptDismissed(true);
+                                  await _loadShopInfo();
+                                },
+                                child: Text(
+                                  isAm ? 'አሁን አይደለም' : 'Not now',
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              FilledButton(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0F766E),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                ),
+                                onPressed: () {
+                                  showWarehouseSetupSheet(
+                                    context,
+                                    repository: widget.repository,
+                                    onComplete: _loadShopInfo,
+                                  );
+                                },
+                                child: Text(isAm ? 'አዎ፣ ጀምር' : 'Set Up'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 // Top KPI Metrics (Today's Sales & Low Stock Count)
                 Row(
                   children: [
@@ -334,58 +422,134 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 const SizedBox(height: 10),
 
-                // Tertiary Buttons: [🔧 Adjust Stock] & [📜 History & Undo]
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (ctx) => AdjustScreen(
-                                repository: widget.repository,
-                                onMutation: _notifyMutation,
+                if (_locationsEnabled) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (ctx) => TransferScreen(
+                                  repository: widget.repository,
+                                  onMutation: _notifyMutation,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.tune, size: 18),
-                        label: Text(
-                          isAm ? '🔧 ስቶክ ማስተካከል' : '🔧 Adjust',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                            );
+                          },
+                          icon: const Icon(Icons.local_shipping_outlined, size: 20, color: Color(0xFF0F766E)),
+                          label: Text(
+                            isAm ? '🚚 ዝውውር (Transfer)' : '🚚 Transfer',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (ctx) => HistoryScreen(
-                                repository: widget.repository,
-                                onMutation: _notifyMutation,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (ctx) => AdjustScreen(
+                                  repository: widget.repository,
+                                  onMutation: _notifyMutation,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.history, size: 18),
-                        label: Text(
-                          isAm ? '📜 ታሪክ / Undo' : '📜 History / Undo',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                            );
+                          },
+                          icon: const Icon(Icons.tune, size: 18),
+                          label: Text(
+                            isAm ? '🔧 ስቶክ ማስተካከል' : '🔧 Adjust',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  ],
-                ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (ctx) => HistoryScreen(
+                            repository: widget.repository,
+                            onMutation: _notifyMutation,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.history, size: 18),
+                    label: Text(
+                      isAm ? '📜 ታሪክ / Undo' : '📜 History / Undo',
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                    ),
+                  ),
+                ] else ...[
+                  // Tertiary Buttons: [🔧 Adjust Stock] & [📜 History & Undo]
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (ctx) => AdjustScreen(
+                                  repository: widget.repository,
+                                  onMutation: _notifyMutation,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.tune, size: 18),
+                          label: Text(
+                            isAm ? '🔧 ስቶክ ማስተካከል' : '🔧 Adjust',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(48),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (ctx) => HistoryScreen(
+                                  repository: widget.repository,
+                                  onMutation: _notifyMutation,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.history, size: 18),
+                          label: Text(
+                            isAm ? '📜 ታሪክ / Undo' : '📜 History / Undo',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 10),
 
                 // Reports & Analytics Button

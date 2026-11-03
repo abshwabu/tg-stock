@@ -653,6 +653,28 @@ class $MovementsTable extends Movements
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _locationIdMeta = const VerificationMeta(
+    'locationId',
+  );
+  @override
+  late final GeneratedColumn<String> locationId = GeneratedColumn<String>(
+    'location_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _transferIdMeta = const VerificationMeta(
+    'transferId',
+  );
+  @override
+  late final GeneratedColumn<String> transferId = GeneratedColumn<String>(
+    'transfer_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -709,6 +731,8 @@ class $MovementsTable extends Movements
   List<GeneratedColumn> get $columns => [
     id,
     productId,
+    locationId,
+    transferId,
     type,
     qtyMilli,
     unitPriceCents,
@@ -739,6 +763,18 @@ class $MovementsTable extends Movements
       );
     } else if (isInserting) {
       context.missing(_productIdMeta);
+    }
+    if (data.containsKey('location_id')) {
+      context.handle(
+        _locationIdMeta,
+        locationId.isAcceptableOrUnknown(data['location_id']!, _locationIdMeta),
+      );
+    }
+    if (data.containsKey('transfer_id')) {
+      context.handle(
+        _transferIdMeta,
+        transferId.isAcceptableOrUnknown(data['transfer_id']!, _transferIdMeta),
+      );
     }
     if (data.containsKey('type')) {
       context.handle(
@@ -799,6 +835,14 @@ class $MovementsTable extends Movements
         DriftSqlType.string,
         data['${effectivePrefix}product_id'],
       )!,
+      locationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}location_id'],
+      ),
+      transferId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transfer_id'],
+      ),
       type: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}type'],
@@ -831,6 +875,8 @@ class $MovementsTable extends Movements
 class Movement extends DataClass implements Insertable<Movement> {
   final String id;
   final String productId;
+  final String? locationId;
+  final String? transferId;
   final String type;
   final int qtyMilli;
   final int unitPriceCents;
@@ -839,6 +885,8 @@ class Movement extends DataClass implements Insertable<Movement> {
   const Movement({
     required this.id,
     required this.productId,
+    this.locationId,
+    this.transferId,
     required this.type,
     required this.qtyMilli,
     required this.unitPriceCents,
@@ -850,6 +898,12 @@ class Movement extends DataClass implements Insertable<Movement> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['product_id'] = Variable<String>(productId);
+    if (!nullToAbsent || locationId != null) {
+      map['location_id'] = Variable<String>(locationId);
+    }
+    if (!nullToAbsent || transferId != null) {
+      map['transfer_id'] = Variable<String>(transferId);
+    }
     map['type'] = Variable<String>(type);
     map['qty_milli'] = Variable<int>(qtyMilli);
     map['unit_price_cents'] = Variable<int>(unitPriceCents);
@@ -864,6 +918,12 @@ class Movement extends DataClass implements Insertable<Movement> {
     return MovementsCompanion(
       id: Value(id),
       productId: Value(productId),
+      locationId: locationId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(locationId),
+      transferId: transferId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(transferId),
       type: Value(type),
       qtyMilli: Value(qtyMilli),
       unitPriceCents: Value(unitPriceCents),
@@ -880,6 +940,8 @@ class Movement extends DataClass implements Insertable<Movement> {
     return Movement(
       id: serializer.fromJson<String>(json['id']),
       productId: serializer.fromJson<String>(json['productId']),
+      locationId: serializer.fromJson<String?>(json['locationId']),
+      transferId: serializer.fromJson<String?>(json['transferId']),
       type: serializer.fromJson<String>(json['type']),
       qtyMilli: serializer.fromJson<int>(json['qtyMilli']),
       unitPriceCents: serializer.fromJson<int>(json['unitPriceCents']),
@@ -893,6 +955,8 @@ class Movement extends DataClass implements Insertable<Movement> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'productId': serializer.toJson<String>(productId),
+      'locationId': serializer.toJson<String?>(locationId),
+      'transferId': serializer.toJson<String?>(transferId),
       'type': serializer.toJson<String>(type),
       'qtyMilli': serializer.toJson<int>(qtyMilli),
       'unitPriceCents': serializer.toJson<int>(unitPriceCents),
@@ -904,6 +968,8 @@ class Movement extends DataClass implements Insertable<Movement> {
   Movement copyWith({
     String? id,
     String? productId,
+    Value<String?> locationId = const Value.absent(),
+    Value<String?> transferId = const Value.absent(),
     String? type,
     int? qtyMilli,
     int? unitPriceCents,
@@ -912,6 +978,8 @@ class Movement extends DataClass implements Insertable<Movement> {
   }) => Movement(
     id: id ?? this.id,
     productId: productId ?? this.productId,
+    locationId: locationId.present ? locationId.value : this.locationId,
+    transferId: transferId.present ? transferId.value : this.transferId,
     type: type ?? this.type,
     qtyMilli: qtyMilli ?? this.qtyMilli,
     unitPriceCents: unitPriceCents ?? this.unitPriceCents,
@@ -922,6 +990,12 @@ class Movement extends DataClass implements Insertable<Movement> {
     return Movement(
       id: data.id.present ? data.id.value : this.id,
       productId: data.productId.present ? data.productId.value : this.productId,
+      locationId: data.locationId.present
+          ? data.locationId.value
+          : this.locationId,
+      transferId: data.transferId.present
+          ? data.transferId.value
+          : this.transferId,
       type: data.type.present ? data.type.value : this.type,
       qtyMilli: data.qtyMilli.present ? data.qtyMilli.value : this.qtyMilli,
       unitPriceCents: data.unitPriceCents.present
@@ -939,6 +1013,8 @@ class Movement extends DataClass implements Insertable<Movement> {
     return (StringBuffer('Movement(')
           ..write('id: $id, ')
           ..write('productId: $productId, ')
+          ..write('locationId: $locationId, ')
+          ..write('transferId: $transferId, ')
           ..write('type: $type, ')
           ..write('qtyMilli: $qtyMilli, ')
           ..write('unitPriceCents: $unitPriceCents, ')
@@ -952,6 +1028,8 @@ class Movement extends DataClass implements Insertable<Movement> {
   int get hashCode => Object.hash(
     id,
     productId,
+    locationId,
+    transferId,
     type,
     qtyMilli,
     unitPriceCents,
@@ -964,6 +1042,8 @@ class Movement extends DataClass implements Insertable<Movement> {
       (other is Movement &&
           other.id == this.id &&
           other.productId == this.productId &&
+          other.locationId == this.locationId &&
+          other.transferId == this.transferId &&
           other.type == this.type &&
           other.qtyMilli == this.qtyMilli &&
           other.unitPriceCents == this.unitPriceCents &&
@@ -974,6 +1054,8 @@ class Movement extends DataClass implements Insertable<Movement> {
 class MovementsCompanion extends UpdateCompanion<Movement> {
   final Value<String> id;
   final Value<String> productId;
+  final Value<String?> locationId;
+  final Value<String?> transferId;
   final Value<String> type;
   final Value<int> qtyMilli;
   final Value<int> unitPriceCents;
@@ -983,6 +1065,8 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
   const MovementsCompanion({
     this.id = const Value.absent(),
     this.productId = const Value.absent(),
+    this.locationId = const Value.absent(),
+    this.transferId = const Value.absent(),
     this.type = const Value.absent(),
     this.qtyMilli = const Value.absent(),
     this.unitPriceCents = const Value.absent(),
@@ -993,6 +1077,8 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
   MovementsCompanion.insert({
     required String id,
     required String productId,
+    this.locationId = const Value.absent(),
+    this.transferId = const Value.absent(),
     required String type,
     required int qtyMilli,
     this.unitPriceCents = const Value.absent(),
@@ -1007,6 +1093,8 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
   static Insertable<Movement> custom({
     Expression<String>? id,
     Expression<String>? productId,
+    Expression<String>? locationId,
+    Expression<String>? transferId,
     Expression<String>? type,
     Expression<int>? qtyMilli,
     Expression<int>? unitPriceCents,
@@ -1017,6 +1105,8 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (productId != null) 'product_id': productId,
+      if (locationId != null) 'location_id': locationId,
+      if (transferId != null) 'transfer_id': transferId,
       if (type != null) 'type': type,
       if (qtyMilli != null) 'qty_milli': qtyMilli,
       if (unitPriceCents != null) 'unit_price_cents': unitPriceCents,
@@ -1029,6 +1119,8 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
   MovementsCompanion copyWith({
     Value<String>? id,
     Value<String>? productId,
+    Value<String?>? locationId,
+    Value<String?>? transferId,
     Value<String>? type,
     Value<int>? qtyMilli,
     Value<int>? unitPriceCents,
@@ -1039,6 +1131,8 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     return MovementsCompanion(
       id: id ?? this.id,
       productId: productId ?? this.productId,
+      locationId: locationId ?? this.locationId,
+      transferId: transferId ?? this.transferId,
       type: type ?? this.type,
       qtyMilli: qtyMilli ?? this.qtyMilli,
       unitPriceCents: unitPriceCents ?? this.unitPriceCents,
@@ -1056,6 +1150,12 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     }
     if (productId.present) {
       map['product_id'] = Variable<String>(productId.value);
+    }
+    if (locationId.present) {
+      map['location_id'] = Variable<String>(locationId.value);
+    }
+    if (transferId.present) {
+      map['transfer_id'] = Variable<String>(transferId.value);
     }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
@@ -1083,6 +1183,8 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     return (StringBuffer('MovementsCompanion(')
           ..write('id: $id, ')
           ..write('productId: $productId, ')
+          ..write('locationId: $locationId, ')
+          ..write('transferId: $transferId, ')
           ..write('type: $type, ')
           ..write('qtyMilli: $qtyMilli, ')
           ..write('unitPriceCents: $unitPriceCents, ')
@@ -2118,6 +2220,417 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
+class $LocationsTable extends Locations
+    with TableInfo<$LocationsTable, Location> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('store'),
+  );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isActiveMeta = const VerificationMeta(
+    'isActive',
+  );
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+    'is_active',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_active" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    name,
+    kind,
+    isDefault,
+    isActive,
+    updatedAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'locations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Location> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(
+        _isActiveMeta,
+        isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMsMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Location map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Location(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
+      isActive: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_active'],
+      )!,
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $LocationsTable createAlias(String alias) {
+    return $LocationsTable(attachedDatabase, alias);
+  }
+}
+
+class Location extends DataClass implements Insertable<Location> {
+  final String id;
+  final String name;
+  final String kind;
+  final bool isDefault;
+  final bool isActive;
+  final int updatedAtMs;
+  const Location({
+    required this.id,
+    required this.name,
+    required this.kind,
+    required this.isDefault,
+    required this.isActive,
+    required this.updatedAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['kind'] = Variable<String>(kind);
+    map['is_default'] = Variable<bool>(isDefault);
+    map['is_active'] = Variable<bool>(isActive);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
+    return map;
+  }
+
+  LocationsCompanion toCompanion(bool nullToAbsent) {
+    return LocationsCompanion(
+      id: Value(id),
+      name: Value(name),
+      kind: Value(kind),
+      isDefault: Value(isDefault),
+      isActive: Value(isActive),
+      updatedAtMs: Value(updatedAtMs),
+    );
+  }
+
+  factory Location.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Location(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      kind: serializer.fromJson<String>(json['kind']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'kind': serializer.toJson<String>(kind),
+      'isDefault': serializer.toJson<bool>(isDefault),
+      'isActive': serializer.toJson<bool>(isActive),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
+    };
+  }
+
+  Location copyWith({
+    String? id,
+    String? name,
+    String? kind,
+    bool? isDefault,
+    bool? isActive,
+    int? updatedAtMs,
+  }) => Location(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    kind: kind ?? this.kind,
+    isDefault: isDefault ?? this.isDefault,
+    isActive: isActive ?? this.isActive,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+  );
+  Location copyWithCompanion(LocationsCompanion data) {
+    return Location(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      kind: data.kind.present ? data.kind.value : this.kind,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Location(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('isActive: $isActive, ')
+          ..write('updatedAtMs: $updatedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, kind, isDefault, isActive, updatedAtMs);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Location &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.kind == this.kind &&
+          other.isDefault == this.isDefault &&
+          other.isActive == this.isActive &&
+          other.updatedAtMs == this.updatedAtMs);
+}
+
+class LocationsCompanion extends UpdateCompanion<Location> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<String> kind;
+  final Value<bool> isDefault;
+  final Value<bool> isActive;
+  final Value<int> updatedAtMs;
+  final Value<int> rowid;
+  const LocationsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.kind = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocationsCompanion.insert({
+    required String id,
+    required String name,
+    this.kind = const Value.absent(),
+    this.isDefault = const Value.absent(),
+    this.isActive = const Value.absent(),
+    required int updatedAtMs,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       name = Value(name),
+       updatedAtMs = Value(updatedAtMs);
+  static Insertable<Location> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<String>? kind,
+    Expression<bool>? isDefault,
+    Expression<bool>? isActive,
+    Expression<int>? updatedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (kind != null) 'kind': kind,
+      if (isDefault != null) 'is_default': isDefault,
+      if (isActive != null) 'is_active': isActive,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocationsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? name,
+    Value<String>? kind,
+    Value<bool>? isDefault,
+    Value<bool>? isActive,
+    Value<int>? updatedAtMs,
+    Value<int>? rowid,
+  }) {
+    return LocationsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      kind: kind ?? this.kind,
+      isDefault: isDefault ?? this.isDefault,
+      isActive: isActive ?? this.isActive,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocationsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('kind: $kind, ')
+          ..write('isDefault: $isDefault, ')
+          ..write('isActive: $isActive, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2128,6 +2641,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $LocationsTable locations = $LocationsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2138,6 +2652,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     outboxEntries,
     syncMetaEntries,
     appSettings,
+    locations,
   ];
 }
 
@@ -2444,6 +2959,8 @@ typedef $$MovementsTableCreateCompanionBuilder =
     MovementsCompanion Function({
       required String id,
       required String productId,
+      Value<String?> locationId,
+      Value<String?> transferId,
       required String type,
       required int qtyMilli,
       Value<int> unitPriceCents,
@@ -2455,6 +2972,8 @@ typedef $$MovementsTableUpdateCompanionBuilder =
     MovementsCompanion Function({
       Value<String> id,
       Value<String> productId,
+      Value<String?> locationId,
+      Value<String?> transferId,
       Value<String> type,
       Value<int> qtyMilli,
       Value<int> unitPriceCents,
@@ -2479,6 +2998,16 @@ class $$MovementsTableFilterComposer
 
   ColumnFilters<String> get productId => $composableBuilder(
     column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get locationId => $composableBuilder(
+    column: $table.locationId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get transferId => $composableBuilder(
+    column: $table.transferId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2527,6 +3056,16 @@ class $$MovementsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get locationId => $composableBuilder(
+    column: $table.locationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get transferId => $composableBuilder(
+    column: $table.transferId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get type => $composableBuilder(
     column: $table.type,
     builder: (column) => ColumnOrderings(column),
@@ -2567,6 +3106,16 @@ class $$MovementsTableAnnotationComposer
 
   GeneratedColumn<String> get productId =>
       $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get locationId => $composableBuilder(
+    column: $table.locationId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get transferId => $composableBuilder(
+    column: $table.transferId,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
@@ -2618,6 +3167,8 @@ class $$MovementsTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> productId = const Value.absent(),
+                Value<String?> locationId = const Value.absent(),
+                Value<String?> transferId = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<int> qtyMilli = const Value.absent(),
                 Value<int> unitPriceCents = const Value.absent(),
@@ -2627,6 +3178,8 @@ class $$MovementsTableTableManager
               }) => MovementsCompanion(
                 id: id,
                 productId: productId,
+                locationId: locationId,
+                transferId: transferId,
                 type: type,
                 qtyMilli: qtyMilli,
                 unitPriceCents: unitPriceCents,
@@ -2638,6 +3191,8 @@ class $$MovementsTableTableManager
               ({
                 required String id,
                 required String productId,
+                Value<String?> locationId = const Value.absent(),
+                Value<String?> transferId = const Value.absent(),
                 required String type,
                 required int qtyMilli,
                 Value<int> unitPriceCents = const Value.absent(),
@@ -2647,6 +3202,8 @@ class $$MovementsTableTableManager
               }) => MovementsCompanion.insert(
                 id: id,
                 productId: productId,
+                locationId: locationId,
+                transferId: transferId,
                 type: type,
                 qtyMilli: qtyMilli,
                 unitPriceCents: unitPriceCents,
@@ -3261,6 +3818,221 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$LocationsTableCreateCompanionBuilder =
+    LocationsCompanion Function({
+      required String id,
+      required String name,
+      Value<String> kind,
+      Value<bool> isDefault,
+      Value<bool> isActive,
+      required int updatedAtMs,
+      Value<int> rowid,
+    });
+typedef $$LocationsTableUpdateCompanionBuilder =
+    LocationsCompanion Function({
+      Value<String> id,
+      Value<String> name,
+      Value<String> kind,
+      Value<bool> isDefault,
+      Value<bool> isActive,
+      Value<int> updatedAtMs,
+      Value<int> rowid,
+    });
+
+class $$LocationsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocationsTable> {
+  $$LocationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocationsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocationsTable> {
+  $$LocationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isActive => $composableBuilder(
+    column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocationsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocationsTable> {
+  $$LocationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
+
+  GeneratedColumn<bool> get isActive =>
+      $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$LocationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocationsTable,
+          Location,
+          $$LocationsTableFilterComposer,
+          $$LocationsTableOrderingComposer,
+          $$LocationsTableAnnotationComposer,
+          $$LocationsTableCreateCompanionBuilder,
+          $$LocationsTableUpdateCompanionBuilder,
+          (Location, BaseReferences<_$AppDatabase, $LocationsTable, Location>),
+          Location,
+          PrefetchHooks Function()
+        > {
+  $$LocationsTableTableManager(_$AppDatabase db, $LocationsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> kind = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocationsCompanion(
+                id: id,
+                name: name,
+                kind: kind,
+                isDefault: isDefault,
+                isActive: isActive,
+                updatedAtMs: updatedAtMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String name,
+                Value<String> kind = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
+                Value<bool> isActive = const Value.absent(),
+                required int updatedAtMs,
+                Value<int> rowid = const Value.absent(),
+              }) => LocationsCompanion.insert(
+                id: id,
+                name: name,
+                kind: kind,
+                isDefault: isDefault,
+                isActive: isActive,
+                updatedAtMs: updatedAtMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocationsTable,
+      Location,
+      $$LocationsTableFilterComposer,
+      $$LocationsTableOrderingComposer,
+      $$LocationsTableAnnotationComposer,
+      $$LocationsTableCreateCompanionBuilder,
+      $$LocationsTableUpdateCompanionBuilder,
+      (Location, BaseReferences<_$AppDatabase, $LocationsTable, Location>),
+      Location,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3275,4 +4047,6 @@ class $AppDatabaseManager {
       $$SyncMetaEntriesTableTableManager(_db, _db.syncMetaEntries);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$LocationsTableTableManager get locations =>
+      $$LocationsTableTableManager(_db, _db.locations);
 }

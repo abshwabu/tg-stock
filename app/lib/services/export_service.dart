@@ -30,13 +30,15 @@ class ExportService {
   }
 
   /// Exports product catalog with current stock and prices (UTF-8 with BOM).
-  Future<File> exportProductsCsv() async {
-    final products = await repository.listProducts(includeDeleted: false);
+  Future<File> exportProductsCsv({String? locationId}) async {
+    final products = await repository.listProducts(includeDeleted: false, locationId: locationId);
+    final loc = locationId != null ? await repository.getLocation(locationId) : null;
+    final locLabel = loc?.name ?? 'All Locations';
     final buffer = StringBuffer();
 
     // Write UTF-8 BOM so Excel and spreadsheet viewers recognize Amharic script
     buffer.write('\uFEFF');
-    buffer.writeln('Product ID,Name,SKU,Unit,Cost Price (ETB),Sell Price (ETB),Low Stock Limit,Current Stock,Status');
+    buffer.writeln('Product ID,Name,SKU,Unit,Cost Price (ETB),Sell Price (ETB),Low Stock Limit,Current Stock,Location,Status');
 
     for (final p in products) {
       final stockDisplay = QuantityFormatter.formatDisplay(p.stockMilli);
@@ -56,6 +58,7 @@ class ExportService {
         _escape(sellStr),
         _escape(lowStr),
         _escape(stockDisplay),
+        _escape(locLabel),
         _escape(status),
       ].join(','));
     }
@@ -68,13 +71,13 @@ class ExportService {
   }
 
   /// Exports sales transactions in the given time frame (UTF-8 with BOM).
-  Future<File> exportSalesCsv({int? fromMs, int? toMs}) async {
-    final sales = await repository.getSalesMovementsWithProduct(fromMs: fromMs, toMs: toMs);
+  Future<File> exportSalesCsv({int? fromMs, int? toMs, String? locationId}) async {
+    final sales = await repository.getSalesMovementsWithProduct(fromMs: fromMs, toMs: toMs, locationId: locationId);
     final buffer = StringBuffer();
 
     // UTF-8 BOM
     buffer.write('\uFEFF');
-    buffer.writeln('Date,Time,Sale Movement ID,Product Name,SKU,Quantity,Unit,Unit Price (ETB),Total (ETB),Note');
+    buffer.writeln('Date,Time,Sale Movement ID,Product Name,SKU,Quantity,Unit,Unit Price (ETB),Total (ETB),Location,Note');
 
     for (final s in sales) {
       final dt = DateTime.fromMillisecondsSinceEpoch(s.movement.createdAtMs).toLocal();
@@ -84,6 +87,7 @@ class ExportService {
       final qtyDisplay = QuantityFormatter.formatDisplay(absQty);
       final unitPriceStr = (s.movement.unitPriceCents / 100).toStringAsFixed(2);
       final totalStr = ((absQty * s.movement.unitPriceCents) / 100000).toStringAsFixed(2);
+      final locName = s.location?.name ?? (s.movement.locationId ?? '');
 
       buffer.writeln([
         _escape(dateStr),
@@ -95,6 +99,7 @@ class ExportService {
         _escape(s.product?.unit ?? 'pcs'),
         _escape(unitPriceStr),
         _escape(totalStr),
+        _escape(locName),
         _escape(s.movement.note ?? ''),
       ].join(','));
     }
@@ -106,14 +111,14 @@ class ExportService {
     return file;
   }
 
-  /// Exports all inventory movements (in, sale, adjust) with signed quantities (UTF-8 with BOM).
-  Future<File> exportMovementsCsv({int? fromMs, int? toMs}) async {
-    final movements = await repository.getMovementsWithProduct(fromMs: fromMs, toMs: toMs);
+  /// Exports all inventory movements (in, sale, adjust, transfer_out, transfer_in) with signed quantities (UTF-8 with BOM).
+  Future<File> exportMovementsCsv({int? fromMs, int? toMs, String? locationId}) async {
+    final movements = await repository.getMovementsWithProduct(fromMs: fromMs, toMs: toMs, locationId: locationId);
     final buffer = StringBuffer();
 
     // UTF-8 BOM
     buffer.write('\uFEFF');
-    buffer.writeln('Date,Time,Movement ID,Product Name,Type,Signed Quantity,Unit,Unit Price (ETB),Note');
+    buffer.writeln('Date,Time,Movement ID,Product Name,Type,Signed Quantity,Unit,Unit Price (ETB),Location,Transfer ID,Note');
 
     for (final m in movements) {
       final dt = DateTime.fromMillisecondsSinceEpoch(m.movement.createdAtMs).toLocal();
@@ -121,6 +126,7 @@ class ExportService {
       final timeStr = DateFormat('HH:mm:ss').format(dt);
       final qtyDisplay = QuantityFormatter.toWireQty(m.movement.qtyMilli);
       final unitPriceStr = (m.movement.unitPriceCents / 100).toStringAsFixed(2);
+      final locName = m.location?.name ?? (m.movement.locationId ?? '');
 
       buffer.writeln([
         _escape(dateStr),
@@ -131,6 +137,8 @@ class ExportService {
         _escape(qtyDisplay),
         _escape(m.product?.unit ?? 'pcs'),
         _escape(unitPriceStr),
+        _escape(locName),
+        _escape(m.movement.transferId ?? ''),
         _escape(m.movement.note ?? ''),
       ].join(','));
     }

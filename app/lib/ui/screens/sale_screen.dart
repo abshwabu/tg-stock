@@ -5,6 +5,7 @@ import '../../repositories/ledger_repository.dart';
 import '../../services/notification_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../widgets/location_selector_chip.dart';
 
 class SaleScreen extends StatefulWidget {
   final LedgerRepository repository;
@@ -23,6 +24,7 @@ class SaleScreen extends StatefulWidget {
 class _SaleScreenState extends State<SaleScreen> {
   final List<SaleLineItem> _cart = [];
   List<Product> _recentProducts = [];
+  Location? _activeLocation;
   bool _isLoading = false;
 
   @override
@@ -33,7 +35,13 @@ class _SaleScreenState extends State<SaleScreen> {
 
   Future<void> _loadRecents() async {
     final recents = await widget.repository.getRecentProducts(limit: 6);
-    if (mounted) setState(() => _recentProducts = recents);
+    final activeLoc = await widget.repository.getActiveLocation();
+    if (mounted) {
+      setState(() {
+        _recentProducts = recents;
+        _activeLocation = activeLoc;
+      });
+    }
   }
 
   int get _cartTotalCents {
@@ -228,15 +236,22 @@ class _SaleScreenState extends State<SaleScreen> {
     setState(() => _isLoading = true);
     try {
       final itemsToNotify = List<SaleLineItem>.from(_cart);
-      await widget.repository.recordSale(items: _cart);
+      await widget.repository.recordSale(
+        items: _cart,
+        locationId: _activeLocation?.id,
+      );
 
       // Check and dispatch local low-stock notifications
       final notifService = NotificationService(repository: widget.repository);
       for (final item in itemsToNotify) {
-        final currentStock = await widget.repository.stockOf(item.product.id);
+        final currentStock = await widget.repository.stockOf(
+          item.product.id,
+          locationId: _activeLocation?.id,
+        );
         await notifService.notifyLowStock(
           product: item.product,
           currentStockMilli: currentStock,
+          locationName: _activeLocation?.name,
         );
       }
 
@@ -291,6 +306,10 @@ class _SaleScreenState extends State<SaleScreen> {
       appBar: AppBar(
         title: const Text('Sale / ሽያጭ'),
         actions: [
+          LocationSelectorChip(
+            repository: widget.repository,
+            onLocationChanged: (loc) => setState(() => _activeLocation = loc),
+          ),
           if (_cart.isNotEmpty)
             TextButton(
               onPressed: () => setState(() => _cart.clear()),

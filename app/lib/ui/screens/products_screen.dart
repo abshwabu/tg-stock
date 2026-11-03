@@ -209,6 +209,27 @@ class _ProductsScreenState extends State<ProductsScreen> {
               'Stock: $stockFormatted ${p.unit} • Cost: ${MoneyFormatter.formatCents(p.costPriceCents)}',
               style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
             ),
+            if (item.stockByLocation.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  ...item.stockByLocation.entries.map((e) {
+                    return Chip(
+                      label: Text('${e.key}: ${QuantityFormatter.formatDisplay(e.value)} ${p.unit}'),
+                      visualDensity: VisualDensity.compact,
+                    );
+                  }),
+                  if (item.inTransitMilli > 0)
+                    Chip(
+                      avatar: const Icon(Icons.local_shipping, size: 16, color: Colors.amber),
+                      label: Text('In transit: ${QuantityFormatter.formatDisplay(item.inTransitMilli)} ${p.unit}'),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                ],
+              ),
+            ],
             const Divider(height: 24),
             ListTile(
               leading: const Icon(Icons.edit_outlined, color: Colors.blue),
@@ -330,6 +351,42 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       'Price: ${MoneyFormatter.formatCents(p.sellPriceCents)} • Stock: ${QuantityFormatter.formatDisplay(stock)} ${p.unit}',
                                       style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
                                     ),
+                                    if (item.stockByLocation.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
+                                        children: [
+                                          ...item.stockByLocation.entries.map((e) {
+                                            return Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade100,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                                              ),
+                                              child: Text(
+                                                '${e.key}: ${QuantityFormatter.formatDisplay(e.value)}',
+                                                style: TextStyle(fontSize: 11, color: Colors.grey.shade800, fontWeight: FontWeight.w500),
+                                              ),
+                                            );
+                                          }),
+                                          if (item.inTransitMilli > 0)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: Colors.amber.shade50,
+                                                borderRadius: BorderRadius.circular(4),
+                                                border: Border.all(color: Colors.amber.shade300, width: 0.8),
+                                              ),
+                                              child: Text(
+                                                '🚚 In transit: ${QuantityFormatter.formatDisplay(item.inTransitMilli)}',
+                                                style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
