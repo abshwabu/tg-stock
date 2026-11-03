@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\LedgerService;
+use App\Services\PermissionService;
 use App\Services\Telegram\BotStateService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
@@ -19,7 +20,9 @@ class StockInHandler
     public function __construct(
         protected TelegramClient $telegram,
         protected BotStateService $botState,
-        protected LedgerService $ledger
+        protected LedgerService $ledger,
+        protected PermissionService $permissionService,
+        protected LocationHandler $locationHandler
     ) {}
 
     /**
@@ -29,6 +32,13 @@ class StockInHandler
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
+
+        $curLoc = $this->locationHandler->getCurrentLocation($user);
+
+        if (!$this->permissionService->can($user, 'stock.in', $curLoc)) {
+            $this->telegram->sendMessage($chatId, __('permission_denied'));
+            return;
+        }
 
         $shopId = (string) $user?->shop_id;
 
@@ -155,11 +165,13 @@ class StockInHandler
 
         $nowMs = (int) (microtime(true) * 1000);
         $qtyMilli = (int) $data['qty_milli'];
+        $curLoc = $this->locationHandler->getCurrentLocation($user);
 
         $movement = new Movement([
             'id' => (string) Str::uuid7(),
             'shop_id' => $shopId,
             'product_id' => $product->id,
+            'location_id' => $curLoc?->id,
             'user_id' => $user?->id,
             'device_id' => null,
             'type' => 'in',

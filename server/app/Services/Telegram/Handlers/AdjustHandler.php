@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\ActivityLogger;
 use App\Services\LedgerService;
+use App\Services\PermissionService;
 use App\Services\Telegram\BotStateService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
@@ -21,21 +22,21 @@ class AdjustHandler
     public function __construct(
         protected TelegramClient $telegram,
         protected BotStateService $botState,
-        protected LedgerService $ledger
+        protected LedgerService $ledger,
+        protected PermissionService $permissionService,
+        protected LocationHandler $locationHandler
     ) {}
 
     /**
-     * Start Adjust flow (Owner only).
+     * Start Adjust flow.
      */
     public function start(int|string $chatId, string $productId, ?User $user): void
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        $shop = Shop::find($user?->shop_id);
-        $canAdjust = ($user?->role === 'owner') || ($user?->role === 'staff' && (bool) ($shop?->staff_can_adjust));
-
-        if (!$canAdjust) {
+        $curLoc = $this->locationHandler->getCurrentLocation($user);
+        if (!$this->permissionService->can($user, 'stock.adjust', $curLoc)) {
             $this->telegram->sendMessage($chatId, __('permission_denied'));
             return;
         }
@@ -51,7 +52,7 @@ class AdjustHandler
             return;
         }
 
-        $currentStockMilli = $this->ledger->stockOf($product);
+        $currentStockMilli = $curLoc ? $this->ledger->stockOf($product, $curLoc) : $this->ledger->stockOf($product);
         $currentFormatted = LedgerService::formatQty($currentStockMilli);
 
         $this->botState->start($chatId, 'adjust', 'await_qty', [
@@ -59,6 +60,7 @@ class AdjustHandler
             'product_name' => $product->name,
             'unit' => $product->unit,
             'current_stock_milli' => $currentStockMilli,
+            'location_id' => $curLoc?->id,
         ]);
 
         $prompt = __('adjust_ask_qty', [
@@ -130,10 +132,8 @@ class AdjustHandler
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        $shop = Shop::find($user?->shop_id);
-        $canAdjust = ($user?->role === 'owner') || ($user?->role === 'staff' && (bool) ($shop?->staff_can_adjust));
-
-        if (!$canAdjust) {
+        $curLoc = $this->locationHandler->getCurrentLocation($user);
+        if (!$this->permissionService->can($user, 'stock.adjust', $curLoc)) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -151,6 +151,7 @@ class AdjustHandler
         $data = $state->data;
         $shopId = (string) $user?->shop_id;
         $productId = (string) $data['product_id'];
+        $locationId = $data['location_id'] ?? $curLoc?->id;
 
         $product = Product::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $shopId)
@@ -177,6 +178,7 @@ class AdjustHandler
             'id' => (string) Str::uuid7(),
             'shop_id' => $shopId,
             'product_id' => $product->id,
+            'location_id' => $locationId,
             'user_id' => $user?->id,
             'device_id' => null, // bot write
             'type' => 'adjust',

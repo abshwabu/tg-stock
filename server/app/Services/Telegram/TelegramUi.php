@@ -47,23 +47,75 @@ class TelegramUi
 
     /**
      * Standard persistent main menu reply keyboard:
-     * 📦 Products · ➕ Stock In · 🛒 Sale · 📊 Reports · ⚙️ Settings
+     * Location switcher (if multi-location) · 📦 Products · ➕ Stock In · 🛒 Sale · 📊 Reports · 🚚 Transfer · ⚙️ Settings
      */
-    public static function mainMenuKeyboard(string $locale = 'am'): array
+    public static function mainMenuKeyboard(string $locale = 'am', ?\App\Models\User $user = null): array
     {
-        if ($locale === 'en') {
+        if ($user === null) {
+            if ($locale === 'en') {
+                return self::replyKeyboard([
+                    ['📦 Products', '➕ Stock In'],
+                    ['🛒 Sale', '📊 Reports'],
+                    ['⚙️ Settings'],
+                ]);
+            }
+
             return self::replyKeyboard([
-                ['📦 Products', '➕ Stock In'],
-                ['🛒 Sale', '📊 Reports'],
-                ['⚙️ Settings'],
+                ['📦 ዕቃዎች', '➕ ገቢ ዕቃ'],
+                ['🛒 ሽያጭ', '📊 ሪፖርት'],
+                ['⚙️ ቅንብሮች'],
             ]);
         }
 
-        return self::replyKeyboard([
-            ['📦 ዕቃዎች', '➕ ገቢ ዕቃ'],
-            ['🛒 ሽያጭ', '📊 ሪፖርት'],
-            ['⚙️ ቅንብሮች'],
-        ]);
+        $rows = [];
+
+        // 1. Location Switcher (only shown if user has more than 1 allowed location)
+        $locHandler = app(\App\Services\Telegram\Handlers\LocationHandler::class);
+        $allowedLocations = $locHandler->getAllowedLocations($user);
+        if ($allowedLocations->count() > 1) {
+            $curLoc = $locHandler->getCurrentLocation($user);
+            $locName = $curLoc ? $curLoc->name : 'Location';
+            $rows[] = ["📍 {$locName} ▾"];
+        }
+
+        // 2. Permission-gated action buttons
+        $perm = app(\App\Services\PermissionService::class);
+        $canProducts = $perm->can($user, 'products.view');
+        $canStockIn = $perm->can($user, 'stock.in');
+        $canSale = $perm->can($user, 'sale.create');
+        $canReports = $perm->can($user, 'reports.view') || $perm->can($user, 'reports.own_sales');
+        $canTransfer = $perm->can($user, 'transfer.create') && ($allowedLocations->count() > 1);
+
+        $row1 = [];
+        if ($canProducts) {
+            $row1[] = $locale === 'en' ? '📦 Products' : '📦 ዕቃዎች';
+        }
+        if ($canStockIn) {
+            $row1[] = $locale === 'en' ? '➕ Stock In' : '➕ ገቢ ዕቃ';
+        }
+        if (!empty($row1)) {
+            $rows[] = $row1;
+        }
+
+        $row2 = [];
+        if ($canSale) {
+            $row2[] = $locale === 'en' ? '🛒 Sale' : '🛒 ሽያጭ';
+        }
+        if ($canReports) {
+            $row2[] = $locale === 'en' ? '📊 Reports' : '📊 ሪፖርት';
+        }
+        if (!empty($row2)) {
+            $rows[] = $row2;
+        }
+
+        if ($canTransfer) {
+            $rows[] = [$locale === 'en' ? '🚚 Transfer' : '🚚 ማስተላለፍ'];
+        }
+
+        // 3. Settings is always available
+        $rows[] = [$locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች'];
+
+        return self::replyKeyboard($rows);
     }
 
     /**

@@ -161,7 +161,10 @@ class LedgerService
     {
         $shop = Shop::find($shopId);
         $threshold = $product->low_stock_at_milli ?? $shop?->low_stock_default_milli ?? 5000;
-        $currentStockMilli = $this->stockOf($product, $shopId);
+        $locationId = $movement->location_id;
+        $currentStockMilli = $locationId
+            ? $this->stockOf($product, $locationId, $shopId)
+            : $this->stockOf($product, $shopId);
         $nowMs = (int) (microtime(true) * 1000);
         $debounceMs = 86400000; // 24 hours
 
@@ -169,7 +172,7 @@ class LedgerService
             if ($product->low_stock_alerted_at_ms === null || ($nowMs - $product->low_stock_alerted_at_ms) >= $debounceMs) {
                 $product->low_stock_alerted_at_ms = $nowMs;
                 $product->save();
-                \App\Jobs\SendLowStockAlertJob::dispatch($product->id, $currentStockMilli, $shopId);
+                \App\Jobs\SendLowStockAlertJob::dispatch($product->id, $currentStockMilli, $shopId, $locationId);
             }
         } elseif ($movement->qty_milli > 0 && $currentStockMilli > $threshold) {
             // Restocked: clear debounce so subsequent drops will alert again

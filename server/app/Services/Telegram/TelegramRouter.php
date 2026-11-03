@@ -7,16 +7,20 @@ namespace App\Services\Telegram;
 use App\Models\BotState;
 use App\Models\User;
 use App\Scopes\ShopScope;
+use App\Services\PermissionService;
 use App\Services\Telegram\Handlers\AdjustHandler;
+use App\Services\Telegram\Handlers\LocationHandler;
 use App\Services\Telegram\Handlers\MenuHandler;
 use App\Services\Telegram\Handlers\PairingHandler;
 use App\Services\Telegram\Handlers\ProductHandler;
 use App\Services\Telegram\Handlers\ReportHandler;
+use App\Services\Telegram\Handlers\ReviewQueueHandler;
 use App\Services\Telegram\Handlers\SaleHandler;
 use App\Services\Telegram\Handlers\SettingsHandler;
 use App\Services\Telegram\Handlers\StartHandler;
 use App\Services\Telegram\Handlers\StockInHandler;
 use App\Services\Telegram\Handlers\TeamHandler;
+use App\Services\Telegram\Handlers\TransferHandler;
 use App\Services\Telegram\Handlers\UndoHandler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
@@ -36,7 +40,11 @@ class TelegramRouter
         protected AdjustHandler $adjustHandler,
         protected UndoHandler $undoHandler,
         protected ReportHandler $reportHandler,
-        protected TeamHandler $teamHandler
+        protected TeamHandler $teamHandler,
+        protected LocationHandler $locationHandler,
+        protected TransferHandler $transferHandler,
+        protected ReviewQueueHandler $reviewQueueHandler,
+        protected PermissionService $permissionService
     ) {}
 
     /**
@@ -96,6 +104,24 @@ class TelegramRouter
         // 1. Pairing
         if ($module === 'pair') {
             $this->pairingHandler->handleCallback($cqId, $chatId, $messageId, $action, $id, $from, $user);
+            return;
+        }
+
+        // 1.5 Locations
+        if ($module === 'loc') {
+            $this->handleLocationCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
+            return;
+        }
+
+        // 1.6 Transfers
+        if ($module === 'trans') {
+            $this->handleTransferCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
+            return;
+        }
+
+        // 1.7 Owner Review Queue
+        if ($module === 'rq') {
+            $this->handleReviewQueueCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
             return;
         }
 
@@ -346,6 +372,135 @@ class TelegramRouter
     }
 
     /**
+     * Dispatch location callbacks.
+     */
+    protected function handleLocationCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
+    {
+        if ($action === 'switch' && $id === 'menu') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->locationHandler->handleSwitchMenu($chatId, $user);
+            return;
+        }
+
+        if ($action === 'set' || ($action === 'switch' && $id === 'pick')) {
+            $locId = $action === 'set' ? $id : ($parts[3] ?? '');
+            $this->locationHandler->handleSelectLocation($cqId, $chatId, $messageId, $locId, $user);
+            return;
+        }
+
+        if ($action === 'settings') {
+            $this->locationHandler->handleSettingsLocations($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'view') {
+            $this->locationHandler->handleViewLocation($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'wiz' && $id === 'start') {
+            $this->locationHandler->handleEnableWarehouseWizard($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'wiz' && $id === 'stock') {
+            $targetLocId = $parts[3] ?? '';
+            $this->locationHandler->handleAssignExistingStock($cqId, $chatId, $messageId, $targetLocId, $user);
+            return;
+        }
+
+        if ($action === 'toggle' && $id === 'receipt') {
+            $this->locationHandler->handleToggleReceipt($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'archive') {
+            $this->locationHandler->handleArchiveLocation($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'rename' && $id === 'start') {
+            $locId = $parts[3] ?? '';
+            $this->locationHandler->startRenameLocation($cqId, $chatId, $messageId, $locId, $user);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
+     * Dispatch transfer callbacks.
+     */
+    protected function handleTransferCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
+    {
+        if ($action === 'from') {
+            $this->transferHandler->handleFromLocation($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'to') {
+            $this->transferHandler->handleToLocation($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'prod') {
+            $this->transferHandler->handleProductSelected($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'confirm') {
+            $this->transferHandler->executeTransfer($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'cancel') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->botState->clear($chatId);
+            $this->telegram->sendMessage($chatId, __('action_cancelled'), [
+                'reply_markup' => TelegramUi::mainMenuKeyboard($user?->language ?? 'am', $user),
+            ]);
+            return;
+        }
+
+        if ($action === 'recv') {
+            $this->transferHandler->handleReceive($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'diff_p') {
+            $this->transferHandler->handleDifferentQtyPrompt($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
+     * Dispatch review queue callbacks.
+     */
+    protected function handleReviewQueueCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
+    {
+        if ($action === 'menu' || $action === 'page') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $page = is_numeric($id) ? (int) $id : 1;
+            $this->reviewQueueHandler->handleReviewMenu($chatId, $user, $page);
+            return;
+        }
+
+        if ($action === 'app') {
+            $this->reviewQueueHandler->handleApprove($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'dsm') {
+            $this->reviewQueueHandler->handleDismiss($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
      * Dispatch report callbacks.
      */
     protected function handleReportCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
@@ -356,8 +511,20 @@ class TelegramRouter
             return;
         }
 
+        if ($action === 'loc') {
+            if ($id === 'stock') {
+                $this->reportHandler->handleStockByLocation($cqId, $chatId, $messageId, $user);
+            } elseif ($id === 'transit') {
+                $this->reportHandler->handleInTransitReport($cqId, $chatId, $messageId, $user);
+            } elseif ($id === 'discrepancies') {
+                $this->reportHandler->handleDiscrepanciesReport($cqId, $chatId, $messageId, $user);
+            }
+            return;
+        }
+
         if ($action === 'p') {
-            $this->reportHandler->handlePeriodReport($cqId, $chatId, $messageId, $id, $user);
+            $locId = $parts[3] ?? null;
+            $this->reportHandler->handlePeriodReport($cqId, $chatId, $messageId, $id, $user, $locId);
             return;
         }
 
@@ -387,6 +554,33 @@ class TelegramRouter
         if ($action === 'menu') {
             $this->telegram->answerCallbackQuery($cqId);
             $this->teamHandler->handleTeamMenu($chatId, $user);
+            return;
+        }
+
+        // Permission editor flows
+        if (str_starts_with($action, 'ped_') || $action === 'ped') {
+            if ($action === 'ped_start') {
+                $this->teamHandler->startPermissionEditor($cqId, $chatId, $messageId, $id, $user);
+            } elseif ($action === 'ped_role') {
+                $role = $parts[3] ?? '';
+                $this->teamHandler->selectPresetRole($cqId, $chatId, $messageId, $id, $role, $user);
+            } elseif ($action === 'ped_togs') {
+                $page = (int) ($parts[3] ?? 1);
+                $this->teamHandler->viewFeatureToggles($cqId, $chatId, $messageId, $id, $page, $user);
+            } elseif ($action === 'ped_tog') {
+                $permKey = $parts[3] ?? '';
+                $page = (int) ($parts[4] ?? 1);
+                $this->teamHandler->toggleFeature($cqId, $chatId, $messageId, $id, $permKey, $page, $user);
+            } elseif ($action === 'ped_locs') {
+                $this->teamHandler->viewLocationAccess($cqId, $chatId, $messageId, $id, $user);
+            } elseif ($action === 'ped_tloc') {
+                $locId = $parts[3] ?? '';
+                $this->teamHandler->toggleLocationAccess($cqId, $chatId, $messageId, $id, $locId, $user);
+            } elseif ($action === 'ped_sum') {
+                $this->teamHandler->viewPermissionSummary($cqId, $chatId, $messageId, $id, $user);
+            } elseif ($action === 'ped_save') {
+                $this->teamHandler->savePermissions($cqId, $chatId, $messageId, $id, $user);
+            }
             return;
         }
 
@@ -570,6 +764,34 @@ class TelegramRouter
             } else {
                 $this->telegram->sendMessage($chatId, __('invalid_number'));
             }
+            return;
+        }
+
+        // 7. Transfer quantity
+        if ($state->flow === 'transfer' && $state->step === 'await_qty') {
+            $qty = TelegramUi::parseNumber($text);
+            if ($qty !== null && $qty > 0) {
+                $this->transferHandler->handleQuantityEntered($chatId, (float) $qty, $state, $user);
+            } else {
+                $this->telegram->sendMessage($chatId, __('invalid_number'));
+            }
+            return;
+        }
+
+        // 8. Transfer different quantity entry
+        if ($state->flow === 'transfer_diff' && $state->step === 'await_diff_qty') {
+            $qty = TelegramUi::parseNumber($text);
+            if ($qty !== null && $qty >= 0) {
+                $this->transferHandler->handleDifferentQtyEntered($chatId, (float) $qty, $state, $user);
+            } else {
+                $this->telegram->sendMessage($chatId, __('invalid_number'));
+            }
+            return;
+        }
+
+        // 9. Rename location
+        if ($state->flow === 'loc_rename' && $state->step === 'await_name') {
+            $this->locationHandler->handleRenameEntered($chatId, $text, $state->data ?? [], $user);
             return;
         }
 

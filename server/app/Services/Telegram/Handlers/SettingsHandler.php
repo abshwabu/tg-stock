@@ -7,13 +7,15 @@ namespace App\Services\Telegram\Handlers;
 use App\Models\Shop;
 use App\Models\User;
 use App\Services\ActivityLogger;
+use App\Services\PermissionService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
 
 class SettingsHandler
 {
     public function __construct(
-        protected TelegramClient $telegram
+        protected TelegramClient $telegram,
+        protected PermissionService $permissionService
     ) {}
 
     /**
@@ -45,6 +47,20 @@ class SettingsHandler
             ],
         ];
 
+        // Locations management (owner or locations.manage)
+        if ($user !== null && ($user->role === 'owner' || $this->permissionService->can($user, 'locations.manage'))) {
+            $rows[] = [
+                ['text' => '📍 ' . ($locale === 'en' ? 'Manage Locations & Transfers' : 'የቦታዎች እና ዝውውር አስተዳደር'), 'callback_data' => 'loc:settings:0'],
+            ];
+        }
+
+        // Team management (owner or team.manage)
+        if ($user !== null && ($user->role === 'owner' || $this->permissionService->can($user, 'team.manage'))) {
+            $rows[] = [
+                ['text' => '👥 ' . ($locale === 'en' ? 'Manage Team & Staff' : 'የቡድን እና ሠራተኞች አስተዳደር'), 'callback_data' => 'team:menu:0'],
+            ];
+        }
+
         // Owner only options
         if ($user?->role === 'owner') {
             $toggleNegLabel = ($shop?->allow_negative_stock)
@@ -64,7 +80,7 @@ class SettingsHandler
             ];
 
             $rows[] = [
-                ['text' => '👥 ' . ($locale === 'en' ? 'Manage Team & Staff' : 'የቡድን እና ሠራተኞች አስተዳደር'), 'callback_data' => 'team:menu:0'],
+                ['text' => '📥 ' . ($locale === 'en' ? 'Needs Review Queue' : 'ማረጋገጫ የሚጠብቁ ለውጦች'), 'callback_data' => 'rq:menu:0'],
             ];
         }
 

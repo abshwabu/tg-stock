@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Models\Location;
 use App\Models\Product;
 use App\Models\Shop;
 use App\Models\User;
@@ -27,7 +28,8 @@ class SendLowStockAlertJob implements ShouldQueue
     public function __construct(
         public string $productId,
         public int $currentStockMilli,
-        public string $shopId
+        public string $shopId,
+        public ?string $locationId = null
     ) {}
 
     public function handle(TelegramClient $telegram): void
@@ -60,17 +62,25 @@ class SendLowStockAlertJob implements ShouldQueue
         $locale = $owner->language ?? 'am';
         app()->setLocale($locale);
 
+        $location = $this->locationId
+            ? Location::withoutGlobalScope(ShopScope::class)->find($this->locationId)
+            : null;
+        $locName = $location?->name;
+
         $stockFormatted = LedgerService::formatQty($this->currentStockMilli);
         $thresholdFormatted = LedgerService::formatQty($product->low_stock_at_milli ?? $shop->low_stock_default_milli);
 
+        $locLineEn = $locName ? "Location: <b>{$locName}</b>\n" : "";
+        $locLineAm = $locName ? "ቦታ: <b>{$locName}</b>\n" : "";
+
         if ($this->currentStockMilli <= 0) {
             $text = $locale === 'en'
-                ? "🚨 <b>OUT OF STOCK ALERT!</b>\nProduct <b>{$product->name}</b> has run out of stock (<b>0 {$product->unit}</b>)!\nTap below to add stock."
-                : "🚨 <b>ዕቃው አልቋል!</b>\n<b>{$product->name}</b> ሙሉ በሙሉ አልቋል (<b>0 {$product->unit}</b>)!\nእባክዎ አዲስ ገቢ ዕቃ ይመዝግቡ።";
+                ? "🚨 <b>OUT OF STOCK ALERT!</b>\n{$locLineEn}Product <b>{$product->name}</b> has run out of stock (<b>0 {$product->unit}</b>)!\nTap below to add stock."
+                : "🚨 <b>ዕቃው አልቋል!</b>\n{$locLineAm}<b>{$product->name}</b> ሙሉ በሙሉ አልቋል (<b>0 {$product->unit}</b>)!\nእባክዎ አዲስ ገቢ ዕቃ ይመዝግቡ።";
         } else {
             $text = $locale === 'en'
-                ? "⚠️ <b>LOW STOCK WARNING!</b>\nProduct <b>{$product->name}</b> is low on stock: <b>{$stockFormatted} {$product->unit}</b> (Threshold: {$thresholdFormatted} {$product->unit})."
-                : "⚠️ <b>አነስተኛ ስቶክ ማስጠንቀቂያ!</b>\n<b>{$product->name}</b> ሊያልቅ ተቃርቧል: <b>{$stockFormatted} {$product->unit}</b> (ዝቅተኛ ገደብ: {$thresholdFormatted} {$product->unit})።";
+                ? "⚠️ <b>LOW STOCK WARNING!</b>\n{$locLineEn}Product <b>{$product->name}</b> is low on stock: <b>{$stockFormatted} {$product->unit}</b> (Threshold: {$thresholdFormatted} {$product->unit})."
+                : "⚠️ <b>አነስተኛ ስቶክ ማስጠንቀቂያ!</b>\n{$locLineAm}<b>{$product->name}</b> ሊያልቅ ተቃርቧል: <b>{$stockFormatted} {$product->unit}</b> (ዝቅተኛ ገደብ: {$thresholdFormatted} {$product->unit})።";
         }
 
         $buttons = TelegramUi::inlineKeyboard([

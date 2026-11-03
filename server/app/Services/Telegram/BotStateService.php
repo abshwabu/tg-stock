@@ -27,6 +27,14 @@ class BotStateService
     }
 
     /**
+     * Set or overwrite conversation flow and step for a chat.
+     */
+    public function set(int|string $chatId, string $flow, string $step, array $data = []): BotState
+    {
+        return $this->start($chatId, $flow, $step, $data);
+    }
+
+    /**
      * Advance existing flow to the next step, optionally updating stored data.
      */
     public function next(int|string $chatId, string $step, array $data = []): ?BotState

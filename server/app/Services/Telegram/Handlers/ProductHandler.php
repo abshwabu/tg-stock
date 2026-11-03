@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Telegram\Handlers;
 
 use App\Models\Change;
+use App\Models\Location;
 use App\Models\Movement;
 use App\Models\Product;
 use App\Models\Shop;
@@ -12,9 +13,11 @@ use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\ActivityLogger;
 use App\Services\LedgerService;
+use App\Services\PermissionService;
 use App\Services\Telegram\BotStateService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ProductHandler
@@ -24,7 +27,8 @@ class ProductHandler
     public function __construct(
         protected TelegramClient $telegram,
         protected BotStateService $botState,
-        protected LedgerService $ledger
+        protected LedgerService $ledger,
+        protected PermissionService $permissionService
     ) {}
 
     /**
@@ -50,7 +54,7 @@ class ProductHandler
 
         if ($total === 0) {
             $buttons = [];
-            if ($user->role === 'owner') {
+            if ($this->permissionService->can($user, 'products.create')) {
                 $buttons[] = [['text' => __('btn_add_product'), 'callback_data' => 'prod:add:start']];
             }
             $this->telegram->sendMessage(
@@ -90,8 +94,8 @@ class ProductHandler
             ];
         }
 
-        // Action row: Add Product (owner only)
-        if ($user->role === 'owner') {
+        // Action row: Add Product
+        if ($this->permissionService->can($user, 'products.create')) {
             $rows[] = [
                 ['text' => __('btn_add_product'), 'callback_data' => 'prod:add:start'],
             ];
@@ -119,7 +123,7 @@ class ProductHandler
     }
 
     /**
-     * Display a detailed Product Card.
+     * Display a detailed Product Card with per-location stock and in-transit tracking.
      */
     public function handleView(string $callbackId, int|string $chatId, int $messageId, string $productId, ?User $user): void
     {
@@ -141,39 +145,118 @@ class ProductHandler
 
         $this->telegram->answerCallbackQuery($callbackId);
 
-        $stockMilli = $this->ledger->stockOf($product);
-        $stockFormatted = LedgerService::formatQty($stockMilli);
         $shop = Shop::find($shopId);
+        $totalStockMilli = $this->ledger->stockOf($product);
+        $totalStockFormatted = LedgerService::formatQty($totalStockMilli);
         $threshold = $product->low_stock_at_milli ?? $shop?->low_stock_default_milli ?? 5000;
-        $isLow = $stockMilli <= $threshold;
+        $isLow = $totalStockMilli <= $threshold;
         $badge = $isLow ? __('stock_badge_low') : __('stock_badge_ok');
 
-        $cardText = __('product_card', [
-            'name' => $product->name,
-            'sell_price' => number_format($product->sell_price_cents / 100, 2),
-            'cost_price' => number_format($product->cost_price_cents / 100, 2),
-            'stock' => $stockFormatted,
-            'unit' => $product->unit,
-            'badge' => $badge,
-            'sku' => $product->sku ?? '—',
-        ]);
+        // Cost price visibility check
+        $canSeeCost = $this->permissionService->can($user, 'cost.view');
+        $costPriceStr = $canSeeCost ? number_format($product->cost_price_cents / 100, 2) . ' ETB' : '—';
+        $sellPriceStr = number_format($product->sell_price_cents / 100, 2) . ' ETB';
 
-        $buttons = [
-            [
-                ['text' => __('btn_stock_in'), 'callback_data' => "stockin:start:{$product->id}"],
-                ['text' => __('btn_sale'), 'callback_data' => "sale:pick:{$product->id}"],
-            ],
-        ];
+        // 1. Per-location stock (only locations the user is allowed to see)
+        $allowedLocIds = $this->permissionService->getLocationIds($user);
+        $locationsQuery = Location::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('is_active', true)
+            ->whereNull('deleted_at_ms');
+        if (!empty($allowedLocIds)) {
+            $locationsQuery->whereIn('id', $allowedLocIds);
+        }
+        $allowedLocations = $locationsQuery->orderBy('is_default', 'desc')->orderBy('name', 'asc')->get();
 
-        // Owner only actions
-        if ($user?->role === 'owner') {
-            $buttons[] = [
-                ['text' => '✏️ ' . ($locale === 'en' ? 'Edit Price' : 'ዋጋ ቀይር'), 'callback_data' => "prod:price:{$product->id}"],
-                ['text' => __('btn_adjust'), 'callback_data' => "adj:start:{$product->id}"],
-            ];
-            $buttons[] = [
-                ['text' => __('btn_delete'), 'callback_data' => "prod:del:{$product->id}"],
-            ];
+        $locStockLines = [];
+        foreach ($allowedLocations as $al) {
+            $alStock = $this->ledger->stockOf($product, $al, $shopId);
+            $alFormatted = LedgerService::formatQty($alStock);
+            $kindIcon = $al->kind === 'warehouse' ? '🏭' : '🏬';
+            $locStockLines[] = "• {$kindIcon} {$al->name}: <b>{$alFormatted} {$product->unit}</b>";
+        }
+        $locStockText = implode("\n", $locStockLines);
+
+        // 2. In-transit tracking
+        $inTransitMilli = (int) Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('product_id', $product->id)
+            ->where('type', 'transfer_out')
+            ->whereNotNull('transfer_id')
+            ->whereNotExists(function ($query): void {
+                $query->select(DB::raw(1))
+                    ->from('movements as in_m')
+                    ->whereColumn('in_m.transfer_id', 'movements.transfer_id')
+                    ->where('in_m.type', 'transfer_in');
+            })
+            ->sum(DB::raw('ABS(qty_milli)'));
+
+        $transitText = '';
+        if ($inTransitMilli > 0) {
+            $transitFormatted = LedgerService::formatQty($inTransitMilli);
+            $transitText = "\n🚚 " . ($locale === 'en' ? "In transit: <b>{$transitFormatted} {$product->unit}</b>" : "በመንገድ ላይ: <b>{$transitFormatted} {$product->unit}</b>");
+        }
+
+        if ($locale === 'en') {
+            $cardText = "📦 <b>Product Card: {$product->name}</b> {$badge}\n"
+                . "• Selling Price: <b>{$sellPriceStr}</b>\n"
+                . "• Cost Price: <b>{$costPriceStr}</b>\n"
+                . "• Total Stock: <b>{$totalStockFormatted} {$product->unit}</b>\n"
+                . "• SKU: <code>" . ($product->sku ?? '—') . "</code>\n\n"
+                . "📍 <b>Stock by Location:</b>\n"
+                . ($locStockText ?: "• (No locations configured)")
+                . $transitText;
+        } else {
+            $cardText = "📦 <b>የዕቃ ካርድ: {$product->name}</b> {$badge}\n"
+                . "• የመሸጫ ዋጋ: <b>{$sellPriceStr}</b>\n"
+                . "• የግዢ ዋጋ: <b>{$costPriceStr}</b>\n"
+                . "• ጠቅላላ ስቶክ: <b>{$totalStockFormatted} {$product->unit}</b>\n"
+                . "• ባርኮድ/SKU: <code>" . ($product->sku ?? '—') . "</code>\n\n"
+                . "📍 <b>ስቶክ በቦታ:</b>\n"
+                . ($locStockText ?: "• (የተመዘገበ ቦታ የለም)")
+                . $transitText;
+        }
+
+        // 3. Permission-gated buttons
+        $canStockIn = $this->permissionService->can($user, 'stock.in');
+        $canSale = $this->permissionService->can($user, 'sale.create');
+        $canTransfer = $this->permissionService->can($user, 'transfer.create') && ($allowedLocations->count() > 1);
+        $canPriceEdit = $this->permissionService->can($user, 'price.edit');
+        $canAdjust = $this->permissionService->can($user, 'stock.adjust');
+        $canDelete = $this->permissionService->can($user, 'products.delete');
+
+        $buttons = [];
+        $row1 = [];
+        if ($canStockIn) {
+            $row1[] = ['text' => __('btn_stock_in'), 'callback_data' => "stockin:start:{$product->id}"];
+        }
+        if ($canSale) {
+            $row1[] = ['text' => __('btn_sale'), 'callback_data' => "sale:pick:{$product->id}"];
+        }
+        if (!empty($row1)) {
+            $buttons[] = $row1;
+        }
+
+        $row2 = [];
+        if ($canTransfer) {
+            $row2[] = ['text' => '🚚 ' . ($locale === 'en' ? 'Transfer' : 'አስተላልፍ'), 'callback_data' => "trans:prod:{$product->id}"];
+        }
+        if ($canAdjust) {
+            $row2[] = ['text' => __('btn_adjust'), 'callback_data' => "adj:start:{$product->id}"];
+        }
+        if (!empty($row2)) {
+            $buttons[] = $row2;
+        }
+
+        $row3 = [];
+        if ($canPriceEdit) {
+            $row3[] = ['text' => '✏️ ' . ($locale === 'en' ? 'Edit Price' : 'ዋጋ ቀይር'), 'callback_data' => "prod:price:{$product->id}"];
+        }
+        if ($canDelete) {
+            $row3[] = ['text' => __('btn_delete'), 'callback_data' => "prod:del:{$product->id}"];
+        }
+        if (!empty($row3)) {
+            $buttons[] = $row3;
         }
 
         $buttons[] = [
@@ -208,7 +291,7 @@ class ProductHandler
 
         if ($matches->isEmpty()) {
             $buttons = [];
-            if ($user?->role === 'owner') {
+            if ($this->permissionService->can($user, 'products.create')) {
                 $buttons[] = [
                     ['text' => __('btn_add_product'), 'callback_data' => 'prod:add:start'],
                 ];
@@ -242,14 +325,14 @@ class ProductHandler
     }
 
     /**
-     * Initiate Add Product step-by-step flow (Owner only).
+     * Initiate Add Product step-by-step flow.
      */
     public function startAddProduct(int|string $chatId, ?User $user, ?string $prefilledName = null): void
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if (!$this->permissionService->can($user, 'products.create')) {
             $this->telegram->sendMessage($chatId, __('permission_denied'));
             return;
         }
@@ -475,7 +558,7 @@ class ProductHandler
             return;
         }
 
-        if ($user?->role !== 'owner') {
+        if (!$this->permissionService->can($user, 'products.create')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -498,14 +581,14 @@ class ProductHandler
     }
 
     /**
-     * Initiate Delete Product confirmation prompt (Owner only).
+     * Initiate Delete Product confirmation prompt.
      */
     public function handleDelete(string $callbackId, int|string $chatId, int $messageId, string $productId, ?User $user): void
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if (!$this->permissionService->can($user, 'products.delete')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -531,7 +614,7 @@ class ProductHandler
         ]);
 
         $this->telegram->editMessageText($chatId, $messageId, $prompt, [
-            'reply_markup' => $buttons,
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
     }
 
@@ -540,7 +623,7 @@ class ProductHandler
      */
     public function confirmDelete(string $callbackId, int|string $chatId, int $messageId, string $productId, ?User $user): void
     {
-        if ($user?->role !== 'owner') {
+        if (!$this->permissionService->can($user, 'products.delete')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -580,14 +663,14 @@ class ProductHandler
     }
 
     /**
-     * Start Edit Price flow (Owner only).
+     * Start Edit Price flow.
      */
     public function startEditPrice(string $callbackId, int|string $chatId, int $messageId, string $productId, ?User $user): void
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if (!$this->permissionService->can($user, 'price.edit')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -621,14 +704,14 @@ class ProductHandler
     }
 
     /**
-     * Finalize price update from owner input.
+     * Finalize price update from user input.
      */
     public function handleNewPriceInput(int|string $chatId, float $newPrice, array $data, ?User $user): void
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if (!$this->permissionService->can($user, 'price.edit')) {
             $this->botState->clear($chatId);
             $this->telegram->sendMessage($chatId, __('permission_denied'));
             return;

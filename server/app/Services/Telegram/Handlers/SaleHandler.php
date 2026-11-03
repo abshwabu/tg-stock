@@ -10,6 +10,7 @@ use App\Models\Shop;
 use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\LedgerService;
+use App\Services\PermissionService;
 use App\Services\Telegram\BotStateService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
@@ -20,7 +21,9 @@ class SaleHandler
     public function __construct(
         protected TelegramClient $telegram,
         protected BotStateService $botState,
-        protected LedgerService $ledger
+        protected LedgerService $ledger,
+        protected PermissionService $permissionService,
+        protected LocationHandler $locationHandler
     ) {}
 
     /**
@@ -30,6 +33,12 @@ class SaleHandler
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
+
+        $curLoc = $this->locationHandler->getCurrentLocation($user);
+        if (!$this->permissionService->can($user, 'sale.create', $curLoc)) {
+            $this->telegram->sendMessage($chatId, __('permission_denied'));
+            return;
+        }
 
         $shopId = (string) $user?->shop_id;
 
@@ -88,7 +97,8 @@ class SaleHandler
             return;
         }
 
-        $stockMilli = $this->ledger->stockOf($product);
+        $curLoc = $this->locationHandler->getCurrentLocation($user);
+        $stockMilli = $curLoc ? $this->ledger->stockOf($product, $curLoc) : $this->ledger->stockOf($product);
         $stockFormatted = LedgerService::formatQty($stockMilli);
         $priceEtb = number_format($product->sell_price_cents / 100, 2);
 
@@ -164,7 +174,8 @@ class SaleHandler
 
         // Check if negative stock is disallowed
         if (!$shop?->allow_negative_stock) {
-            $currentStockMilli = $this->ledger->stockOf($product);
+            $curLoc = $this->locationHandler->getCurrentLocation($user);
+            $currentStockMilli = $curLoc ? $this->ledger->stockOf($product, $curLoc) : $this->ledger->stockOf($product);
 
             // Subtract any quantity of this product already in cart
             $alreadyInCartMilli = 0;
@@ -267,6 +278,7 @@ class SaleHandler
         $nowMs = (int) (microtime(true) * 1000);
         $totalCents = 0;
         $receiptLines = '';
+        $curLoc = $this->locationHandler->getCurrentLocation($user);
 
         foreach ($cart as $idx => $item) {
             $num = $idx + 1;
@@ -279,6 +291,7 @@ class SaleHandler
                 'id' => (string) Str::uuid7(),
                 'shop_id' => $shopId,
                 'product_id' => $item['product_id'],
+                'location_id' => $curLoc?->id,
                 'user_id' => $user?->id,
                 'device_id' => null, // bot write
                 'type' => 'sale',

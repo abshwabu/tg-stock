@@ -70,5 +70,15 @@
   "delete_confirm": "⚠️ <b>:product</b> የተባለውን ዕቃ ለመሰረዝ እርግጠኛ ነዎት?\nየቀደመ የሽያጭ እና ስቶክ መዝገብ አይሰረዝም።",
   "btn_confirm_delete": "🗑 አዎ ሰርዝ",
   "delete_success": "🗑 <b>:product</b> በተሳካ ሁኔታ ተሰርዟል።",
-  "search_no_results": "🔍 ለ \"<b>:query</b>\" የተገኘ ዕቃ የለም።"
+  "search_no_results": "🔍 ለ \"<b>:query</b>\" የተገኘ ዕቃ የለም።",
+  "menu_transfer": "🚚 ማስተላለፍ",
+  "menu_review_queue": "📥 ማረጋገጫ የሚጠብቁ",
+  "transfer_title": "🚚 የዕቃ ዝውውር",
+  "transfer_success": "✅ ዝውውሩ በተሳካ ሁኔታ ተጠናቋል!",
+  "transfer_discrepancy_alert": "⚠️ የዝውውር ልዩነት ማስጠንቀቂያ!",
+  "location_switched": "📍 ንቁ የስራ ቦታ ወደ <b>:location</b> ተቀይሯል",
+  "btn_receive": "✅ ተቀበል",
+  "btn_different_qty": "✏️ የተለየ ብዛት",
+  "review_queue_empty": "ማረጋገጫ የሚጠብቅ ውድቅ የተደረገ የኦፍላይን ለውጥ የለም።",
+  "locations_settings_title": "📍 የቦታዎች እና ዝውውር አስተዳደር"
 }

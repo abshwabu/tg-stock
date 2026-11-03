@@ -18,7 +18,10 @@ class MenuHandler
         protected SaleHandler $saleHandler,
         protected UndoHandler $undoHandler,
         protected ReportHandler $reportHandler,
-        protected TeamHandler $teamHandler
+        protected TeamHandler $teamHandler,
+        protected LocationHandler $locationHandler,
+        protected TransferHandler $transferHandler,
+        protected ReviewQueueHandler $reviewQueueHandler
     ) {}
 
     /**
@@ -31,9 +34,27 @@ class MenuHandler
 
         $clean = trim($text);
 
+        // 0. Location Switcher: e.g. "📍 Store ▾", "📍 Warehouse ▾", or command /switch, /location
+        if (preg_match('/^📍.+▾$/u', $clean) || in_array($clean, ['/switch', '/location', '/locations'], true)) {
+            $this->locationHandler->handleSwitchMenu($chatId, $user);
+            return;
+        }
+
         // 1. Settings
         if (in_array($clean, ['⚙️ Settings', '⚙️ ቅንብሮች', '/settings'], true)) {
             $this->settingsHandler->handleSettings($chatId, $user);
+            return;
+        }
+
+        // 1.5 Transfer
+        if (in_array($clean, ['🚚 Transfer', '🚚 ማስተላለፍ', '/transfer'], true)) {
+            $this->transferHandler->start($chatId, null, $user);
+            return;
+        }
+
+        // 1.6 Review Queue
+        if (in_array($clean, ['📥 Needs Review', '📥 ማረጋገጫ የሚጠብቁ', '/review'], true)) {
+            $this->reviewQueueHandler->handleReviewMenu($chatId, $user);
             return;
         }
 

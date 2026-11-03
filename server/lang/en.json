@@ -70,5 +70,15 @@
   "delete_confirm": "⚠️ Are you sure you want to delete <b>:product</b>?\nPast sales and stock movements will be preserved.",
   "btn_confirm_delete": "🗑 Yes, Delete",
   "delete_success": "🗑 Product <b>:product</b> has been deleted.",
-  "search_no_results": "🔍 No products found for \"<b>:query</b>\"."
+  "search_no_results": "🔍 No products found for \"<b>:query</b>\".",
+  "menu_transfer": "🚚 Transfer",
+  "menu_review_queue": "📥 Needs Review",
+  "transfer_title": "🚚 Inventory Transfer",
+  "transfer_success": "✅ Transfer completed successfully!",
+  "transfer_discrepancy_alert": "⚠️ Transfer Discrepancy Alert!",
+  "location_switched": "📍 Switched active location to <b>:location</b>",
+  "btn_receive": "✅ Receive",
+  "btn_different_qty": "✏️ Different qty",
+  "review_queue_empty": "No pending offline changes to review.",
+  "locations_settings_title": "📍 Locations & Transfers Settings"
 }

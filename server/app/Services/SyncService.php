@@ -763,7 +763,7 @@ class SyncService
             }
 
             // Location filtering: movements outside user's locations are not sent, except transfers touching one of their locations
-            if (!$isOwner) {
+            if (!$isOwner && !empty($allowedLocations)) {
                 $inAllowed = $m->location_id !== null && in_array((string) $m->location_id, $allowedLocations, true);
                 if (!$inAllowed) {
                     $touches = $this->transferTouchesLocations($shopId, $m, $allowedLocations);

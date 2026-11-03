@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Services\Telegram\Handlers;
 
 use App\Jobs\GenerateExportJob;
+use App\Models\Location;
 use App\Models\Movement;
 use App\Models\Product;
 use App\Models\Shop;
 use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\LedgerService;
+use App\Services\PermissionService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
 use App\Support\EthiopicCalendar;
@@ -21,11 +23,13 @@ class ReportHandler
 {
     public function __construct(
         protected TelegramClient $telegram,
-        protected LedgerService $ledger
+        protected LedgerService $ledger,
+        protected PermissionService $permissionService,
+        protected LocationHandler $locationHandler
     ) {}
 
     /**
-     * Show main reports menu based on user role.
+     * Show main reports menu based on user role and permissions.
      */
     public function handleMenu(int|string $chatId, ?User $user): void
     {
@@ -37,21 +41,29 @@ class ReportHandler
             return;
         }
 
+        $canViewAll = $this->permissionService->can($user, 'reports.view');
+        $canViewOwn = $this->permissionService->can($user, 'reports.own_sales');
+
+        if (!$canViewAll && !$canViewOwn) {
+            $this->telegram->sendMessage($chatId, __('permission_denied'));
+            return;
+        }
+
         $shop = Shop::find($user->shop_id);
         $shopName = $shop?->name ?? 'Shop';
 
-        // Staff sees only their own today's sales
-        if ($user->role !== 'owner') {
+        // Staff sees only their own today's sales if they don't have full reports.view
+        if (!$canViewAll && $canViewOwn) {
             $this->showStaffReport($chatId, $user, $shop, $locale);
             return;
         }
 
-        // Owner menu
+        // Full reports menu
         $text = $locale === 'en'
             ? "📊 <b>Reports & Analytics — {$shopName}</b>\nChoose a report period or action:"
             : "📊 <b>ሪፖርት እና ትንታኔ — {$shopName}</b>\nየሪፖርት ጊዜውን ወይም ዓይነት ይምረጡ:";
 
-        $buttons = TelegramUi::inlineKeyboard([
+        $buttons = [
             [
                 ['text' => '📅 ' . ($locale === 'en' ? 'Today' : 'ዛሬ'), 'callback_data' => 'rep:p:today'],
                 ['text' => '📅 ' . ($locale === 'en' ? 'Yesterday' : 'ትናንት'), 'callback_data' => 'rep:p:yesterday'],
@@ -61,13 +73,27 @@ class ReportHandler
                 ['text' => '🗓 ' . ($locale === 'en' ? 'This Month' : 'የዚህ ወር'), 'callback_data' => 'rep:p:month'],
             ],
             [
-                ['text' => '📦 ' . ($locale === 'en' ? 'Stock Valuation' : 'የስቶክ ዋጋ ግምት'), 'callback_data' => 'rep:stock:val'],
-                ['text' => '📥 ' . ($locale === 'en' ? 'Export CSV' : 'በኤክሴል አውርድ'), 'callback_data' => 'rep:exp:menu'],
+                ['text' => '🏢 ' . ($locale === 'en' ? 'Stock by Location' : 'ስቶክ በየቦታው'), 'callback_data' => 'rep:loc:stock'],
+                ['text' => '🚚 ' . ($locale === 'en' ? 'In Transit' : 'በመንገድ ላይ'), 'callback_data' => 'rep:loc:transit'],
             ],
-        ]);
+            [
+                ['text' => '⚠️ ' . ($locale === 'en' ? 'Transfer Discrepancies' : 'የዝውውር ልዩነቶች'), 'callback_data' => 'rep:loc:discrepancies'],
+            ],
+        ];
+
+        $extraRow = [];
+        if ($this->permissionService->can($user, 'cost.view')) {
+            $extraRow[] = ['text' => '📦 ' . ($locale === 'en' ? 'Stock Valuation' : 'የስቶክ ዋጋ ግምት'), 'callback_data' => 'rep:stock:val'];
+        }
+        if ($this->permissionService->can($user, 'export')) {
+            $extraRow[] = ['text' => '📥 ' . ($locale === 'en' ? 'Export CSV' : 'በኤክሴል አውርድ'), 'callback_data' => 'rep:exp:menu'];
+        }
+        if (!empty($extraRow)) {
+            $buttons[] = $extraRow;
+        }
 
         $this->telegram->sendMessage($chatId, $text, [
-            'reply_markup' => $buttons,
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
     }
 
@@ -112,19 +138,25 @@ class ReportHandler
         }
 
         $this->telegram->sendMessage($chatId, $msg, [
-            'reply_markup' => TelegramUi::mainMenuKeyboard($locale),
+            'reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user),
         ]);
     }
 
     /**
-     * Handle period report callback for Owner.
+     * Handle period report callback with location filtering support.
      */
-    public function handlePeriodReport(string $callbackId, int|string $chatId, int $messageId, string $period, ?User $user): void
-    {
+    public function handlePeriodReport(
+        string $callbackId,
+        int|string $chatId,
+        int $messageId,
+        string $period,
+        ?User $user,
+        ?string $locationId = null
+    ): void {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if ($user === null || !$this->permissionService->can($user, 'reports.view')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -160,39 +192,54 @@ class ReportHandler
 
         $shopId = (string) $user->shop_id;
 
-        // 1. Sales and Revenue Aggregation
-        $salesRows = Movement::withoutGlobalScope(ShopScope::class)
+        // Query sales movements with optional location filter
+        $salesQuery = Movement::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $shopId)
             ->where('type', 'sale')
-            ->whereBetween('created_at_ms', [$startMs, $endMs])
-            ->get();
+            ->whereBetween('created_at_ms', [$startMs, $endMs]);
 
+        $locationName = null;
+        if (!empty($locationId) && $locationId !== 'all') {
+            $salesQuery->where('location_id', $locationId);
+            $locModel = Location::withoutGlobalScope(ShopScope::class)->find($locationId);
+            $locationName = $locModel?->name;
+        }
+
+        $salesRows = $salesQuery->get();
         $salesCount = $salesRows->count();
         $totalRevenueCents = 0;
         $totalCostCents = 0;
         $itemsWithCost = 0;
+        $canSeeCost = $this->permissionService->can($user, 'cost.view');
 
         foreach ($salesRows as $s) {
             $qtySold = abs($s->qty_milli) / 1000;
             $saleRevenue = (int) round($qtySold * $s->unit_price_cents);
             $totalRevenueCents += $saleRevenue;
 
-            $prod = Product::withoutGlobalScope(ShopScope::class)->find($s->product_id);
-            if ($prod && $prod->cost_price_cents > 0) {
-                $totalCostCents += (int) round($qtySold * $prod->cost_price_cents);
-                $itemsWithCost++;
+            if ($canSeeCost) {
+                $prod = Product::withoutGlobalScope(ShopScope::class)->find($s->product_id);
+                if ($prod && $prod->cost_price_cents > 0) {
+                    $totalCostCents += (int) round($qtySold * $prod->cost_price_cents);
+                    $itemsWithCost++;
+                }
             }
         }
 
-        $estProfitCents = $itemsWithCost > 0 ? ($totalRevenueCents - $totalCostCents) : null;
+        $estProfitCents = ($canSeeCost && $itemsWithCost > 0) ? ($totalRevenueCents - $totalCostCents) : null;
 
-        // 2. Top 5 items by revenue & quantity
-        $topItems = Movement::withoutGlobalScope(ShopScope::class)
+        // Top 5 items
+        $topQuery = Movement::withoutGlobalScope(ShopScope::class)
             ->select('product_id', DB::raw('SUM(-qty_milli) as total_qty'), DB::raw('SUM(-qty_milli * unit_price_cents / 1000) as total_revenue'))
             ->where('shop_id', $shopId)
             ->where('type', 'sale')
-            ->whereBetween('created_at_ms', [$startMs, $endMs])
-            ->groupBy('product_id')
+            ->whereBetween('created_at_ms', [$startMs, $endMs]);
+
+        if (!empty($locationId) && $locationId !== 'all') {
+            $topQuery->where('location_id', $locationId);
+        }
+
+        $topItems = $topQuery->groupBy('product_id')
             ->orderByDesc('total_revenue')
             ->limit(5)
             ->get();
@@ -213,24 +260,220 @@ class ReportHandler
         }
 
         $revenueFormatted = EthiopicCalendar::formatMoney($totalRevenueCents);
-        $profitText = $estProfitCents !== null
-            ? EthiopicCalendar::formatMoney($estProfitCents)
-            : ($locale === 'en' ? '— (Cost price not configured)' : '— (የመግዣ ዋጋ አልተሞላም)');
+        $profitText = $canSeeCost
+            ? ($estProfitCents !== null ? EthiopicCalendar::formatMoney($estProfitCents) : ($locale === 'en' ? '— (Cost price missing)' : '— (የመግዣ ዋጋ አልተሞላም)'))
+            : '—';
+
+        $locHeader = $locationName
+            ? "\n📍 " . ($locale === 'en' ? "Location: <b>{$locationName}</b>" : "ቦታ: <b>{$locationName}</b>")
+            : "\n📍 " . ($locale === 'en' ? "Location: <b>All Locations</b>" : "ቦታ: <b>ሁሉም ቦታዎች</b>");
 
         if ($locale === 'en') {
             $text = "📊 <b>Sales Report: {$label}</b>\n"
-                . "🏪 {$shop->name}\n\n"
+                . "🏪 {$shop->name}{$locHeader}\n\n"
                 . "💰 Revenue: <b>{$revenueFormatted}</b>\n"
                 . "🧾 Sales Count: <b>{$salesCount} transactions</b>\n"
                 . "📈 Estimated Profit: <b>{$profitText}</b>\n\n"
-                . "🏆 <b>Top 5 Items:</b>\n{$topText}";
+                . "🏆 <b>Top Items:</b>\n{$topText}";
         } else {
             $text = "📊 <b>የሽያጭ ሪፖርት: {$label}</b>\n"
-                . "🏪 {$shop->name}\n\n"
+                . "🏪 {$shop->name}{$locHeader}\n\n"
                 . "💰 የሽያጭ ገቢ: <b>{$revenueFormatted}</b>\n"
                 . "🧾 የሽያጭ ብዛት: <b>{$salesCount} ግብይቶች</b>\n"
                 . "📈 የተጣራ ትርፍ (ግምት): <b>{$profitText}</b>\n\n"
-                . "🏆 <b>ተመራጭ 5 ዕቃዎች:</b>\n{$topText}";
+                . "🏆 <b>ተመራጭ ዕቃዎች:</b>\n{$topText}";
+        }
+
+        $buttons = [];
+
+        // Location filter buttons if shop has multiple locations
+        $allowedLocs = $this->locationHandler->getAllowedLocations($user);
+        if ($allowedLocs->count() > 1) {
+            $filterRow = [];
+            $isAll = empty($locationId) || $locationId === 'all';
+            $filterRow[] = [
+                'text' => ($isAll ? '✓ ' : '') . ($locale === 'en' ? 'All' : 'ሁሉም'),
+                'callback_data' => "rep:p:{$period}:all",
+            ];
+
+            foreach ($allowedLocs as $al) {
+                $isCur = $locationId === (string) $al->id;
+                $filterRow[] = [
+                    'text' => ($isCur ? '✓ ' : '') . $al->name,
+                    'callback_data' => "rep:p:{$period}:{$al->id}",
+                ];
+                if (count($filterRow) === 3) {
+                    $buttons[] = $filterRow;
+                    $filterRow = [];
+                }
+            }
+            if (!empty($filterRow)) {
+                $buttons[] = $filterRow;
+            }
+        }
+
+        $buttons[] = [
+            ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
+        ];
+
+        $this->telegram->editMessageText($chatId, $messageId, $text, [
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
+        ]);
+    }
+
+    /**
+     * Stock by location report: shows balance for all authorized locations.
+     */
+    public function handleStockByLocation(string $callbackId, int|string $chatId, int $messageId, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        if ($user === null || !$this->permissionService->can($user, 'reports.view')) {
+            $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($callbackId);
+
+        $shop = Shop::find($user->shop_id);
+        $allowedLocs = $this->locationHandler->getAllowedLocations($user);
+
+        if ($allowedLocs->isEmpty()) {
+            $this->telegram->sendMessage($chatId, 'No authorized locations found.');
+            return;
+        }
+
+        $lines = [];
+        foreach ($allowedLocs as $loc) {
+            $stockSummary = Movement::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $user->shop_id)
+                ->where('location_id', $loc->id)
+                ->select([
+                    DB::raw('COUNT(DISTINCT product_id) as total_products'),
+                    DB::raw('CAST(COALESCE(SUM(qty_milli), 0) AS INTEGER) as total_qty_milli'),
+                ])
+                ->first();
+
+            $totalProds = (int) ($stockSummary->total_products ?? 0);
+            $totalUnits = LedgerService::formatQty((int) ($stockSummary->total_qty_milli ?? 0));
+            $kindIcon = $loc->kind === 'warehouse' ? '🏭' : '🏬';
+
+            $lines[] = "{$kindIcon} <b>{$loc->name}</b>\n"
+                . "• " . ($locale === 'en' ? 'Distinct Products:' : 'የተለያዩ ዕቃዎች:') . " <b>{$totalProds}</b>\n"
+                . "• " . ($locale === 'en' ? 'Total Quantity Units:' : 'ጠቅላላ የዕቃ ብዛት:') . " <b>{$totalUnits}</b>";
+        }
+
+        $body = implode("\n\n", $lines);
+
+        $text = $locale === 'en'
+            ? "🏢 <b>Stock by Location — {$shop->name}</b>\n\n{$body}"
+            : "🏢 <b>ስቶክ በየቦታው — {$shop->name}</b>\n\n{$body}";
+
+        $buttons = TelegramUi::inlineKeyboard([
+            [
+                ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
+            ],
+        ]);
+
+        $this->telegram->editMessageText($chatId, $messageId, $text, [
+            'reply_markup' => $buttons,
+        ]);
+    }
+
+    /**
+     * In-transit inventory report.
+     */
+    public function handleInTransitReport(string $callbackId, int|string $chatId, int $messageId, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        if ($user === null || !$this->permissionService->can($user, 'reports.view')) {
+            $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($callbackId);
+
+        $shop = Shop::find($user->shop_id);
+        $transits = $this->ledger->inTransit($shop);
+
+        if ($transits->isEmpty()) {
+            $text = $locale === 'en'
+                ? "🚚 <b>In-Transit Inventory — {$shop->name}</b>\n\n✅ <b>No transfers in transit!</b> All dispatched transfers have been received."
+                : "🚚 <b>በመንገድ ላይ ያለ ዕቃ — {$shop->name}</b>\n\n✅ <b>በመንገድ ላይ ያለ ዕቃ የለም!</b> የተላኩ ዝውውሮች በሙሉ ደርሰው ተረጋግጠዋል።";
+        } else {
+            $text = $locale === 'en'
+                ? "🚚 <b>In-Transit Inventory ({$transits->count()} active)</b>\n\n"
+                : "🚚 <b>በመንገድ ላይ ያሉ ዝውውሮች ({$transits->count()})</b>\n\n";
+
+            foreach ($transits as $t) {
+                $shortId = substr($t['transfer_id'], 0, 8);
+                $pName = $t['product_name'] ?? 'Product';
+                $from = $t['from_location_name'] ?? 'Origin';
+                $to = $t['to_location_name'] ?? 'Destination';
+                $qty = $t['qty'];
+                $sentBy = $t['sent_by'] ?? 'Staff';
+
+                $text .= "• <code>[#{$shortId}]</code> <b>{$pName}</b> × <b>{$qty}</b>\n"
+                    . "  ↳ {$from} ➔ {$to} (" . ($locale === 'en' ? 'Sent by:' : 'የላከው:') . " {$sentBy})\n";
+            }
+        }
+
+        $buttons = TelegramUi::inlineKeyboard([
+            [
+                ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች ተመለስ'), 'callback_data' => 'rep:menu'],
+            ],
+        ]);
+
+        $this->telegram->editMessageText($chatId, $messageId, $text, [
+            'reply_markup' => $buttons,
+        ]);
+    }
+
+    /**
+     * Transfer discrepancies report.
+     */
+    public function handleDiscrepanciesReport(string $callbackId, int|string $chatId, int $messageId, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        if ($user === null || !$this->permissionService->can($user, 'reports.view')) {
+            $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($callbackId);
+
+        $shop = Shop::find($user->shop_id);
+        $discrepancies = $this->ledger->discrepancies($shop);
+
+        if ($discrepancies->isEmpty()) {
+            $text = $locale === 'en'
+                ? "⚠️ <b>Transfer Discrepancies — {$shop->name}</b>\n\n✅ <b>No discrepancies recorded!</b> All received transfers matched sent quantities perfectly."
+                : "⚠️ <b>የዝውውር ልዩነቶች — {$shop->name}</b>\n\n✅ <b>ምንም የተመዘገበ ልዩነት የለም!</b> የተላለፉ ዕቃዎች ሙሉ በሙሉ በትክክል ደርሰዋል።";
+        } else {
+            $text = $locale === 'en'
+                ? "⚠️ <b>Transfer Discrepancies ({$discrepancies->count()} incidents)</b>\n\n"
+                : "⚠️ <b>የዝውውር ልዩነቶች ({$discrepancies->count()})</b>\n\n";
+
+            foreach ($discrepancies as $d) {
+                $shortId = substr($d['transfer_id'], 0, 8);
+                $pName = $d['product_name'] ?? 'Product';
+                $from = $d['from_location_name'] ?? 'Origin';
+                $to = $d['to_location_name'] ?? 'Destination';
+                $sent = $d['sent_qty'];
+                $rcvd = $d['received_qty'];
+                $diff = $d['difference_qty'];
+                $diffSign = $d['difference_milli'] > 0 ? "+{$diff}" : $diff;
+
+                $text .= "• <code>[#{$shortId}]</code> <b>{$pName}</b> ({$from} ➔ {$to})\n"
+                    . "  ↳ " . ($locale === 'en' ? 'Sent:' : 'የተላከው:') . " <b>{$sent}</b> | "
+                    . ($locale === 'en' ? 'Received:' : 'የደረሰው:') . " <b>{$rcvd}</b> ("
+                    . ($locale === 'en' ? 'Diff:' : 'ልዩነት:') . " <b>{$diffSign}</b>)\n";
+            }
         }
 
         $buttons = TelegramUi::inlineKeyboard([
@@ -252,7 +495,7 @@ class ReportHandler
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if ($user === null || !$this->permissionService->can($user, 'cost.view')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -316,7 +559,7 @@ class ReportHandler
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if ($user === null || !$this->permissionService->can($user, 'export')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }
@@ -355,7 +598,7 @@ class ReportHandler
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        if ($user?->role !== 'owner') {
+        if ($user === null || !$this->permissionService->can($user, 'export')) {
             $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
             return;
         }

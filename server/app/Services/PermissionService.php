@@ -58,13 +58,16 @@ class PermissionService
             'undo.own',
         ],
         'custom' => [],
-        'staff' => [ // Legacy alias mapped to salesperson
+        'staff' => [ // Legacy alias mapped to salesperson + stock.in
             'products.view',
+            'stock.in',
             'sale.create',
             'reports.own_sales',
             'undo.own',
         ],
     ];
+
+    public const ROLE_PRESETS = self::PRESETS;
 
     /**
      * Compute effective permission list for a user.
@@ -234,7 +237,7 @@ class PermissionService
             if ($location !== null) {
                 $locId = $location instanceof Location ? (string) $location->id : (string) $location;
                 $allowedLocations = $this->getLocationIds($userModel);
-                if (!in_array($locId, $allowedLocations, true)) {
+                if (!empty($allowedLocations) && !in_array($locId, $allowedLocations, true)) {
                     return false;
                 }
             }
@@ -272,7 +275,7 @@ class PermissionService
             if ($location !== null) {
                 $locId = $location instanceof Location ? (string) $location->id : (string) $location;
                 $allowedLocations = $snapshot['location_ids'] ?? [];
-                if (!in_array($locId, $allowedLocations, true)) {
+                if (!empty($allowedLocations) && !in_array($locId, $allowedLocations, true)) {
                     return false;
                 }
             }
@@ -296,7 +299,7 @@ class PermissionService
         if ($location !== null) {
             $locId = $location instanceof Location ? (string) $location->id : (string) $location;
             $allowedLocations = $this->getLocationIds($userModel);
-            if (!in_array($locId, $allowedLocations, true)) {
+            if (!empty($allowedLocations) && !in_array($locId, $allowedLocations, true)) {
                 return false;
             }
         }
