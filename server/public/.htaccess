@@ -5,21 +5,34 @@
 
     RewriteEngine On
 
-    # Handle Authorization Header
+    # 1. Force HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # 2. Block sensitive files, dotfiles, SQLite databases, logs, and storage
+    RewriteRule (^|/)\.(?!well-known) - [F,L]
+    RewriteRule \.(sqlite|sqlite-wal|sqlite-shm|db|log|enc|lock|json|env|md)$ - [F,L]
+    RewriteRule ^(vendor|storage|database)/ - [F,L]
+
+    # 3. Pass Authorization and Custom Telegram Headers on FastCGI / cPanel
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Handle X-XSRF-Token Header
-    RewriteCond %{HTTP:x-xsrf-token} .
-    RewriteRule .* - [E=HTTP_X_XSRF_TOKEN:%{HTTP:X-XSRF-Token}]
+    RewriteCond %{HTTP:X-Telegram-Bot-Api-Secret-Token} .
+    RewriteRule .* - [E=HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN:%{HTTP:X-Telegram-Bot-Api-Secret-Token}]
 
-    # Redirect Trailing Slashes If Not A Folder...
+    # 4. Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Send Requests To Front Controller...
+    # 5. Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Block sensitive files directly if mod_rewrite is bypassed
+<FilesMatch "(\.(env|sqlite|log|enc|lock|git)|composer\.json|artisan)$">
+    Require all denied
+</FilesMatch>

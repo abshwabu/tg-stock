@@ -32,3 +32,24 @@ Schedule::call(function (): void {
 Schedule::command('bot:daily-summary')
     ->everyFiveMinutes()
     ->name('bot:daily-summary');
+
+// Nightly database backup: VACUUM INTO snapshot, gzip, AES-256-GCM encrypt, off-server Telegram copy
+Schedule::command('backup:run')
+    ->dailyAt('02:00')
+    ->name('backup:run')
+    ->withoutOverlapping();
+
+// Nightly SQLite integrity check logged for operational safety
+Schedule::call(function (): void {
+    try {
+        $result = \Illuminate\Support\Facades\DB::select('PRAGMA integrity_check;');
+        $status = $result[0]->integrity_check ?? 'unknown';
+        if ($status === 'ok') {
+            \Illuminate\Support\Facades\Log::info('Nightly SQLite PRAGMA integrity_check: OK');
+        } else {
+            \Illuminate\Support\Facades\Log::error('Nightly SQLite PRAGMA integrity_check FAILED: ' . json_encode($result));
+        }
+    } catch (\Throwable $e) {
+        \Illuminate\Support\Facades\Log::error('Nightly SQLite integrity check error: ' . $e->getMessage());
+    }
+})->dailyAt('03:00')->name('sqlite:integrity-check');

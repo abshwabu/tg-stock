@@ -18,7 +18,7 @@
   "settings_title": "⚙️ <b>Settings</b>\n🏪 Shop: <b>:shop</b>\n👤 Role: <b>:role</b>\n🌐 Language: <b>:language</b>\n⚡ Negative Stock: <b>:neg_stock</b>",
   "choose_language": "🌐 Choose your language / ቋንቋ ይምረጡ:",
   "language_updated": "✅ Language updated to English!",
-  "help_text": "ℹ️ <b>Inventory Help</b>\n• Use the persistent keyboard below to navigate.\n• Type ❌ Cancel or /cancel anytime to stop a flow.\n• Go to ⚙️ Settings to change language.",
+  "help_text": "ℹ️ <b>Inventory Help</b>\n• Use the persistent keyboard below to navigate.\n• Type ❌ Cancel or /cancel anytime to stop a flow.\n• Go to ⚙️ Settings to change language.\n• Type /privacy for data privacy information & deletion.",
   "unknown_command": "Sorry, I didn't recognize that option. Please choose from the menu below:",
   "invalid_number": "⚠️ Please enter a valid number (e.g. 10 or 2.5):",
   "rate_limited": "⏳ You're sending requests too quickly. Please wait a moment.",

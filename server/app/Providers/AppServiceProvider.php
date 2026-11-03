@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use PDO;
 use Throwable;
@@ -27,6 +30,31 @@ class AppServiceProvider extends ServiceProvider
     {
         Event::listen(ConnectionEstablished::class, function (ConnectionEstablished $event) {
             $this->configureSqliteConnection($event->connection);
+        });
+
+        $this->configureRateLimiting();
+    }
+
+    /**
+     * Configure rate limiters using the database cache driver.
+     */
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip());
+        });
+
+        RateLimiter::for('device', function (Request $request) {
+            $deviceId = $request->attributes->get('device_id');
+            return Limit::perMinute(120)->by($deviceId ?? $request->ip());
+        });
+
+        RateLimiter::for('pairing', function (Request $request) {
+            return Limit::perMinute(30)->by($request->ip());
+        });
+
+        RateLimiter::for('telegram-webhook', function (Request $request) {
+            return Limit::perMinute(300)->by($request->ip());
         });
     }
 

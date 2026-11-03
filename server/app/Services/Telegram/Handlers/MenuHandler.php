@@ -83,6 +83,20 @@ class MenuHandler
             return;
         }
 
+        // 8.5 Privacy & Data Protection Notice
+        if (in_array($clean, ['/privacy', 'privacy', 'ግላዊነት'], true)) {
+            $privacyMsg = $locale === 'am'
+                ? "🔒 <b>የግላዊነት እና የዳታ ጥበቃ ማስታወሻ</b>\n\n• ኢንቬንቶሪ ኦፍላይን እንዲሰራ የታሰበ ነው።\n• በሰርቨሩ ላይ የሱቅዎ ስም፣ የዕቃዎች ዝርዝርና የግብይት እንቅስቃሴዎች ብቻ ይቀመጣሉ።\n• ምንም ዓይነት የደንበኞች የግል መረጃ ወይም የክፍያ ካርድ አይቀመጥም።\n• የኦንላይን ዳታዎን ለማጥፋት ከሞባይል አፑ ላይ Settings > 'Delete Online Shop' የሚለውን ይጫኑ።\n\nሙሉ መረጃ: /docs/PRIVACY.md"
+                : "🔒 <b>Privacy & Data Protection Notice</b>\n\n• Inventory is offline-first.\n• Only shop catalog metadata, stock movements, and paired device hashes are stored online.\n• No customer personal info, banking data, or passwords are ever stored.\n• To delete all online data, open Mobile App Settings > 'Delete Online Shop on Server'.\n\nFull notice: /docs/PRIVACY.md";
+
+            $this->telegram->sendMessage(
+                $chatId,
+                $privacyMsg,
+                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale)]
+            );
+            return;
+        }
+
         // 9. Plain text search outside a flow
         $this->productHandler->handleSearch($chatId, $clean, $user);
     }

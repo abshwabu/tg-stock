@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\PairingController;
 use App\Http\Controllers\Api\ShopController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Controllers\Api\TelegramWebhookController;
+use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -17,6 +18,9 @@ use Illuminate\Support\Facades\Route;
 | Stateless endpoints for device pairing, sync, device management, and Telegram webhook.
 |
 */
+
+// System Health & Uptime endpoint
+Route::get('/health', [HealthController::class, 'check']);
 
 // Telegram Webhook endpoint (stateless, verified via secret token header)
 Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
