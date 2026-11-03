@@ -124,3 +124,4 @@ cd app
 flutter analyze
 flutter test
 ```
+# tg-stock
