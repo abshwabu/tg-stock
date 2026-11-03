@@ -24,11 +24,13 @@ class Shop extends Model
         'currency',
         'language',
         'low_stock_default_milli',
+        'allow_negative_stock',
         'timezone',
     ];
 
     protected $casts = [
         'low_stock_default_milli' => 'integer',
+        'allow_negative_stock' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
