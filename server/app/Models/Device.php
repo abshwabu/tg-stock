@@ -26,11 +26,13 @@ class Device extends Model
         'token_hash',
         'last_seen_at',
         'revoked_at',
+        'revoked_sync_used',
     ];
 
     protected $casts = [
         'last_seen_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'revoked_sync_used' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -44,6 +46,6 @@ class Device extends Model
 
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id')->withoutGlobalScope(\App\Scopes\ShopScope::class);
     }
 }

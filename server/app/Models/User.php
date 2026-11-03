@@ -25,12 +25,19 @@ class User extends Model
         'language',
         'shop_id',
         'role',
+        'perm_version',
         'is_active',
     ];
 
     protected $casts = [
         'telegram_id' => 'integer',
+        'perm_version' => 'integer',
         'is_active' => 'boolean',
+    ];
+
+    protected $attributes = [
+        'is_active' => true,
+        'perm_version' => 1,
     ];
 
     protected static function booted(): void
@@ -39,7 +46,54 @@ class User extends Model
             if (empty($user->id)) {
                 $user->id = (string) Str::uuid7();
             }
+            if ($user->perm_version === null) {
+                $user->perm_version = 1;
+            }
+            if ($user->is_active === null) {
+                $user->is_active = true;
+            }
         });
+
+        static::created(function (User $user): void {
+            $nowMs = (int) (microtime(true) * 1000);
+            $role = $user->role ?? 'salesperson';
+            $perms = $role === 'owner'
+                ? \App\Services\PermissionService::PERMISSIONS
+                : (\App\Services\PermissionService::PRESETS[$role] ?? []);
+
+            \App\Models\PermissionLog::create([
+                'id' => (string) Str::uuid7(),
+                'user_id' => $user->id,
+                'effective_from_ms' => $nowMs,
+                'snapshot' => [
+                    'active' => $user->is_active ?? true,
+                    'role' => $role,
+                    'permissions' => $perms,
+                    'location_ids' => [],
+                ],
+                'changed_by' => null,
+            ]);
+        });
+    }
+
+    public function permissions(): HasMany
+    {
+        return $this->hasMany(UserPermission::class, 'user_id');
+    }
+
+    public function assignedLocations(): HasMany
+    {
+        return $this->hasMany(UserLocation::class, 'user_id');
+    }
+
+    public function permissionLogs(): HasMany
+    {
+        return $this->hasMany(PermissionLog::class, 'user_id');
+    }
+
+    public function rejectedChanges(): HasMany
+    {
+        return $this->hasMany(RejectedChange::class, 'user_id');
     }
 
     public function devices(): HasMany

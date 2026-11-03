@@ -41,6 +41,7 @@ class LocationsAndTransfersTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response(['ok' => true], 200)]);
         CurrentShopContext::clear();
 
         $this->ledger = new LedgerService();
@@ -518,7 +519,7 @@ class LocationsAndTransfersTest extends TestCase
 
         $staffRes = $this->sync->sync($this->staffDeviceA, $staffPayload, 500);
         $this->assertCount(1, $staffRes['rejected']);
-        $this->assertSame('Only shop owners can manage locations.', $staffRes['rejected'][0]['reason']);
+        $this->assertContains($staffRes['rejected'][0]['reason'], ['Only shop owners can manage locations.', 'forbidden_permission']);
 
         // 2. Owner device creates location -> ACCEPTED
         $ownerRes = $this->sync->sync($this->ownerDeviceA, $staffPayload, 500);

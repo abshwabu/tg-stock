@@ -50,11 +50,22 @@ class DeviceTokenAuth
             ], 401);
         }
 
-        // Revocation honored immediately
-        if ($device->revoked_at !== null) {
-            return response()->json([
-                'error' => 'Device token has been revoked.',
-            ], 401);
+        // Check revocation & deactivation status
+        $isRevoked = $device->revoked_at !== null || ($device->user !== null && !$device->user->is_active);
+
+        if ($isRevoked) {
+            $isSyncPost = (str_ends_with($request->path(), 'v1/sync') || str_ends_with($request->path(), 'sync')) && $request->isMethod('POST');
+            $revokedAt = $device->revoked_at ?? $device->user?->updated_at ?? now();
+
+            // Allow one upload-only sync within 7 days for work created before revocation
+            if ($isSyncPost && !$device->revoked_sync_used && $revokedAt->diffInDays(now()) <= 7) {
+                $request->attributes->set('revoked_upload_only', true);
+                $request->attributes->set('revocation_time_ms', (int) $revokedAt->getTimestampMs());
+            } else {
+                return response()->json([
+                    'error' => 'Device token has been revoked.',
+                ], 401);
+            }
         }
 
         $shop = Shop::find($device->shop_id);
