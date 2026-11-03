@@ -81,6 +81,35 @@ class AppDatabase extends _$AppDatabase {
   @override
   int get schemaVersion => 1;
 
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      await m.createAll();
+      await _createIndexes();
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON;');
+      await _createIndexes();
+    },
+  );
+
+  Future<void> _createIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movements_created_type ON movements(created_at_ms, type);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movements_product ON movements(product_id);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted_at_ms);',
+    );
+  }
+
+  static Future<File> getDatabaseFile() async {
+    final dbFolder = await getApplicationDocumentsDirectory();
+    return File(p.join(dbFolder.path, 'inventory.sqlite'));
+  }
+
   // --- Transactions & Mutations with Outbox Invariant ---
 
   /// Creates a new product and appends to Outbox in the same transaction.
@@ -497,8 +526,7 @@ class ProductWithStock {
 
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'inventory.sqlite'));
+    final file = await AppDatabase.getDatabaseFile();
     return NativeDatabase.createInBackground(file);
   });
 }

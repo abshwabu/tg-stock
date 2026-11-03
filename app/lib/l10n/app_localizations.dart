@@ -427,6 +427,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Check Stock'**
   String get checkStock;
+
+  /// No description provided for @reportsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reports & Analytics'**
+  String get reportsTitle;
+
+  /// No description provided for @today.
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get today;
+
+  /// No description provided for @yesterday.
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get yesterday;
+
+  /// No description provided for @thisWeek.
+  ///
+  /// In en, this message translates to:
+  /// **'This Week'**
+  String get thisWeek;
+
+  /// No description provided for @thisMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'This Month'**
+  String get thisMonth;
+
+  /// No description provided for @customRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom Range'**
+  String get customRange;
+
+  /// No description provided for @revenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Revenue'**
+  String get revenue;
+
+  /// No description provided for @salesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales Count'**
+  String get salesCount;
+
+  /// No description provided for @estimatedProfit.
+  ///
+  /// In en, this message translates to:
+  /// **'Estimated Profit'**
+  String get estimatedProfit;
+
+  /// No description provided for @topProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Products'**
+  String get topProducts;
+
+  /// No description provided for @topByRevenue.
+  ///
+  /// In en, this message translates to:
+  /// **'Top by Revenue'**
+  String get topByRevenue;
+
+  /// No description provided for @topByQty.
+  ///
+  /// In en, this message translates to:
+  /// **'Top by Quantity'**
+  String get topByQty;
+
+  /// No description provided for @stockReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Stock Valuation'**
+  String get stockReport;
+
+  /// No description provided for @valueAtCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Value at Cost Price'**
+  String get valueAtCost;
+
+  /// No description provided for @valueAtSelling.
+  ///
+  /// In en, this message translates to:
+  /// **'Value at Selling Price'**
+  String get valueAtSelling;
+
+  /// No description provided for @exportCsv.
+  ///
+  /// In en, this message translates to:
+  /// **'Export CSV'**
+  String get exportCsv;
+
+  /// No description provided for @backupRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup & Restore'**
+  String get backupRestore;
+
+  /// No description provided for @createBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Create Backup'**
+  String get createBackup;
+
+  /// No description provided for @restoreBackup.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore Backup'**
+  String get restoreBackup;
+
+  /// No description provided for @currencyLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Currency Label'**
+  String get currencyLabel;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @lowStockNotifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Low Stock Notifications'**
+  String get lowStockNotifications;
+
+  /// No description provided for @dailySummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Summary Notification'**
+  String get dailySummary;
 }
 
 class _AppLocalizationsDelegate

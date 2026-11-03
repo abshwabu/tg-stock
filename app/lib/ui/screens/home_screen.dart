@@ -10,6 +10,7 @@ import '../widgets/sync_status_header.dart';
 import 'adjust_screen.dart';
 import 'history_screen.dart';
 import 'products_screen.dart';
+import 'reports_screen.dart';
 import 'sale_screen.dart';
 import 'settings_screen.dart';
 import 'stock_in_screen.dart';
@@ -112,6 +113,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.analytics_outlined),
+            tooltip: 'Reports / ሪፖርቶች',
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (ctx) => ReportsScreen(repository: widget.repository),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings / ቅንብሮች',
             onPressed: () async {
@@ -121,6 +133,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     apiClient: widget.apiClient,
                     authStorage: widget.authStorage,
                     syncEngine: widget.syncEngine,
+                    repository: widget.repository,
+                    db: widget.db,
                   ),
                 ),
               );
@@ -371,6 +385,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+
+                // Reports & Analytics Button
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => ReportsScreen(repository: widget.repository),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.analytics_outlined, size: 20),
+                  label: Text(
+                    isAm ? '📊 ሪፖርቶች እና ትንታኔ (Reports)' : '📊 Reports & Analytics',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
                 ),
                 const SizedBox(height: 20),
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
+import '../../services/notification_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
 
@@ -226,7 +227,19 @@ class _SaleScreenState extends State<SaleScreen> {
 
     setState(() => _isLoading = true);
     try {
+      final itemsToNotify = List<SaleLineItem>.from(_cart);
       await widget.repository.recordSale(items: _cart);
+
+      // Check and dispatch local low-stock notifications
+      final notifService = NotificationService(repository: widget.repository);
+      for (final item in itemsToNotify) {
+        final currentStock = await widget.repository.stockOf(item.product.id);
+        await notifService.notifyLowStock(
+          product: item.product,
+          currentStockMilli: currentStock,
+        );
+      }
+
       widget.onMutation?.call();
 
       if (mounted) {

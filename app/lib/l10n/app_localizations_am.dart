@@ -172,4 +172,73 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get checkStock => 'ስቶክ ያረጋግጡ';
+
+  @override
+  String get reportsTitle => 'ሪፖርቶች እና ስታቲስቲክስ';
+
+  @override
+  String get today => 'ዛሬ';
+
+  @override
+  String get yesterday => 'ትላንት';
+
+  @override
+  String get thisWeek => 'ይህ ሳምንት';
+
+  @override
+  String get thisMonth => 'ይህ ወር';
+
+  @override
+  String get customRange => 'የተመረጠ ቀን';
+
+  @override
+  String get revenue => 'ጠቅላላ ገቢ';
+
+  @override
+  String get salesCount => 'የሽያጭ ብዛት';
+
+  @override
+  String get estimatedProfit => 'ግምታዊ ትርፍ';
+
+  @override
+  String get topProducts => 'ተጠቃሽ ዕቃዎች';
+
+  @override
+  String get topByRevenue => 'በገቢ ቀዳሚ';
+
+  @override
+  String get topByQty => 'በብዛት ቀዳሚ';
+
+  @override
+  String get stockReport => 'የስቶክ ዋጋ ግምት';
+
+  @override
+  String get valueAtCost => 'በመግዣ ዋጋ';
+
+  @override
+  String get valueAtSelling => 'በመሸጫ ዋጋ';
+
+  @override
+  String get exportCsv => 'በ CSV ላክ';
+
+  @override
+  String get backupRestore => 'ኮፒ እና መመለሻ';
+
+  @override
+  String get createBackup => 'ኮፒ አድርግ';
+
+  @override
+  String get restoreBackup => 'ከኮፒ መልስ';
+
+  @override
+  String get currencyLabel => 'የገንዘብ ምልክት';
+
+  @override
+  String get notifications => 'ማሳወቂያዎች';
+
+  @override
+  String get lowStockNotifications => 'የአነስተኛ ስቶክ ማሳወቂያ';
+
+  @override
+  String get dailySummary => 'የቀን ማጠቃለያ ማሳወቂያ';
 }

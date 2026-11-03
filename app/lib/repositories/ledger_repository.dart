@@ -63,6 +63,60 @@ class MovementWithProduct {
   }
 }
 
+class TopProductItem {
+  final String productId;
+  final String productName;
+  final String unit;
+  final int totalQtyMilli;
+  final int totalRevenueCents;
+
+  TopProductItem({
+    required this.productId,
+    required this.productName,
+    required this.unit,
+    required this.totalQtyMilli,
+    required this.totalRevenueCents,
+  });
+}
+
+class SalesReportData {
+  final int fromMs;
+  final int toMs;
+  final int totalRevenueCents;
+  final int salesCount;
+  final int? estimatedProfitCents;
+  final int itemsWithCostCount;
+  final List<TopProductItem> topByRevenue;
+  final List<TopProductItem> topByQuantity;
+
+  SalesReportData({
+    required this.fromMs,
+    required this.toMs,
+    required this.totalRevenueCents,
+    required this.salesCount,
+    this.estimatedProfitCents,
+    required this.itemsWithCostCount,
+    required this.topByRevenue,
+    required this.topByQuantity,
+  });
+}
+
+class StockReportData {
+  final int totalProductsCount;
+  final int lowStockCount;
+  final int outOfStockCount;
+  final int totalValueCostCents;
+  final int totalValueSellCents;
+
+  StockReportData({
+    required this.totalProductsCount,
+    required this.lowStockCount,
+    required this.outOfStockCount,
+    required this.totalValueCostCents,
+    required this.totalValueSellCents,
+  });
+}
+
 class LedgerRepository {
   final AppDatabase db;
 
@@ -470,5 +524,243 @@ class LedgerRepository {
     if (pin != null) {
       await setSetting('app_lock_pin', pin);
     }
+  }
+
+  Future<String> getCurrencyLabel() async {
+    return (await getSetting('currency_label', defaultValue: 'ETB'))!;
+  }
+
+  Future<void> setCurrencyLabel(String label) async {
+    await setSetting('currency_label', label.trim().isEmpty ? 'ETB' : label.trim());
+  }
+
+  Future<int> getDefaultLowStockThresholdMilli() async {
+    final val = await getSetting('default_low_stock_milli', defaultValue: '5000');
+    return int.tryParse(val ?? '5000') ?? 5000;
+  }
+
+  Future<void> setDefaultLowStockThresholdMilli(int milli) async {
+    await setSetting('default_low_stock_milli', milli.toString());
+  }
+
+  Future<bool> isNotificationsEnabled() async {
+    final val = await getSetting('notifications_enabled', defaultValue: 'true');
+    return val == 'true';
+  }
+
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    await setSetting('notifications_enabled', enabled ? 'true' : 'false');
+  }
+
+  Future<bool> isLowStockNotificationsEnabled() async {
+    final val = await getSetting('low_stock_notifications', defaultValue: 'true');
+    return val == 'true';
+  }
+
+  Future<void> setLowStockNotificationsEnabled(bool enabled) async {
+    await setSetting('low_stock_notifications', enabled ? 'true' : 'false');
+  }
+
+  Future<bool> isDailySummaryNotificationEnabled() async {
+    final val = await getSetting('daily_summary_enabled', defaultValue: 'false');
+    return val == 'true';
+  }
+
+  Future<void> setDailySummaryNotificationEnabled(bool enabled) async {
+    await setSetting('daily_summary_enabled', enabled ? 'true' : 'false');
+  }
+
+  Future<String> getDailySummaryTime() async {
+    return (await getSetting('daily_summary_time', defaultValue: '20:00'))!;
+  }
+
+  Future<void> setDailySummaryTime(String time) async {
+    await setSetting('daily_summary_time', time);
+  }
+
+  Future<int?> getLastWeeklySnapshotMs() async {
+    final val = await getSetting('last_weekly_snapshot_ms');
+    return val != null ? int.tryParse(val) : null;
+  }
+
+  Future<void> setLastWeeklySnapshotMs(int ms) async {
+    await setSetting('last_weekly_snapshot_ms', ms.toString());
+  }
+
+  // ==========================================
+  // REPORTS & SQL AGGREGATES
+  // ==========================================
+
+  /// Computes revenue, sales count, top 5 products, and estimated profit via SQL aggregates.
+  Future<SalesReportData> getSalesReport({required int fromMs, required int toMs}) async {
+    const sql = '''
+      SELECT 
+        m.product_id,
+        p.name AS product_name,
+        p.unit AS product_unit,
+        p.cost_price_cents,
+        SUM(ABS(m.qty_milli)) AS total_qty_milli,
+        SUM((ABS(m.qty_milli) * m.unit_price_cents) / 1000) AS total_revenue_cents,
+        SUM(
+          CASE WHEN p.cost_price_cents > 0 
+            THEN (ABS(m.qty_milli) * (m.unit_price_cents - p.cost_price_cents)) / 1000 
+            ELSE 0 
+          END
+        ) AS total_profit_cents,
+        SUM(CASE WHEN p.cost_price_cents > 0 THEN 1 ELSE 0 END) AS cost_item_sales_count,
+        COUNT(*) AS sale_item_count
+      FROM movements m
+      JOIN products p ON m.product_id = p.id
+      WHERE m.type = 'sale' AND m.created_at_ms >= ? AND m.created_at_ms <= ?
+      GROUP BY m.product_id, p.name, p.unit, p.cost_price_cents
+    ''';
+
+    final rows = await db.customSelect(
+      sql,
+      variables: [Variable.withInt(fromMs), Variable.withInt(toMs)],
+      readsFrom: {db.movements, db.products},
+    ).get();
+
+    int totalRevenueCents = 0;
+    int salesCount = 0;
+    int itemsWithCostCount = 0;
+    int profitSum = 0;
+
+    final topItems = <TopProductItem>[];
+
+    for (final row in rows) {
+      final pid = row.read<String>('product_id');
+      final name = row.read<String>('product_name');
+      final unit = row.read<String>('product_unit');
+      final qty = (row.data['total_qty_milli'] as num?)?.toInt() ?? 0;
+      final rev = (row.data['total_revenue_cents'] as num?)?.toInt() ?? 0;
+      final profit = (row.data['total_profit_cents'] as num?)?.toInt() ?? 0;
+      final costItems = (row.data['cost_item_sales_count'] as num?)?.toInt() ?? 0;
+      final count = (row.data['sale_item_count'] as num?)?.toInt() ?? 0;
+
+      totalRevenueCents += rev;
+      salesCount += count;
+      profitSum += profit;
+      itemsWithCostCount += costItems;
+
+      topItems.add(TopProductItem(
+        productId: pid,
+        productName: name,
+        unit: unit,
+        totalQtyMilli: qty,
+        totalRevenueCents: rev,
+      ));
+    }
+
+    final topByRevenue = List<TopProductItem>.from(topItems)
+      ..sort((a, b) => b.totalRevenueCents.compareTo(a.totalRevenueCents));
+    final topByQuantity = List<TopProductItem>.from(topItems)
+      ..sort((a, b) => b.totalQtyMilli.compareTo(a.totalQtyMilli));
+
+    return SalesReportData(
+      fromMs: fromMs,
+      toMs: toMs,
+      totalRevenueCents: totalRevenueCents,
+      salesCount: salesCount,
+      estimatedProfitCents: itemsWithCostCount > 0 ? profitSum : null,
+      itemsWithCostCount: itemsWithCostCount,
+      topByRevenue: topByRevenue.take(5).toList(),
+      topByQuantity: topByQuantity.take(5).toList(),
+    );
+  }
+
+  /// Computes stock valuation at cost and sell price using SQL aggregates.
+  Future<StockReportData> getStockReport() async {
+    const sql = '''
+      SELECT 
+        p.id,
+        p.name,
+        p.unit,
+        p.cost_price_cents,
+        p.sell_price_cents,
+        p.low_stock_at_milli,
+        COALESCE(SUM(m.qty_milli), 0) AS stock_milli
+      FROM products p
+      LEFT JOIN movements m ON p.id = m.product_id
+      WHERE p.deleted_at_ms IS NULL
+      GROUP BY p.id, p.name, p.unit, p.cost_price_cents, p.sell_price_cents, p.low_stock_at_milli
+    ''';
+
+    final rows = await db.customSelect(
+      sql,
+      readsFrom: {db.products, db.movements},
+    ).get();
+
+    int totalProductsCount = rows.length;
+    int lowStockCount = 0;
+    int outOfStockCount = 0;
+    int totalValueCostCents = 0;
+    int totalValueSellCents = 0;
+
+    for (final row in rows) {
+      final stock = (row.data['stock_milli'] as num?)?.toInt() ?? 0;
+      final costPrice = (row.data['cost_price_cents'] as num?)?.toInt() ?? 0;
+      final sellPrice = (row.data['sell_price_cents'] as num?)?.toInt() ?? 0;
+      final lowLimit = (row.data['low_stock_at_milli'] as num?)?.toInt();
+
+      if (stock > 0) {
+        totalValueCostCents += (stock * costPrice) ~/ 1000;
+        totalValueSellCents += (stock * sellPrice) ~/ 1000;
+      }
+
+      if (stock <= 0) {
+        outOfStockCount++;
+      }
+
+      if (lowLimit != null && stock <= lowLimit) {
+        lowStockCount++;
+      }
+    }
+
+    return StockReportData(
+      totalProductsCount: totalProductsCount,
+      lowStockCount: lowStockCount,
+      outOfStockCount: outOfStockCount,
+      totalValueCostCents: totalValueCostCents,
+      totalValueSellCents: totalValueSellCents,
+    );
+  }
+
+  Future<List<MovementWithProduct>> getSalesMovementsWithProduct({int? fromMs, int? toMs}) async {
+    var q = db.select(db.movements)..where((m) => m.type.equals('sale'));
+    if (fromMs != null) {
+      q = q..where((m) => m.createdAtMs.isBiggerOrEqualValue(fromMs));
+    }
+    if (toMs != null) {
+      q = q..where((m) => m.createdAtMs.isSmallerOrEqualValue(toMs));
+    }
+    q = q..orderBy([(m) => OrderingTerm(expression: m.createdAtMs, mode: OrderingMode.desc)]);
+    final movs = await q.get();
+
+    final result = <MovementWithProduct>[];
+    for (final m in movs) {
+      final p = await getProduct(m.productId);
+      result.add(MovementWithProduct(movement: m, product: p));
+    }
+    return result;
+  }
+
+  Future<List<MovementWithProduct>> getMovementsWithProduct({int? fromMs, int? toMs}) async {
+    var q = db.select(db.movements);
+    if (fromMs != null) {
+      q = q..where((m) => m.createdAtMs.isBiggerOrEqualValue(fromMs));
+    }
+    if (toMs != null) {
+      q = q..where((m) => m.createdAtMs.isSmallerOrEqualValue(toMs));
+    }
+    q = q..orderBy([(m) => OrderingTerm(expression: m.createdAtMs, mode: OrderingMode.desc)]);
+    final movs = await q.get();
+
+    final result = <MovementWithProduct>[];
+    for (final m in movs) {
+      final p = await getProduct(m.productId);
+      result.add(MovementWithProduct(movement: m, product: p));
+    }
+    return result;
   }
 }

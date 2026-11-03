@@ -172,4 +172,73 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get checkStock => 'Check Stock';
+
+  @override
+  String get reportsTitle => 'Reports & Analytics';
+
+  @override
+  String get today => 'Today';
+
+  @override
+  String get yesterday => 'Yesterday';
+
+  @override
+  String get thisWeek => 'This Week';
+
+  @override
+  String get thisMonth => 'This Month';
+
+  @override
+  String get customRange => 'Custom Range';
+
+  @override
+  String get revenue => 'Revenue';
+
+  @override
+  String get salesCount => 'Sales Count';
+
+  @override
+  String get estimatedProfit => 'Estimated Profit';
+
+  @override
+  String get topProducts => 'Top Products';
+
+  @override
+  String get topByRevenue => 'Top by Revenue';
+
+  @override
+  String get topByQty => 'Top by Quantity';
+
+  @override
+  String get stockReport => 'Stock Valuation';
+
+  @override
+  String get valueAtCost => 'Value at Cost Price';
+
+  @override
+  String get valueAtSelling => 'Value at Selling Price';
+
+  @override
+  String get exportCsv => 'Export CSV';
+
+  @override
+  String get backupRestore => 'Backup & Restore';
+
+  @override
+  String get createBackup => 'Create Backup';
+
+  @override
+  String get restoreBackup => 'Restore Backup';
+
+  @override
+  String get currencyLabel => 'Currency Label';
+
+  @override
+  String get notifications => 'Notifications';
+
+  @override
+  String get lowStockNotifications => 'Low Stock Notifications';
+
+  @override
+  String get dailySummary => 'Daily Summary Notification';
 }
