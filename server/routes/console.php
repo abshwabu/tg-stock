@@ -21,3 +21,9 @@ Schedule::call(function (): void {
 Schedule::command('queue:work database --stop-when-empty --max-time=50 --tries=3')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+// Prune expired bot conversation states (>30m TTL) and old update dedupe logs (>24h)
+Schedule::call(function (): void {
+    \App\Models\BotState::where('expires_at', '<', now())->delete();
+    \App\Models\BotUpdate::where('created_at', '<', now()->subHours(24))->delete();
+})->everyFiveMinutes()->name('bot:prune-states');

@@ -1,0 +1,172 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Telegram;
+
+class TelegramUi
+{
+    /**
+     * Build an inline keyboard markup.
+     *
+     * @param array<int, array<int, array{text: string, callback_data?: string, url?: string}>> $rows
+     * @return array{inline_keyboard: array}
+     */
+    public static function inlineKeyboard(array $rows): array
+    {
+        return [
+            'inline_keyboard' => $rows,
+        ];
+    }
+
+    /**
+     * Build a custom reply keyboard markup.
+     *
+     * @param array<int, array<int, string>> $rows
+     * @param bool $resize
+     * @param bool $oneTime
+     * @return array{keyboard: array, resize_keyboard: bool, one_time_keyboard: bool}
+     */
+    public static function replyKeyboard(array $rows, bool $resize = true, bool $oneTime = false): array
+    {
+        $formatted = [];
+        foreach ($rows as $row) {
+            $formattedRow = [];
+            foreach ($row as $btn) {
+                $formattedRow[] = is_string($btn) ? ['text' => $btn] : $btn;
+            }
+            $formatted[] = $formattedRow;
+        }
+
+        return [
+            'keyboard' => $formatted,
+            'resize_keyboard' => $resize,
+            'one_time_keyboard' => $oneTime,
+        ];
+    }
+
+    /**
+     * Standard persistent main menu reply keyboard:
+     * 📦 Products · ➕ Stock In · 🛒 Sale · 📊 Reports · ⚙️ Settings
+     */
+    public static function mainMenuKeyboard(string $locale = 'am'): array
+    {
+        if ($locale === 'en') {
+            return self::replyKeyboard([
+                ['📦 Products', '➕ Stock In'],
+                ['🛒 Sale', '📊 Reports'],
+                ['⚙️ Settings'],
+            ]);
+        }
+
+        return self::replyKeyboard([
+            ['📦 ዕቃዎች', '➕ ገቢ ዕቃ'],
+            ['🛒 ሽያጭ', '📊 ሪፖርት'],
+            ['⚙️ ቅንብሮች'],
+        ]);
+    }
+
+    /**
+     * Cancel keyboard shown during active conversation steps.
+     */
+    public static function cancelKeyboard(string $locale = 'am'): array
+    {
+        $cancelLabel = $locale === 'en' ? '❌ Cancel' : '❌ ሰርዝ';
+
+        return self::replyKeyboard([
+            [$cancelLabel],
+        ]);
+    }
+
+    /**
+     * Build standard Yes / No inline confirmation prompt buttons.
+     */
+    public static function confirmKeyboard(string $yesCallback, string $noCallback, string $locale = 'am'): array
+    {
+        $yesLabel = $locale === 'en' ? '✅ Yes' : '✅ አዎ';
+        $noLabel = $locale === 'en' ? '❌ No' : '❌ አይ';
+
+        return self::inlineKeyboard([
+            [
+                ['text' => $yesLabel, 'callback_data' => $yesCallback],
+                ['text' => $noLabel, 'callback_data' => $noCallback],
+            ],
+        ]);
+    }
+
+    /**
+     * Build pagination inline controls: [◀️ Prev] [ 1 / 5 ] [Next ▶️]
+     *
+     * @param int $page 1-based index
+     * @param int $totalPages
+     * @param string $prefix Module prefix for callback data, e.g. "prod:page"
+     */
+    public static function paginator(int $page, int $totalPages, string $prefix, string $locale = 'am'): ?array
+    {
+        if ($totalPages <= 1) {
+            return null;
+        }
+
+        $row = [];
+
+        if ($page > 1) {
+            $prevPage = $page - 1;
+            $row[] = [
+                'text' => '◀️ ' . ($locale === 'en' ? 'Prev' : 'ወደኋላ'),
+                'callback_data' => "{$prefix}:{$prevPage}",
+            ];
+        }
+
+        $row[] = [
+            'text' => "{$page} / {$totalPages}",
+            'callback_data' => 'noop:none:0',
+        ];
+
+        if ($page < $totalPages) {
+            $nextPage = $page + 1;
+            $row[] = [
+                'text' => ($locale === 'en' ? 'Next' : 'ወደፊት') . ' ▶️',
+                'callback_data' => "{$prefix}:{$nextPage}",
+            ];
+        }
+
+        return self::inlineKeyboard([$row]);
+    }
+
+    /**
+     * Number parser tolerant of commas, spaces, and fractional numbers.
+     * e.g. "1,500.50" -> 1500.5, "2 000" -> 2000.0, "5.25" -> 5.25
+     *
+     * @return float|null Returns parsed float, or null if invalid
+     */
+    public static function parseNumber(string $input): ?float
+    {
+        $cleaned = trim($input);
+
+        // Normalize full-width spaces and regular spaces
+        $cleaned = str_replace(["\xc2\xa0", ' '], '', $cleaned);
+
+        // Remove thousand separator commas when followed by decimal point or digits
+        // If format is like "1,500.50", strip comma
+        if (str_contains($cleaned, '.') && str_contains($cleaned, ',')) {
+            $cleaned = str_replace(',', '', $cleaned);
+        } elseif (substr_count($cleaned, ',') === 1 && !str_contains($cleaned, '.')) {
+            // If user typed e.g. "12,5" treating comma as decimal separator
+            // check if there are 1-3 digits after comma
+            $parts = explode(',', $cleaned);
+            if (strlen($parts[1]) <= 3) {
+                $cleaned = $parts[0] . '.' . $parts[1];
+            } else {
+                $cleaned = str_replace(',', '', $cleaned);
+            }
+        } else {
+            $cleaned = str_replace(',', '', $cleaned);
+        }
+
+        if (!is_numeric($cleaned)) {
+            return null;
+        }
+
+        return (float) $cleaned;
+    }
+}
