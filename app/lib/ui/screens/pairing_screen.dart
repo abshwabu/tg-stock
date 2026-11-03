@@ -26,6 +26,7 @@ class PairingScreen extends StatefulWidget {
 
 class _PairingScreenState extends State<PairingScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _serverUrlController = TextEditingController();
   final _shopNameController = TextEditingController();
   final _deviceNameController = TextEditingController();
 
@@ -52,10 +53,12 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Future<void> _loadInitialValues() async {
+    final serverUrl = await widget.authStorage.getServerUrl();
     final shop = await widget.authStorage.getShopName();
     final device = await widget.authStorage.getDeviceName();
     if (mounted) {
       setState(() {
+        _serverUrlController.text = serverUrl;
         if (shop != null) _shopNameController.text = shop;
         _deviceNameController.text = device;
       });
@@ -66,6 +69,7 @@ class _PairingScreenState extends State<PairingScreen> {
   void dispose() {
     _pollingTimer?.cancel();
     _countdownTimer?.cancel();
+    _serverUrlController.dispose();
     _shopNameController.dispose();
     _deviceNameController.dispose();
     super.dispose();
@@ -80,10 +84,11 @@ class _PairingScreenState extends State<PairingScreen> {
     });
 
     try {
-      final serverUrl = await widget.authStorage.getServerUrl();
+      final serverUrl = _serverUrlController.text.trim();
       final shopName = _shopNameController.text.trim();
       final deviceName = _deviceNameController.text.trim();
 
+      await widget.authStorage.setServerUrl(serverUrl);
       await widget.authStorage.setShopName(shopName.isNotEmpty ? shopName : null);
       await widget.authStorage.setDeviceName(deviceName);
 
@@ -281,6 +286,26 @@ class _PairingScreenState extends State<PairingScreen> {
             ),
           ),
           const SizedBox(height: 24),
+          TextFormField(
+            controller: _serverUrlController,
+            decoration: const InputDecoration(
+              labelText: 'Server URL / የሰርቨር አድራሻ',
+              hintText: 'https://...',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.cloud_outlined),
+            ),
+            validator: (val) {
+              if (val == null || val.trim().isEmpty) {
+                return 'Please enter the server URL / እባክዎ የሰርቨር አድራሻ ያስገቡ';
+              }
+              final uri = Uri.tryParse(val.trim());
+              if (uri == null || (!uri.isScheme('http') && !uri.isScheme('https'))) {
+                return 'Please enter a valid http:// or https:// URL';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
           TextFormField(
             controller: _shopNameController,
             decoration: const InputDecoration(

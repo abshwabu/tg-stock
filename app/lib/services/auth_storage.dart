@@ -29,7 +29,7 @@ class SecureAuthStorage implements AuthStorage {
   static const _keyShopName = 'shop_name';
   static const _keyDeviceName = 'device_name';
 
-  static const defaultServerUrl = 'https://inventory.10academy.org';
+  static const defaultServerUrl = 'https://study-creek-easier-flat.trycloudflare.com';
   static const defaultDeviceName = 'Android POS 1';
 
   SecureAuthStorage({FlutterSecureStorage? storage})
