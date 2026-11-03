@@ -41,6 +41,10 @@ class TeamHandler
         'team.manage' => ['en' => 'Can manage team', 'am' => 'ቡድንን ማስተዳደር'],
         'locations.manage' => ['en' => 'Can manage locations', 'am' => 'ቦታዎችን ማስተዳደር'],
         'undo.own' => ['en' => 'Can undo own actions', 'am' => 'የራስን ተግባር መመለስ'],
+        'sale.dube' => ['en' => 'Can create dube sales', 'am' => 'የዱቤ ሽያጭ መመዝገብ'],
+        'payment.collect' => ['en' => 'Can collect repayments', 'am' => 'ክፍያ መቀበል'],
+        'customers.manage' => ['en' => 'Can manage customers', 'am' => 'ደንበኞችን ማስተዳደር'],
+        'dube.view' => ['en' => 'Can view dube balances', 'am' => 'የዱቤ ሂሳቦችን ማየት'],
     ];
 
     public function __construct(

@@ -22,6 +22,7 @@ class Movement extends Model
         'id',
         'shop_id',
         'product_id',
+        'sale_id',
         'location_id',
         'transfer_id',
         'user_id',
@@ -71,5 +72,10 @@ class Movement extends Model
     public function device(): BelongsTo
     {
         return $this->belongsTo(Device::class, 'device_id');
+    }
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(Sale::class, 'sale_id');
     }
 }

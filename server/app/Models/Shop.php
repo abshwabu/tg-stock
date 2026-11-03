@@ -32,6 +32,8 @@ class Shop extends Model
         'staff_can_adjust',
         'use_ethiopian_calendar',
         'timezone',
+        'payment_methods_enabled',
+        'dube_default_days',
     ];
 
     protected $casts = [
@@ -41,6 +43,8 @@ class Shop extends Model
         'transfer_requires_receipt' => 'boolean',
         'staff_can_adjust' => 'boolean',
         'use_ethiopian_calendar' => 'boolean',
+        'payment_methods_enabled' => 'array',
+        'dube_default_days' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -120,5 +124,25 @@ class Shop extends Model
     public function changes(): HasMany
     {
         return $this->hasMany(Change::class, 'shop_id');
+    }
+
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class, 'shop_id');
+    }
+
+    public function customers(): HasMany
+    {
+        return $this->hasMany(Customer::class, 'shop_id');
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'shop_id');
+    }
+
+    public function paymentProviders(): HasMany
+    {
+        return $this->hasMany(PaymentProvider::class, 'shop_id');
     }
 }

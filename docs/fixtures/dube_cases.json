@@ -1,0 +1,418 @@
+{
+  "version": "1.0",
+  "currency": "ETB",
+  "description": "Cross-platform test fixtures for Sales, Payments, FIFO Dube allocations, and Overpayment handling.",
+  "cases": [
+    {
+      "id": "case_1_cash_sale_zero_dube",
+      "description": "Full upfront cash payment. Dube balance is 0.",
+      "customer": null,
+      "sales": [
+        {
+          "id": "01940000-0001-7000-8000-000000000001",
+          "total_cents": 50000,
+          "due_date": null,
+          "created_at_ms": 1730000000000,
+          "movements": [
+            {
+              "id": "01940000-0001-7000-8000-m00000000001",
+              "qty_milli": -2000,
+              "unit_price_cents": 25000
+            }
+          ]
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0001-7000-8000-p00000000001",
+          "sale_id": "01940000-0001-7000-8000-000000000001",
+          "customer_id": null,
+          "method": "cash",
+          "provider_key": null,
+          "amount_cents": 50000,
+          "received_at_ms": 1730000000000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0001-7000-8000-000000000001": 0
+        },
+        "customer_net_balance_cents": 0,
+        "customer_total_debt_cents": 0,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {}
+      }
+    },
+    {
+      "id": "case_2_full_dube_sale",
+      "description": "Pure dube sale without upfront payment. Requires customer and due date.",
+      "customer": {
+        "id": "01940000-0002-7000-8000-c00000000001",
+        "name": "Abebe Kebede",
+        "phone": "+251911223344"
+      },
+      "sales": [
+        {
+          "id": "01940000-0002-7000-8000-000000000002",
+          "customer_id": "01940000-0002-7000-8000-c00000000001",
+          "total_cents": 120000,
+          "due_date": "2026-11-18",
+          "created_at_ms": 1730000010000,
+          "movements": [
+            {
+              "id": "01940000-0002-7000-8000-m00000000002",
+              "qty_milli": -1000,
+              "unit_price_cents": 120000
+            }
+          ]
+        }
+      ],
+      "payments": [],
+      "expected": {
+        "sale_balances": {
+          "01940000-0002-7000-8000-000000000002": 120000
+        },
+        "customer_net_balance_cents": 120000,
+        "customer_total_debt_cents": 120000,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {}
+      }
+    },
+    {
+      "id": "case_3_partial_payment_plus_dube",
+      "description": "Partial payment upfront via Telebirr; remainder is dube debt.",
+      "customer": {
+        "id": "01940000-0003-7000-8000-c00000000001",
+        "name": "Fatuma Ahmed",
+        "phone": "+251922334455"
+      },
+      "sales": [
+        {
+          "id": "01940000-0003-7000-8000-000000000003",
+          "customer_id": "01940000-0003-7000-8000-c00000000001",
+          "total_cents": 100000,
+          "due_date": "2026-11-20",
+          "created_at_ms": 1730000020000,
+          "movements": [
+            {
+              "id": "01940000-0003-7000-8000-m00000000003",
+              "qty_milli": -4000,
+              "unit_price_cents": 25000
+            }
+          ]
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0003-7000-8000-p00000000003",
+          "sale_id": "01940000-0003-7000-8000-000000000003",
+          "customer_id": "01940000-0003-7000-8000-c00000000001",
+          "method": "wallet",
+          "provider_key": "wallet.telebirr",
+          "amount_cents": 40000,
+          "received_at_ms": 1730000020000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0003-7000-8000-000000000003": 60000
+        },
+        "customer_net_balance_cents": 60000,
+        "customer_total_debt_cents": 60000,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {}
+      }
+    },
+    {
+      "id": "case_4_multiple_sales_fifo_repayment_first_sale",
+      "description": "Two open sales; general customer repayment partially covers the oldest sale (FIFO).",
+      "customer": {
+        "id": "01940000-0004-7000-8000-c00000000001",
+        "name": "Chala Bekele",
+        "phone": "+251933445566"
+      },
+      "sales": [
+        {
+          "id": "01940000-0004-7000-8000-000000000004",
+          "customer_id": "01940000-0004-7000-8000-c00000000001",
+          "total_cents": 50000,
+          "due_date": "2026-11-10",
+          "created_at_ms": 1730000030000
+        },
+        {
+          "id": "01940000-0004-7000-8000-000000000005",
+          "customer_id": "01940000-0004-7000-8000-c00000000001",
+          "total_cents": 80000,
+          "due_date": "2026-11-15",
+          "created_at_ms": 1730000040000
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0004-7000-8000-p00000000004",
+          "sale_id": null,
+          "customer_id": "01940000-0004-7000-8000-c00000000001",
+          "method": "cash",
+          "provider_key": null,
+          "amount_cents": 30000,
+          "received_at_ms": 1730000050000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0004-7000-8000-000000000004": 20000,
+          "01940000-0004-7000-8000-000000000005": 80000
+        },
+        "customer_net_balance_cents": 100000,
+        "customer_total_debt_cents": 100000,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {
+          "01940000-0004-7000-8000-000000000004": 30000,
+          "01940000-0004-7000-8000-000000000005": 0
+        }
+      }
+    },
+    {
+      "id": "case_5_multiple_sales_fifo_repayment_spanning_sales",
+      "description": "General repayment exceeds oldest sale and partially pays the second sale.",
+      "customer": {
+        "id": "01940000-0005-7000-8000-c00000000001",
+        "name": "Hanna Tadesse",
+        "phone": "+251944556677"
+      },
+      "sales": [
+        {
+          "id": "01940000-0005-7000-8000-000000000006",
+          "customer_id": "01940000-0005-7000-8000-c00000000001",
+          "total_cents": 50000,
+          "due_date": "2026-11-10",
+          "created_at_ms": 1730000060000
+        },
+        {
+          "id": "01940000-0005-7000-8000-000000000007",
+          "customer_id": "01940000-0005-7000-8000-c00000000001",
+          "total_cents": 80000,
+          "due_date": "2026-11-15",
+          "created_at_ms": 1730000070000
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0005-7000-8000-p00000000005",
+          "sale_id": null,
+          "customer_id": "01940000-0005-7000-8000-c00000000001",
+          "method": "bank",
+          "provider_key": "bank.cbe",
+          "amount_cents": 70000,
+          "received_at_ms": 1730000080000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0005-7000-8000-000000000006": 0,
+          "01940000-0005-7000-8000-000000000007": 60000
+        },
+        "customer_net_balance_cents": 60000,
+        "customer_total_debt_cents": 60000,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {
+          "01940000-0005-7000-8000-000000000006": 50000,
+          "01940000-0005-7000-8000-000000000007": 20000
+        }
+      }
+    },
+    {
+      "id": "case_6_exact_repayment_all_sales",
+      "description": "Repayments match exact open balances. Balance becomes 0.",
+      "customer": {
+        "id": "01940000-0006-7000-8000-c00000000001",
+        "name": "Solomon Getachew",
+        "phone": "+251955667788"
+      },
+      "sales": [
+        {
+          "id": "01940000-0006-7000-8000-000000000008",
+          "customer_id": "01940000-0006-7000-8000-c00000000001",
+          "total_cents": 50000,
+          "due_date": "2026-11-10",
+          "created_at_ms": 1730000090000
+        },
+        {
+          "id": "01940000-0006-7000-8000-000000000009",
+          "customer_id": "01940000-0006-7000-8000-c00000000001",
+          "total_cents": 80000,
+          "due_date": "2026-11-15",
+          "created_at_ms": 1730000100000
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0006-7000-8000-p00000000006",
+          "sale_id": null,
+          "customer_id": "01940000-0006-7000-8000-c00000000001",
+          "method": "cash",
+          "provider_key": null,
+          "amount_cents": 130000,
+          "received_at_ms": 1730000110000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0006-7000-8000-000000000008": 0,
+          "01940000-0006-7000-8000-000000000009": 0
+        },
+        "customer_net_balance_cents": 0,
+        "customer_total_debt_cents": 0,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {
+          "01940000-0006-7000-8000-000000000008": 50000,
+          "01940000-0006-7000-8000-000000000009": 80000
+        }
+      }
+    },
+    {
+      "id": "case_7_overpayment_flagged",
+      "description": "Repayment exceeds total outstanding debt; flagged for review and customer balance becomes negative credit.",
+      "customer": {
+        "id": "01940000-0007-7000-8000-c00000000001",
+        "name": "Mulugeta Tesfaye",
+        "phone": "+251966778899"
+      },
+      "sales": [
+        {
+          "id": "01940000-0007-7000-8000-000000000010",
+          "customer_id": "01940000-0007-7000-8000-c00000000001",
+          "total_cents": 50000,
+          "due_date": "2026-11-10",
+          "created_at_ms": 1730000120000
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0007-7000-8000-p00000000007",
+          "sale_id": null,
+          "customer_id": "01940000-0007-7000-8000-c00000000001",
+          "method": "bank",
+          "provider_key": "bank.awash",
+          "amount_cents": 65000,
+          "received_at_ms": 1730000130000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0007-7000-8000-000000000010": 0
+        },
+        "customer_net_balance_cents": -15000,
+        "customer_total_debt_cents": 0,
+        "has_overpayment": true,
+        "overpayment_cents": 15000,
+        "fifo_allocations": {
+          "01940000-0007-7000-8000-000000000010": 50000
+        }
+      }
+    },
+    {
+      "id": "case_8_voided_sale_and_payment_reversals",
+      "description": "Voiding a sale creates mirroring negative payments and restores stock; balances clear to zero.",
+      "customer": {
+        "id": "01940000-0008-7000-8000-c00000000001",
+        "name": "Tigist Alemu",
+        "phone": "+251977889900"
+      },
+      "sales": [
+        {
+          "id": "01940000-0008-7000-8000-000000000011",
+          "customer_id": "01940000-0008-7000-8000-c00000000001",
+          "total_cents": 100000,
+          "due_date": "2026-11-20",
+          "created_at_ms": 1730000140000,
+          "voided_at_ms": 1730000150000
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0008-7000-8000-p00000000008",
+          "sale_id": "01940000-0008-7000-8000-000000000011",
+          "customer_id": "01940000-0008-7000-8000-c00000000001",
+          "method": "cash",
+          "provider_key": null,
+          "amount_cents": 100000,
+          "received_at_ms": 1730000140000
+        },
+        {
+          "id": "01940000-0008-7000-8000-p00000000009",
+          "sale_id": "01940000-0008-7000-8000-000000000011",
+          "customer_id": "01940000-0008-7000-8000-c00000000001",
+          "method": "cash",
+          "provider_key": null,
+          "amount_cents": -100000,
+          "received_at_ms": 1730000150000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0008-7000-8000-000000000011": 0
+        },
+        "customer_net_balance_cents": 0,
+        "customer_total_debt_cents": 0,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {}
+      }
+    },
+    {
+      "id": "case_9_line_item_half_up_rounding",
+      "description": "Line items rounded half-up: 1.333 @ 150 = 200, 0.500 @ 105 = 53 (52.5 rounded half-up). Total = 253 cents.",
+      "customer": null,
+      "sales": [
+        {
+          "id": "01940000-0009-7000-8000-000000000012",
+          "total_cents": 253,
+          "due_date": null,
+          "created_at_ms": 1730000160000,
+          "movements": [
+            {
+              "id": "01940000-0009-7000-8000-m00000000004",
+              "qty_milli": -1333,
+              "unit_price_cents": 150,
+              "expected_line_cents": 200
+            },
+            {
+              "id": "01940000-0009-7000-8000-m00000000005",
+              "qty_milli": -500,
+              "unit_price_cents": 105,
+              "expected_line_cents": 53
+            }
+          ]
+        }
+      ],
+      "payments": [
+        {
+          "id": "01940000-0009-7000-8000-p00000000010",
+          "sale_id": "01940000-0009-7000-8000-000000000012",
+          "customer_id": null,
+          "method": "cash",
+          "provider_key": null,
+          "amount_cents": 253,
+          "received_at_ms": 1730000160000
+        }
+      ],
+      "expected": {
+        "sale_balances": {
+          "01940000-0009-7000-8000-000000000012": 0
+        },
+        "customer_net_balance_cents": 0,
+        "customer_total_debt_cents": 0,
+        "has_overpayment": false,
+        "overpayment_cents": 0,
+        "fifo_allocations": {}
+      }
+    }
+  ]
+}

@@ -40,6 +40,10 @@ class PermissionService
         'team.manage',
         'locations.manage',
         'undo.own',
+        'sale.dube',
+        'payment.collect',
+        'customers.manage',
+        'dube.view',
     ];
 
     public const PRESETS = [
