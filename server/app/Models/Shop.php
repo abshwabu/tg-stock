@@ -34,6 +34,8 @@ class Shop extends Model
         'timezone',
         'payment_methods_enabled',
         'dube_default_days',
+        'require_payment_reference',
+        'dube_reminder_last_sent_date',
     ];
 
     protected $casts = [
@@ -45,6 +47,7 @@ class Shop extends Model
         'use_ethiopian_calendar' => 'boolean',
         'payment_methods_enabled' => 'array',
         'dube_default_days' => 'integer',
+        'require_payment_reference' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

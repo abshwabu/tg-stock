@@ -21,7 +21,8 @@ class MenuHandler
         protected TeamHandler $teamHandler,
         protected LocationHandler $locationHandler,
         protected TransferHandler $transferHandler,
-        protected ReviewQueueHandler $reviewQueueHandler
+        protected ReviewQueueHandler $reviewQueueHandler,
+        protected DubeHandler $dubeHandler
     ) {}
 
     /**
@@ -96,6 +97,12 @@ class MenuHandler
         // 5. Sale
         if (in_array($clean, ['🛒 Sale', '🛒 ሽያጭ', '/sale'], true)) {
             $this->saleHandler->start($chatId, null, $user);
+            return;
+        }
+
+        // 5.5 Dube
+        if (in_array($clean, ['📒 Dube', '📒 ዱቤ', '/dube', 'dube', 'ዱቤ'], true)) {
+            $this->dubeHandler->start($chatId, $user);
             return;
         }
 

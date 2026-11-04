@@ -12,6 +12,7 @@ use App\Services\Telegram\Handlers\AdjustHandler;
 use App\Services\Telegram\Handlers\LocationHandler;
 use App\Services\Telegram\Handlers\MenuHandler;
 use App\Services\Telegram\Handlers\PairingHandler;
+use App\Services\Telegram\Handlers\DubeHandler;
 use App\Services\Telegram\Handlers\ProductHandler;
 use App\Services\Telegram\Handlers\ReportHandler;
 use App\Services\Telegram\Handlers\ReviewQueueHandler;
@@ -44,6 +45,7 @@ class TelegramRouter
         protected LocationHandler $locationHandler,
         protected TransferHandler $transferHandler,
         protected ReviewQueueHandler $reviewQueueHandler,
+        protected DubeHandler $dubeHandler,
         protected PermissionService $permissionService
     ) {}
 
@@ -144,6 +146,31 @@ class TelegramRouter
         }
 
         if ($module === 'settings') {
+            if ($action === 'pay') {
+                $subAction = $id;
+                if ($subAction === 'menu') {
+                    $this->settingsHandler->handlePaymentSettingsMenu($cqId, $chatId, $messageId, $user);
+                } elseif ($subAction === 'tog_m') {
+                    $method = $parts[3] ?? '';
+                    $this->settingsHandler->handleTogglePaymentMethod($cqId, $chatId, $messageId, $method, $user);
+                } elseif ($subAction === 'tog_ref') {
+                    $this->settingsHandler->handleToggleRequireReference($cqId, $chatId, $messageId, $user);
+                } elseif ($subAction === 'd_days') {
+                    $days = (int) ($parts[3] ?? 14);
+                    $this->settingsHandler->handleSetDefaultDubeDays($cqId, $chatId, $messageId, $days, $user);
+                } elseif ($subAction === 'favs') {
+                    $kind = $parts[3] ?? 'bank';
+                    $page = (int) ($parts[4] ?? 1);
+                    $this->settingsHandler->handleFavoriteProvidersList($cqId, $chatId, $messageId, $kind, $page, $user);
+                } elseif ($subAction === 'tog_fav') {
+                    $kind = $parts[3] ?? 'bank';
+                    $provKey = $parts[4] ?? '';
+                    $page = (int) ($parts[5] ?? 1);
+                    $this->settingsHandler->handleToggleProviderFavorite($cqId, $chatId, $messageId, $kind, $provKey, $page, $user);
+                }
+                return;
+            }
+
             if ($action === 'toggle' && $id === 'neg_stock') {
                 $this->settingsHandler->handleToggleNegativeStock($cqId, $chatId, $messageId, $user);
             } elseif ($action === 'toggle' && $id === 'calendar') {
@@ -196,7 +223,7 @@ class TelegramRouter
 
         // 6. Sale
         if ($module === 'sale') {
-            $this->handleSaleCallback($cqId, $chatId, $messageId, $action, $id, $user);
+            $this->handleSaleCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
             return;
         }
 
@@ -209,6 +236,12 @@ class TelegramRouter
         // 8. Undo
         if ($module === 'undo') {
             $this->undoHandler->handleUndo($chatId, $user, $cqId);
+            return;
+        }
+
+        // 9. Dube
+        if ($module === 'dube') {
+            $this->handleDubeCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
             return;
         }
 
@@ -227,6 +260,7 @@ class TelegramRouter
             'products' => $this->productHandler->handleList($chatId, $user, 1),
             'stockin' => $this->stockInHandler->start($chatId, null, $user),
             'sale' => $this->saleHandler->start($chatId, null, $user),
+            'dube' => $this->dubeHandler->start($chatId, $user),
             'reports' => $this->reportHandler->handleMenu($chatId, $user),
             'settings' => $this->settingsHandler->handleSettings($chatId, $user),
             'team' => $this->teamHandler->handleTeamMenu($chatId, $user),
@@ -423,7 +457,7 @@ class TelegramRouter
     /**
      * Dispatch sale callbacks.
      */
-    protected function handleSaleCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, ?User $user): void
+    protected function handleSaleCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
     {
         if ($action === 'start') {
             $this->telegram->answerCallbackQuery($cqId);
@@ -453,8 +487,305 @@ class TelegramRouter
             $this->telegram->answerCallbackQuery($cqId);
             $this->botState->clear($chatId);
             $this->telegram->sendMessage($chatId, __('action_cancelled'), [
-                'reply_markup' => TelegramUi::mainMenuKeyboard($user?->language ?? 'am'),
+                'reply_markup' => TelegramUi::mainMenuKeyboard($user?->language ?? 'am', $user),
             ]);
+            return;
+        }
+
+        if ($action === 'cart_back') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $state = $this->botState->get($chatId);
+            $this->saleHandler->showCartSummary($chatId, $state?->data['cart'] ?? [], $user?->language ?? 'am');
+            return;
+        }
+
+        if ($action === 'pay_step') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->saleHandler->showPaymentStep($chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'pay_m') {
+            if ($id === 'cash') {
+                $this->saleHandler->handleCashPaymentSelected($cqId, $chatId, $messageId, $user);
+                return;
+            }
+            if ($id === 'bank') {
+                $this->saleHandler->showProviderList($cqId, $chatId, $messageId, 'bank', 1, $user);
+                return;
+            }
+            if ($id === 'wallet') {
+                $this->saleHandler->showProviderList($cqId, $chatId, $messageId, 'wallet', 1, $user);
+                return;
+            }
+            if ($id === 'dube') {
+                if (!$this->permissionService->can($user, 'sale.dube')) {
+                    $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                    return;
+                }
+                $this->saleHandler->startDubeStep($cqId, $chatId, $messageId, $user);
+                return;
+            }
+        }
+
+        if ($action === 'prov_pick') {
+            $kind = $id;
+            $provKey = $parts[3] ?? '';
+            $this->saleHandler->handleProviderPicked($cqId, $chatId, $messageId, $kind, $provKey, $user);
+            return;
+        }
+
+        if ($action === 'prov_page') {
+            $kind = $id;
+            $page = (int) ($parts[3] ?? 1);
+            $this->saleHandler->showProviderList($cqId, $chatId, $messageId, $kind, $page, $user);
+            return;
+        }
+
+        if ($action === 'prov_other') {
+            $this->saleHandler->handleOtherProviderSelected($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'skip_ref') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->saleHandler->handleReferenceCompleted($chatId, null, $user, $messageId);
+            return;
+        }
+
+        if ($action === 'dube_cust') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->saleHandler->handleDubeCustomerPicked($chatId, $id, $user, $messageId);
+            return;
+        }
+
+        if ($action === 'dube_new') {
+            $this->saleHandler->startDubeAddCustomer($cqId, $chatId, $user);
+            return;
+        }
+
+        if ($action === 'dube_search') {
+            $this->saleHandler->startDubeCustomerSearch($cqId, $chatId, $user);
+            return;
+        }
+
+        if ($action === 'dube_pnow') {
+            if ($id === 'custom') {
+                $this->saleHandler->promptCustomPaidNowAmount($cqId, $chatId, $messageId, $user);
+            } else {
+                $this->telegram->answerCallbackQuery($cqId);
+                $this->saleHandler->handleDubePaidNowAmount($chatId, (int) $id, $user, $messageId);
+            }
+            return;
+        }
+
+        if ($action === 'dube_umeth') {
+            $this->saleHandler->handleDubeUpfrontMethodPicked($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'dube_due') {
+            if ($id === 'custom') {
+                $this->saleHandler->promptCustomDubeDueDate($cqId, $chatId, $messageId, $user);
+            } else {
+                $this->saleHandler->handleDubeDueDateDays($cqId, $chatId, $messageId, (int) $id, $user);
+            }
+            return;
+        }
+
+        if ($action === 'dube_due_pick') {
+            $this->saleHandler->handleDubeDueDatePicked($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'dube_confirm') {
+            $this->saleHandler->handleDubeConfirm($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
+     * Dispatch Dube callbacks.
+     */
+    protected function handleDubeCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, array $parts, ?User $user): void
+    {
+        // Re-check permissions on all dube actions
+        if (!$this->permissionService->can($user, 'dube.view')) {
+            $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+            return;
+        }
+
+        if ($action === 'page') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $page = is_numeric($id) ? (int) $id : 1;
+            $this->dubeHandler->start($chatId, $user, $page);
+            return;
+        }
+
+        if ($action === 'cust') {
+            $this->dubeHandler->showCustomerCard($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'remind') {
+            $this->dubeHandler->sendReminderText($cqId, $chatId, $id, $user);
+            return;
+        }
+
+        if ($action === 'pay_start') {
+            if (!$this->permissionService->can($user, 'payment.collect')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $this->dubeHandler->startRepayment($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'pay_amt') {
+            if (!$this->permissionService->can($user, 'payment.collect')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $customerId = $id;
+            $type = $parts[3] ?? 'full';
+            if ($type === 'custom') {
+                $this->dubeHandler->promptCustomRepaymentAmount($cqId, $chatId, $messageId, $customerId, $user);
+            } else {
+                $this->telegram->answerCallbackQuery($cqId);
+                $customer = \App\Models\Customer::withoutGlobalScope(\App\Scopes\ShopScope::class)->find($customerId);
+                $balanceService = app(\App\Services\BalanceService::class);
+                $credit = $customer ? $balanceService->customerCredit($customer) : ['total_debt_cents' => 0];
+                $this->dubeHandler->promptRepaymentMethod($chatId, $customerId, $credit['total_debt_cents'], $user, $messageId);
+            }
+            return;
+        }
+
+        if ($action === 'pay_m') {
+            if (!$this->permissionService->can($user, 'payment.collect')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $customerId = $id;
+            $method = $parts[3] ?? 'cash';
+            $amountCents = (int) ($parts[4] ?? 0);
+            if ($method === 'cash') {
+                $this->telegram->answerCallbackQuery($cqId);
+                $this->dubeHandler->executeRepayment($chatId, $customerId, $amountCents, 'cash', null, null, $user, $messageId);
+            } else {
+                $this->dubeHandler->promptRepaymentProvider($cqId, $chatId, $messageId, $customerId, $method, $amountCents, 1, $user);
+            }
+            return;
+        }
+
+        if ($action === 'rpay_prov') {
+            if (!$this->permissionService->can($user, 'payment.collect')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $customerId = $id;
+            $kind = $parts[3] ?? 'bank';
+            $amountCents = (int) ($parts[4] ?? 0);
+            $providerKey = $parts[5] ?? '';
+            $this->dubeHandler->handleRepaymentProviderPicked($cqId, $chatId, $messageId, $customerId, $kind, $amountCents, $providerKey, $user);
+            return;
+        }
+
+        if ($action === 'rpay_page') {
+            $customerId = $id;
+            $kind = $parts[3] ?? 'bank';
+            $amountCents = (int) ($parts[4] ?? 0);
+            $page = (int) ($parts[5] ?? 1);
+            $this->dubeHandler->promptRepaymentProvider($cqId, $chatId, $messageId, $customerId, $kind, $amountCents, $page, $user);
+            return;
+        }
+
+        if ($action === 'rpay_skip_ref') {
+            if (!$this->permissionService->can($user, 'payment.collect')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $this->telegram->answerCallbackQuery($cqId);
+            $customerId = $id;
+            $kind = $parts[3] ?? 'bank';
+            $amountCents = (int) ($parts[4] ?? 0);
+            $providerKey = $parts[5] ?? '';
+            $this->dubeHandler->executeRepayment($chatId, $customerId, $amountCents, $kind, $providerKey, null, $user, $messageId);
+            return;
+        }
+
+        if ($action === 'ext_menu') {
+            if (!$this->permissionService->can($user, 'sale.dube')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $this->dubeHandler->showExtendSaleList($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'ext_opt') {
+            if (!$this->permissionService->can($user, 'sale.dube')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $saleId = $id;
+            $customerId = $parts[3] ?? '';
+            $this->dubeHandler->showExtendOptions($cqId, $chatId, $messageId, $saleId, $customerId, $user);
+            return;
+        }
+
+        if ($action === 'ext_do') {
+            if (!$this->permissionService->can($user, 'sale.dube')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $saleId = $id;
+            $days = (int) ($parts[3] ?? 14);
+            $customerId = $parts[4] ?? '';
+            $shop = \App\Models\Shop::find($user?->shop_id);
+            $newDueDate = \Carbon\Carbon::now($shop?->timezone ?: 'Africa/Addis_Ababa')->addDays($days)->toDateString();
+            $this->dubeHandler->applyExtendDueDate($cqId, $chatId, $messageId, $saleId, $newDueDate, $customerId, $user);
+            return;
+        }
+
+        if ($action === 'ext_custom') {
+            if (!$this->permissionService->can($user, 'sale.dube')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $saleId = $id;
+            $customerId = $parts[3] ?? '';
+            $this->dubeHandler->promptCustomDueDate($cqId, $chatId, $messageId, $saleId, $customerId, $user);
+            return;
+        }
+
+        if ($action === 'edit') {
+            if (!$this->permissionService->can($user, 'customers.manage')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $this->dubeHandler->startEditCustomer($cqId, $chatId, $messageId, $id, $user);
+            return;
+        }
+
+        if ($action === 'add_cust') {
+            if (!$this->permissionService->can($user, 'customers.manage')) {
+                $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
+                return;
+            }
+            $this->dubeHandler->startAddCustomer($cqId, $chatId, $user);
+            return;
+        }
+
+        if ($action === 'cust_skip_phone') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->dubeHandler->handleCustomerPhoneEntered($chatId, null, $user);
+            return;
+        }
+
+        if ($action === 'search') {
+            $this->dubeHandler->startSearchCustomer($cqId, $chatId, $user);
             return;
         }
 
@@ -648,6 +979,11 @@ class TelegramRouter
 
         if ($action === 'stock' && $id === 'val') {
             $this->reportHandler->handleStockValuation($cqId, $chatId, $messageId, $user);
+            return;
+        }
+
+        if ($action === 'pay') {
+            $this->reportHandler->showPaymentsAndDubeReport($cqId, $chatId, $messageId, $user);
             return;
         }
 
@@ -894,13 +1230,83 @@ class TelegramRouter
         }
 
         // 4. Sale
-        if ($state->flow === 'sale' && $state->step === 'await_qty') {
-            $qty = TelegramUi::parseNumber($text);
-            if ($qty !== null) {
-                $this->saleHandler->handleQuantitySelected($chatId, $qty, $user);
-            } else {
-                $this->telegram->sendMessage($chatId, __('invalid_number'));
+        if ($state->flow === 'sale') {
+            if ($state->step === 'await_qty') {
+                $qty = TelegramUi::parseNumber($text);
+                if ($qty !== null) {
+                    $this->saleHandler->handleQuantitySelected($chatId, $qty, $user);
+                } else {
+                    $this->telegram->sendMessage($chatId, __('invalid_number'));
+                }
+                return;
             }
+
+            if ($state->step === 'await_sale_ref') {
+                $this->saleHandler->handleReferenceCompleted($chatId, $text, $user);
+                return;
+            }
+
+            if ($state->step === 'await_custom_prov') {
+                $this->saleHandler->handleCustomProviderEntered($chatId, $text, $user);
+                return;
+            }
+
+            if ($state->step === 'await_dube_pnow') {
+                $this->saleHandler->handleCustomPaidNowAmountEntered($chatId, $text, $user);
+                return;
+            }
+
+            if ($state->step === 'await_dube_due') {
+                $this->saleHandler->handleCustomDubeDueDateEntered($chatId, $text, $user);
+                return;
+            }
+
+            if ($state->step === 'await_dube_search') {
+                $this->saleHandler->handleDubeCustomerSearchEntered($chatId, $text, $user);
+                return;
+            }
+        }
+
+        // 4.5 Dube Flows
+        if ($state->flow === 'dube_repay' && $state->step === 'await_amount') {
+            $this->dubeHandler->handleCustomRepaymentAmountEntered($chatId, $text, $user);
+            return;
+        }
+
+        if ($state->flow === 'dube_repay_ref' && $state->step === 'await_ref') {
+            $this->dubeHandler->handleRepaymentReferenceEntered($chatId, $text, $user);
+            return;
+        }
+
+        if ($state->flow === 'dube_ext_custom' && $state->step === 'await_date') {
+            $this->dubeHandler->handleCustomDueDateEntered($chatId, $text, $user);
+            return;
+        }
+
+        if ($state->flow === 'dube_add_cust') {
+            if ($state->step === 'await_name') {
+                $this->dubeHandler->handleCustomerNameEntered($chatId, $text, $user);
+                return;
+            }
+            if ($state->step === 'await_phone') {
+                $this->dubeHandler->handleCustomerPhoneEntered($chatId, $text, $user);
+                return;
+            }
+        }
+
+        if ($state->flow === 'dube_edit_cust') {
+            if ($state->step === 'await_name') {
+                $this->dubeHandler->handleEditCustomerNameEntered($chatId, $text, $user);
+                return;
+            }
+            if ($state->step === 'await_phone') {
+                $this->dubeHandler->handleEditCustomerPhoneEntered($chatId, $text, $user);
+                return;
+            }
+        }
+
+        if ($state->flow === 'dube_search' && $state->step === 'await_query') {
+            $this->dubeHandler->handleCustomerSearch($chatId, $text, $user);
             return;
         }
 

@@ -12,6 +12,7 @@ use App\Models\Shop;
 use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\LedgerService;
+use App\Services\PaymentReportService;
 use App\Services\PermissionService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
@@ -25,7 +26,8 @@ class ReportHandler
         protected TelegramClient $telegram,
         protected LedgerService $ledger,
         protected PermissionService $permissionService,
-        protected LocationHandler $locationHandler
+        protected LocationHandler $locationHandler,
+        protected PaymentReportService $paymentReportService
     ) {}
 
     /**
@@ -77,6 +79,7 @@ class ReportHandler
                 ['text' => '🚚 ' . ($locale === 'en' ? 'In Transit' : 'በመንገድ ላይ'), 'callback_data' => 'rep:loc:transit'],
             ],
             [
+                ['text' => '💳 ' . ($locale === 'en' ? 'Payments & Cash Drawer' : 'ክፍያዎችና ካዝና'), 'callback_data' => 'rep:pay:today'],
                 ['text' => '⚠️ ' . ($locale === 'en' ? 'Transfer Discrepancies' : 'የዝውውር ልዩነቶች'), 'callback_data' => 'rep:loc:discrepancies'],
             ],
         ];
@@ -282,6 +285,40 @@ class ReportHandler
                 . "🧾 የሽያጭ ብዛት: <b>{$salesCount} ግብይቶች</b>\n"
                 . "📈 የተጣራ ትርፍ (ግምት): <b>{$profitText}</b>\n\n"
                 . "🏆 <b>ተመራጭ ዕቃዎች:</b>\n{$topText}";
+        }
+
+        if ($period === 'today') {
+            $receivedData = $this->paymentReportService->receivedByMethod($shop, [$startMs, $endMs], $locationId, $locale);
+            $byMethod = $receivedData['by_method'];
+            $cashF = number_format(($byMethod['cash'] ?? 0) / 100, 2) . ' ETB';
+            $bankF = number_format(($byMethod['bank'] ?? 0) / 100, 2) . ' ETB';
+            $walletF = number_format(($byMethod['wallet'] ?? 0) / 100, 2) . ' ETB';
+
+            $cashExp = $this->paymentReportService->cashExpected($shop, Carbon::now($tz)->toDateString(), $locationId);
+            $cashExpF = number_format($cashExp['expected_cash_cents'] / 100, 2) . ' ETB';
+
+            $totals = $this->paymentReportService->salesTotals($shop, [$startMs, $endMs], $locationId);
+            $recTotalF = number_format($totals['money_received_cents'] / 100, 2) . ' ETB';
+            $newDubeF = number_format($totals['new_dube_cents'] / 100, 2) . ' ETB';
+
+            $outDube = $this->paymentReportService->outstandingDube($shop);
+            $outDubeF = number_format($outDube['total_outstanding_cents'] / 100, 2) . ' ETB';
+            $overdueList = $this->paymentReportService->overdueList($shop);
+            $overdueCount = $overdueList->count();
+
+            if ($locale === 'en') {
+                $text .= "\n\n💳 <b>Money & Dube Today:</b>\n"
+                    . "  • Money Received: <b>{$recTotalF}</b> (Cash: {$cashF}, Bank: {$bankF}, Wallet: {$walletF})\n"
+                    . "  • Cash in Drawer: <b>{$cashExpF}</b>\n"
+                    . "  • New Dube: <b>{$newDubeF}</b>\n"
+                    . "  • Outstanding Dube: <b>{$outDubeF}</b> ({$overdueCount} overdue)";
+            } else {
+                $text .= "\n\n💳 <b>የዛሬ ገንዘብ እና ዱቤ:</b>\n"
+                    . "  • የተሰበሰበ ገንዘብ: <b>{$recTotalF}</b> (ጥሬ: {$cashF}, ባንክ: {$bankF}, ዋሌት: {$walletF})\n"
+                    . "  • በካዝና ውስጥ ያለ ጥሬ ገንዘብ: <b>{$cashExpF}</b>\n"
+                    . "  • አዲስ የተሰጠ ዱቤ: <b>{$newDubeF}</b>\n"
+                    . "  • ያልተከፈለ ዱቤ: <b>{$outDubeF}</b> ({$overdueCount} ጊዜው ያለፈበት)";
+            }
         }
 
         $buttons = [];
@@ -662,5 +699,109 @@ class ReportHandler
             $period,
             $locationId
         );
+    }
+
+    /**
+     * Show dedicated payments, cash drawer, and Dube overview.
+     */
+    public function showPaymentsAndDubeReport(
+        string $callbackId,
+        int|string $chatId,
+        int $messageId,
+        ?User $user
+    ): void {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        if ($user === null || !$this->permissionService->can($user, 'reports.view')) {
+            $this->telegram->answerCallbackQuery($callbackId, __('permission_denied'), showAlert: true);
+            return;
+        }
+
+        $this->telegram->answerCallbackQuery($callbackId);
+
+        $shop = Shop::find($user->shop_id);
+        $tz = $shop?->timezone ?: 'Africa/Addis_Ababa';
+        $now = Carbon::now($tz);
+        $todayStr = $now->toDateString();
+        $startMs = $now->copy()->startOfDay()->timestamp * 1000;
+        $endMs = $now->copy()->endOfDay()->timestamp * 1000;
+
+        $receivedData = $this->paymentReportService->receivedByMethod($shop, [$startMs, $endMs], null, $locale);
+        $byMethod = $receivedData['by_method'];
+        $cashF = number_format(($byMethod['cash'] ?? 0) / 100, 2) . ' ETB';
+        $bankF = number_format(($byMethod['bank'] ?? 0) / 100, 2) . ' ETB';
+        $walletF = number_format(($byMethod['wallet'] ?? 0) / 100, 2) . ' ETB';
+        $totalRecF = number_format($receivedData['grand_total_cents'] / 100, 2) . ' ETB';
+
+        $cashExp = $this->paymentReportService->cashExpected($shop, $todayStr);
+        $cashExpF = number_format($cashExp['expected_cash_cents'] / 100, 2) . ' ETB';
+
+        $totals = $this->paymentReportService->salesTotals($shop, [$startMs, $endMs]);
+        $revF = number_format($totals['revenue_cents'] / 100, 2) . ' ETB';
+        $newDubeF = number_format($totals['new_dube_cents'] / 100, 2) . ' ETB';
+
+        $outDube = $this->paymentReportService->outstandingDube($shop);
+        $outDubeF = number_format($outDube['total_outstanding_cents'] / 100, 2) . ' ETB';
+        $debtorsCount = $outDube['total_customers_with_dube'];
+
+        $overdueList = $this->paymentReportService->overdueList($shop);
+        $overdueCount = $overdueList->count();
+        $overdueF = number_format($overdueList->sum('remaining_balance_cents') / 100, 2) . ' ETB';
+
+        // Provider breakdown
+        $provLines = '';
+        foreach ($receivedData['by_provider'] as $prov) {
+            $amtF = number_format($prov['net_amount_cents'] / 100, 2) . ' ETB';
+            $provLines .= "  • {$prov['provider_name']}: <b>{$amtF}</b> ({$prov['count']} txns)\n";
+        }
+        if (empty($provLines)) {
+            $provLines = "  " . ($locale === 'en' ? '(None recorded today)' : '(ዛሬ አልተመዘገበም)') . "\n";
+        }
+
+        $text = $locale === 'en'
+            ? "💳 <b>Payments, Cash Drawer & Dube Report — {$shop->name}</b>\n"
+                . "📅 Today: <b>{$todayStr}</b>\n\n"
+                . "💵 <b>Cash Expected in Drawer:</b> <b>{$cashExpF}</b>\n"
+                . "<i>(Cash sales + Cash repayments - Reversals)</i>\n\n"
+                . "💰 <b>Revenue vs Received vs Dube:</b>\n"
+                . "  • Sales Revenue: <b>{$revF}</b>\n"
+                . "  • Money Received: <b>{$totalRecF}</b>\n"
+                . "  • New Dube Today: <b>{$newDubeF}</b>\n\n"
+                . "💳 <b>Received by Payment Method:</b>\n"
+                . "  • 💵 Cash: <b>{$cashF}</b>\n"
+                . "  • 🏦 Bank: <b>{$bankF}</b>\n"
+                . "  • 📱 Wallet: <b>{$walletF}</b>\n\n"
+                . "🏦 <b>Received by Bank/Wallet Provider:</b>\n{$provLines}\n"
+                . "📒 <b>Outstanding Dube:</b>\n"
+                . "  • Total Outstanding: <b>{$outDubeF}</b> ({$debtorsCount} customers)\n"
+                . "  • 🔴 Overdue: <b>{$overdueF}</b> ({$overdueCount} sales overdue)"
+            : "💳 <b>የክፍያዎች፣ የካዝና እና የዱቤ ሪፖርት — {$shop->name}</b>\n"
+                . "📅 ዛሬ: <b>{$todayStr}</b>\n\n"
+                . "💵 <b>በካዝና ውስጥ የሚጠበቅ ጥሬ ገንዘብ:</b> <b>{$cashExpF}</b>\n"
+                . "<i>(የጥሬ ሽያጭ + የጥሬ ዕዳ ክፍያ - የተመለሰ)</i>\n\n"
+                . "💰 <b>ሽያጭ vs ገቢ የተደረገ vs ዱቤ:</b>\n"
+                . "  • ጠቅላላ የሽያጭ ዋጋ: <b>{$revF}</b>\n"
+                . "  • የተሰበሰበ ገንዘብ: <b>{$totalRecF}</b>\n"
+                . "  • አዲስ የተሰጠ ዱቤ: <b>{$newDubeF}</b>\n\n"
+                . "💳 <b>በክፍያ መንገድ:</b>\n"
+                . "  • 💵 ጥሬ ገንዘብ: <b>{$cashF}</b>\n"
+                . "  • 🏦 ባንክ: <b>{$bankF}</b>\n"
+                . "  • 📱 ዋሌት: <b>{$walletF}</b>\n\n"
+                . "🏦 <b>በየባንኩ/ዋሌቱ ዝርዝር:</b>\n{$provLines}\n"
+                . "📒 <b>ያልተከፈለ ዱቤ:</b>\n"
+                . "  • ጠቅላላ ያልተከፈለ: <b>{$outDubeF}</b> ({$debtorsCount} ደንበኞች)\n"
+                . "  • 🔴 ጊዜው ያለፈበት: <b>{$overdueF}</b> ({$overdueCount} ሽያጮች)";
+
+        $buttons = [
+            [
+                ['text' => '📒 ' . ($locale === 'en' ? 'Open Dube Menu' : 'ወደ ዱቤ ማውጫ'), 'callback_data' => 'dube:page:1'],
+                ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Reports' : 'ወደ ሪፖርቶች'), 'callback_data' => 'rep:menu:0'],
+            ],
+        ];
+
+        $this->telegram->editMessageText($chatId, $messageId, $text, [
+            'reply_markup' => TelegramUi::inlineKeyboard($buttons),
+        ]);
     }
 }

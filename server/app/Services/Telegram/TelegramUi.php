@@ -86,6 +86,7 @@ class TelegramUi
         $canSale = $perm->can($user, 'sale.create');
         $canReports = $perm->can($user, 'reports.view') || $perm->can($user, 'reports.own_sales');
         $canTransfer = $perm->can($user, 'transfer.create') && ($allowedLocations->count() > 1);
+        $canDube = $perm->can($user, 'dube.view');
 
         $row1 = [];
         if ($canProducts) {
@@ -109,8 +110,15 @@ class TelegramUi
             $rows[] = $row2;
         }
 
+        $row3 = [];
+        if ($canDube) {
+            $row3[] = $locale === 'en' ? '📒 Dube' : '📒 ዱቤ';
+        }
         if ($canTransfer) {
-            $rows[] = [$locale === 'en' ? '🚚 Transfer' : '🚚 ማስተላለፍ'];
+            $row3[] = $locale === 'en' ? '🚚 Transfer' : '🚚 ማስተላለፍ';
+        }
+        if (!empty($row3)) {
+            $rows[] = $row3;
         }
 
         // 3. Settings is always available
@@ -150,6 +158,12 @@ class TelegramUi
             ['text' => $locale === 'en' ? '📊 Reports' : '📊 ሪፖርት', 'callback_data' => 'menu:reports:0'],
         ];
         $rows[] = $row2;
+
+        if ($user !== null && app(\App\Services\PermissionService::class)->can($user, 'dube.view')) {
+            $rows[] = [
+                ['text' => $locale === 'en' ? '📒 Dube' : '📒 ዱቤ', 'callback_data' => 'menu:dube:0'],
+            ];
+        }
 
         $row3 = [];
         if ($user !== null && $user->role === 'owner') {

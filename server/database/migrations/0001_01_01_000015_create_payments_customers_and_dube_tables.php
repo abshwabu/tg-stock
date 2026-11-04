@@ -168,16 +168,19 @@ return new class extends Migration
             $table->index(['shop_id', 'kind', 'enabled']);
         });
 
-        // 6. Add payment_methods_enabled and dube_default_days to shops table
+        // 6. Add payment_methods_enabled, dube_default_days, require_payment_reference, and dube_reminder_last_sent_date to shops table
         Schema::table('shops', function (Blueprint $table) {
             $table->json('payment_methods_enabled')->nullable()->after('transfer_requires_receipt');
             $table->integer('dube_default_days')->default(14)->after('payment_methods_enabled');
+            $table->boolean('require_payment_reference')->default(false)->after('dube_default_days');
+            $table->string('dube_reminder_last_sent_date', 10)->nullable()->after('daily_summary_last_sent_date');
         });
 
         // Set default payment_methods_enabled for existing shops
         DB::table('shops')->update([
             'payment_methods_enabled' => json_encode(['cash', 'bank', 'wallet', 'dube']),
             'dube_default_days' => 14,
+            'require_payment_reference' => false,
         ]);
 
         // 7. Legacy backfill: group existing sale movements by (user_id, location_id, same minute) into sales rows with legacy=true
@@ -278,7 +281,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('shops', function (Blueprint $table) {
-            $table->dropColumn(['payment_methods_enabled', 'dube_default_days']);
+            $table->dropColumn(['payment_methods_enabled', 'dube_default_days', 'require_payment_reference', 'dube_reminder_last_sent_date']);
         });
 
         Schema::table('movements', function (Blueprint $table) {
