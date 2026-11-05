@@ -607,6 +607,144 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Overdue'**
   String get overdue;
+
+  /// No description provided for @kindProduct.
+  ///
+  /// In en, this message translates to:
+  /// **'Product'**
+  String get kindProduct;
+
+  /// No description provided for @kindService.
+  ///
+  /// In en, this message translates to:
+  /// **'Service'**
+  String get kindService;
+
+  /// No description provided for @kindConsumable.
+  ///
+  /// In en, this message translates to:
+  /// **'Consumable'**
+  String get kindConsumable;
+
+  /// No description provided for @kindMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Raw Material'**
+  String get kindMaterial;
+
+  /// No description provided for @whatAreYouAdding.
+  ///
+  /// In en, this message translates to:
+  /// **'What are you adding?'**
+  String get whatAreYouAdding;
+
+  /// No description provided for @askPriceEverySale.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask the price at every sale'**
+  String get askPriceEverySale;
+
+  /// No description provided for @materialsUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Materials Used'**
+  String get materialsUsed;
+
+  /// No description provided for @salesByType.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales by Type'**
+  String get salesByType;
+
+  /// No description provided for @blockSaleWhenMaterialShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Block sale when raw materials are short'**
+  String get blockSaleWhenMaterialShort;
+
+  /// No description provided for @profitDisclaimer.
+  ///
+  /// In en, this message translates to:
+  /// **'* Profit based on current raw material costs, not a historical cost snapshot'**
+  String get profitDisclaimer;
+
+  /// No description provided for @cannotChangeKindWithStock.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot change kind: stock must be 0 across all locations'**
+  String get cannotChangeKindWithStock;
+
+  /// No description provided for @cannotDeleteUsedAsMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot delete: This product is used as a raw material in recipes'**
+  String get cannotDeleteUsedAsMaterial;
+
+  /// No description provided for @cannotChangeKindUsedAsMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot change kind: This product is used as a raw material in recipes'**
+  String get cannotChangeKindUsedAsMaterial;
+
+  /// No description provided for @addMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Raw Material'**
+  String get addMaterial;
+
+  /// No description provided for @qtyPerUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Qty per 1 unit sold'**
+  String get qtyPerUnit;
+
+  /// No description provided for @estMaterialCost.
+  ///
+  /// In en, this message translates to:
+  /// **'Est. Material Cost'**
+  String get estMaterialCost;
+
+  /// No description provided for @marginPerUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'Margin per unit'**
+  String get marginPerUnit;
+
+  /// No description provided for @noMaterialsAssigned.
+  ///
+  /// In en, this message translates to:
+  /// **'No materials assigned yet'**
+  String get noMaterialsAssigned;
+
+  /// No description provided for @shortageWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Material shortage'**
+  String get shortageWarning;
+
+  /// No description provided for @filterProducts.
+  ///
+  /// In en, this message translates to:
+  /// **'Products'**
+  String get filterProducts;
+
+  /// No description provided for @filterServices.
+  ///
+  /// In en, this message translates to:
+  /// **'Services'**
+  String get filterServices;
+
+  /// No description provided for @filterConsumables.
+  ///
+  /// In en, this message translates to:
+  /// **'Consumables'**
+  String get filterConsumables;
+
+  /// No description provided for @filterMaterials.
+  ///
+  /// In en, this message translates to:
+  /// **'Materials'**
+  String get filterMaterials;
 }
 
 class _AppLocalizationsDelegate

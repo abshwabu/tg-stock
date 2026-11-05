@@ -262,4 +262,76 @@ class AppLocalizationsAm extends AppLocalizations {
 
   @override
   String get overdue => 'ጊዜው ያለፈበት';
+
+  @override
+  String get kindProduct => 'ዕቃ';
+
+  @override
+  String get kindService => 'አገልግሎት';
+
+  @override
+  String get kindConsumable => 'የተዘጋጀ';
+
+  @override
+  String get kindMaterial => 'ጥሬ ዕቃ';
+
+  @override
+  String get whatAreYouAdding => 'ምን ዓይነት ዕቃ ነው የሚመዘግቡት?';
+
+  @override
+  String get askPriceEverySale => 'በሽያጭ ወቅት ዋጋ ጠይቅ';
+
+  @override
+  String get materialsUsed => 'ጥቅም ላይ የዋሉ ጥሬ ዕቃዎች';
+
+  @override
+  String get salesByType => 'ሽያጭ በዓይነት';
+
+  @override
+  String get blockSaleWhenMaterialShort => 'ጥሬ ዕቃ ሲያጥር ሽያጭ ከልክል';
+
+  @override
+  String get profitDisclaimer => '* ትርፉ አሁን ባለው የጥሬ ዕቃዎች መግዣ ዋጋ ላይ የተመሠረተ ነው።';
+
+  @override
+  String get cannotChangeKindWithStock =>
+      'የዕቃውን ዓይነት መቀየር አይቻልም፡ በሁሉም ቦታዎች ያለው ስቶክ 0 መሆን አለበት';
+
+  @override
+  String get cannotDeleteUsedAsMaterial =>
+      'መሰረዝ አይቻልም፡ ይህ ዕቃ በሌሎች አዘገጃጀቶች ውስጥ እንደ ጥሬ ዕቃ ተመዝግቧል';
+
+  @override
+  String get cannotChangeKindUsedAsMaterial =>
+      'ዓይነቱን መቀየር አይቻልም፡ ይህ ዕቃ በሌሎች አዘገጃጀቶች ውስጥ እንደ ጥሬ ዕቃ ተመዝግቧል';
+
+  @override
+  String get addMaterial => 'ጥሬ ዕቃ ጨምር';
+
+  @override
+  String get qtyPerUnit => 'ለአንድ ሽያጭ የሚያስፈልግ መጠን';
+
+  @override
+  String get estMaterialCost => 'ግምታዊ የጥሬ ዕቃ ዋጋ';
+
+  @override
+  String get marginPerUnit => 'የአንዱ ትርፍ';
+
+  @override
+  String get noMaterialsAssigned => 'ምንም ጥሬ ዕቃ አልተመረጠም';
+
+  @override
+  String get shortageWarning => 'የጥሬ ዕቃ እጥረት';
+
+  @override
+  String get filterProducts => 'ዕቃዎች';
+
+  @override
+  String get filterServices => 'አገልግሎቶች';
+
+  @override
+  String get filterConsumables => 'የተዘጋጁ';
+
+  @override
+  String get filterMaterials => 'ጥሬ ዕቃዎች';
 }

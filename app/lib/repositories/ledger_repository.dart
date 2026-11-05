@@ -287,6 +287,38 @@ class TopProductItem {
   });
 }
 
+class SalesByKindData {
+  final String kind;
+  final int totalRevenueCents;
+  final int totalQtyMilli;
+  final int salesCount;
+
+  SalesByKindData({
+    required this.kind,
+    required this.totalRevenueCents,
+    required this.totalQtyMilli,
+    required this.salesCount,
+  });
+}
+
+class MaterialUsedReportItem {
+  final String materialProductId;
+  final String productName;
+  final String unit;
+  final int totalConsumedMilli;
+  final int costPriceCents;
+  final int totalCostCents;
+
+  MaterialUsedReportItem({
+    required this.materialProductId,
+    required this.productName,
+    required this.unit,
+    required this.totalConsumedMilli,
+    required this.costPriceCents,
+    required this.totalCostCents,
+  });
+}
+
 class SalesReportData {
   final int fromMs;
   final int toMs;
@@ -339,22 +371,32 @@ class LedgerRepository {
     required String name,
     String? sku,
     String unit = 'pcs',
+    String kind = 'stockable',
     int costPriceCents = 0,
     int sellPriceCents = 0,
+    bool askPrice = false,
     int? lowStockAtMilli,
     int? openingStockMilli,
+    List<Map<String, dynamic>>? materials,
   }) async {
+    if (kind != 'stockable' && openingStockMilli != null && openingStockMilli > 0) {
+      throw StateError('Opening stock is not allowed for non-stockable items.');
+    }
+
     final prod = await db.createProduct(
       id: id,
       name: name,
       sku: sku,
       unit: unit,
+      kind: kind,
       costPriceCents: costPriceCents,
       sellPriceCents: sellPriceCents,
+      askPrice: askPrice,
       lowStockAtMilli: lowStockAtMilli,
+      materials: materials,
     );
 
-    if (openingStockMilli != null && openingStockMilli > 0) {
+    if (kind == 'stockable' && openingStockMilli != null && openingStockMilli > 0) {
       await recordStockIn(
         productId: prod.id,
         qtyMilli: openingStockMilli,
@@ -366,11 +408,28 @@ class LedgerRepository {
     return prod;
   }
 
-  Future<void> updateProduct(Product product) async {
-    await db.updateProduct(product);
+  Future<void> updateProduct(Product product, {List<Map<String, dynamic>>? materials}) async {
+    final existing = await getProduct(product.id);
+    if (existing != null) {
+      await validateProductKindChange(existing, product.kind);
+    }
+
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final kindChanged = existing != null && existing.kind != product.kind;
+    final updated = kindChanged
+        ? product.copyWith(kindChangedAtMs: Value(nowMs))
+        : product;
+
+    await db.updateProduct(updated, materials: materials);
   }
 
   Future<void> deleteProduct(String id) async {
+    if (await isUsedAsMaterial(id)) {
+      final p = await getProduct(id);
+      throw StateError(
+        'Cannot delete product "${p?.name ?? id}" because it is used as a raw material in recipes.',
+      );
+    }
     await db.deleteProduct(id);
   }
 
@@ -378,14 +437,89 @@ class LedgerRepository {
     return (db.select(db.products)..where((p) => p.id.equals(id))).getSingleOrNull();
   }
 
+  Future<List<ProductMaterial>> getProductMaterials(String productId) async {
+    return (db.select(db.productMaterials)..where((pm) => pm.productId.equals(productId))).get();
+  }
+
+  Future<void> setProductMaterials(String productId, List<Map<String, dynamic>> materials) async {
+    await db.transaction(() async {
+      await (db.delete(db.productMaterials)..where((pm) => pm.productId.equals(productId))).go();
+      for (final m in materials) {
+        final matProdId = m['product_id'] as String;
+        final qMilli = m['qty_milli'] is int
+            ? m['qty_milli'] as int
+            : QuantityFormatter.parseQty(m['qty']?.toString() ?? '0');
+        await db.into(db.productMaterials).insert(
+          ProductMaterialsCompanion.insert(
+            productId: productId,
+            materialProductId: matProdId,
+            qtyMilli: qMilli,
+          ),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
+  }
+
+  Future<bool> isUsedAsMaterial(String productId) async {
+    final list = await (db.select(db.productMaterials)..where((pm) => pm.materialProductId.equals(productId))..limit(1)).get();
+    return list.isNotEmpty;
+  }
+
+  Future<List<Product>> getProductsUsingMaterial(String materialProductId) async {
+    final mats = await (db.select(db.productMaterials)..where((pm) => pm.materialProductId.equals(materialProductId))).get();
+    final prods = <Product>[];
+    for (final m in mats) {
+      final p = await getProduct(m.productId);
+      if (p != null) prods.add(p);
+    }
+    return prods;
+  }
+
+  Future<void> validateProductKindChange(Product existing, String newKind) async {
+    if (existing.kind == newKind) return;
+
+    if (existing.kind == 'stockable' && newKind != 'stockable') {
+      final stock = await stockOf(existing.id);
+      if (stock != 0) {
+        throw StateError(
+          'Cannot change kind from stockable when stock is not zero (current: ${QuantityFormatter.formatDisplay(stock)}). Adjust stock to zero first.',
+        );
+      }
+    }
+
+    if (await isUsedAsMaterial(existing.id)) {
+      throw StateError(
+        'Cannot change kind of product "${existing.name}" because it is used as a raw material in recipes.',
+      );
+    }
+  }
+
   Future<List<ProductWithStock>> listProducts({
     String? query,
     bool includeDeleted = false,
     String? locationId,
+    String? kindFilter, // 'all', 'product', 'service', 'consumable', 'material'
   }) async {
     var q = db.select(db.products);
     if (!includeDeleted) {
       q = q..where((p) => p.deletedAtMs.isNull());
+    }
+
+    if (kindFilter != null && kindFilter != 'all') {
+      if (kindFilter == 'product' || kindFilter == 'stockable') {
+        q = q..where((p) => p.kind.equals('stockable'));
+      } else if (kindFilter == 'service') {
+        q = q..where((p) => p.kind.equals('service'));
+      } else if (kindFilter == 'consumable') {
+        q = q..where((p) => p.kind.equals('consumable'));
+      } else if (kindFilter == 'material') {
+        final matRows = await (db.selectOnly(db.productMaterials, distinct: true)
+              ..addColumns([db.productMaterials.materialProductId]))
+            .get();
+        final matIds = matRows.map((row) => row.read(db.productMaterials.materialProductId)!).toSet();
+        q = q..where((p) => p.id.isIn(matIds) & p.kind.equals('stockable'));
+      }
     }
 
     final queryClean = query?.trim().toLowerCase();
@@ -401,11 +535,11 @@ class LedgerRepository {
 
     final result = <ProductWithStock>[];
     for (final p in prods) {
-      final totalStock = await stockOf(p.id);
+      final totalStock = p.kind == 'stockable' ? await stockOf(p.id) : 0;
       Map<String, int> stockMap = const {};
       int inTransit = 0;
 
-      if (locationsEnabled) {
+      if (locationsEnabled && p.kind == 'stockable') {
         stockMap = await stockByLocation(p.id);
         inTransit = await inTransitStockOf(p.id);
       }
@@ -422,8 +556,8 @@ class LedgerRepository {
     return result;
   }
 
-  Stream<List<ProductWithStock>> watchProducts({String? query, String? locationId}) {
-    return db.select(db.movements).watch().asyncMap((_) => listProducts(query: query, locationId: locationId));
+  Stream<List<ProductWithStock>> watchProducts({String? query, String? locationId, String? kindFilter}) {
+    return db.select(db.movements).watch().asyncMap((_) => listProducts(query: query, locationId: locationId, kindFilter: kindFilter));
   }
 
   Future<List<Product>> getRecentProducts({int limit = 8}) async {
@@ -474,6 +608,11 @@ class LedgerRepository {
     String? locationId,
   }) async {
     assert(qtyMilli > 0, 'Stock in quantity must be positive');
+    final prod = await getProduct(productId);
+    if (prod != null && prod.kind != 'stockable') {
+      throw StateError('not_stockable');
+    }
+
     final locId = locationId ?? await getActiveLocationId();
 
     return db.recordMovement(
@@ -481,6 +620,7 @@ class LedgerRepository {
       type: 'in',
       qtyMilli: qtyMilli,
       unitPriceCents: unitPriceCents,
+      tracksStock: true,
       note: note,
       locationId: locId,
     );
@@ -496,18 +636,36 @@ class LedgerRepository {
 
     final targetLocId = locationId ?? await getActiveLocationId();
     final allowNegative = await getAllowNegativeStock();
+    final blockWhenShort = await getBlockSaleWhenMaterialShort();
 
-    // 1. Stock check: if negative stock not allowed, verify sufficient inventory
-    if (!allowNegative) {
-      for (final item in items) {
-        final currentStock = await stockOf(item.product.id, locationId: targetLocId);
-        if (currentStock < item.qtyMilli) {
-          throw InsufficientStockException(
-            productId: item.product.id,
-            productName: item.product.name,
-            currentStockMilli: currentStock,
-            requestedQtyMilli: item.qtyMilli,
-          );
+    // 1. Stock check: stockables check location inventory; consumables check raw materials
+    for (final item in items) {
+      if (item.product.kind == 'stockable') {
+        if (!allowNegative) {
+          final currentStock = await stockOf(item.product.id, locationId: targetLocId);
+          if (currentStock < item.qtyMilli) {
+            throw InsufficientStockException(
+              productId: item.product.id,
+              productName: item.product.name,
+              currentStockMilli: currentStock,
+              requestedQtyMilli: item.qtyMilli,
+            );
+          }
+        }
+      } else if (item.product.kind == 'consumable') {
+        final mats = await getProductMaterials(item.product.id);
+        for (final mat in mats) {
+          final requiredQty = ((mat.qtyMilli * item.qtyMilli) / 1000.0).round();
+          final matStock = await stockOf(mat.materialProductId, locationId: targetLocId);
+          if (blockWhenShort && matStock < requiredQty) {
+            final matProd = await getProduct(mat.materialProductId);
+            throw InsufficientStockException(
+              productId: mat.materialProductId,
+              productName: matProd?.name ?? 'Raw Material',
+              currentStockMilli: matStock,
+              requestedQtyMilli: requiredQty,
+            );
+          }
         }
       }
     }
@@ -516,15 +674,35 @@ class LedgerRepository {
     final movements = <Movement>[];
     await db.transaction(() async {
       for (final item in items) {
+        final isStockable = item.product.kind == 'stockable';
         final mov = await db.recordMovement(
           productId: item.product.id,
           type: 'sale',
           qtyMilli: -item.qtyMilli.abs(), // Strictly negative for sale
           unitPriceCents: item.unitPriceCents,
+          tracksStock: isStockable,
           note: note ?? 'Sale',
           locationId: targetLocId,
         );
         movements.add(mov);
+
+        if (item.product.kind == 'consumable') {
+          final mats = await getProductMaterials(item.product.id);
+          for (final mat in mats) {
+            final consumedQty = ((mat.qtyMilli * item.qtyMilli) / 1000.0).round();
+            final consumeMov = await db.recordMovement(
+              productId: mat.materialProductId,
+              type: 'consume',
+              qtyMilli: -consumedQty.abs(),
+              unitPriceCents: 0,
+              tracksStock: true,
+              sourceMovementId: mov.id,
+              note: 'Consumed for ${item.product.name}',
+              locationId: targetLocId,
+            );
+            movements.add(consumeMov);
+          }
+        }
       }
     });
 
@@ -540,6 +718,11 @@ class LedgerRepository {
     String? note,
     String? locationId,
   }) async {
+    final prod = await getProduct(productId);
+    if (prod != null && prod.kind != 'stockable') {
+      throw StateError('not_stockable');
+    }
+
     final targetLocId = locationId ?? await getActiveLocationId();
     final currentStock = await stockOf(productId, locationId: targetLocId);
     final diffMilli = countedQtyMilli - currentStock;
@@ -552,13 +735,13 @@ class LedgerRepository {
     };
 
     final combinedNote = note != null ? '$reasonLabel: $note' : reasonLabel;
-    final prod = await getProduct(productId);
 
     return db.recordMovement(
       productId: productId,
       type: 'adjust',
       qtyMilli: diffMilli,
       unitPriceCents: prod?.costPriceCents ?? 0,
+      tracksStock: true,
       note: combinedNote,
       locationId: targetLocId,
     );
@@ -646,11 +829,15 @@ class LedgerRepository {
     assert(qtyMilli > 0, 'Transfer quantity must be positive');
     assert(fromLocationId != toLocationId, 'Source and destination locations must be different');
 
+    final prod = await getProduct(productId);
+    if (prod != null && prod.kind != 'stockable') {
+      throw StateError('not_stockable');
+    }
+
     final allowNegative = await getAllowNegativeStock();
     if (!allowNegative) {
       final currentStock = await stockOf(productId, locationId: fromLocationId);
       if (currentStock < qtyMilli) {
-        final prod = await getProduct(productId);
         throw InsufficientStockException(
           productId: productId,
           productName: prod?.name ?? 'Product',
@@ -678,6 +865,7 @@ class LedgerRepository {
         type: 'transfer_out',
         qtyMilli: -qtyMilli.abs(),
         unitPriceCents: unitPriceCents,
+        tracksStock: true,
         note: outNote,
         locationId: fromLocationId,
         transferId: transferId,
@@ -689,6 +877,7 @@ class LedgerRepository {
         type: 'transfer_in',
         qtyMilli: qtyMilli.abs(),
         unitPriceCents: unitPriceCents,
+        tracksStock: true,
         note: inNote,
         locationId: toLocationId,
         transferId: transferId,
@@ -712,11 +901,15 @@ class LedgerRepository {
     assert(qtyMilli > 0, 'Transfer quantity must be positive');
     assert(fromLocationId != toLocationId, 'Source and destination locations must be different');
 
+    final prod = await getProduct(productId);
+    if (prod != null && prod.kind != 'stockable') {
+      throw StateError('not_stockable');
+    }
+
     final allowNegative = await getAllowNegativeStock();
     if (!allowNegative) {
       final currentStock = await stockOf(productId, locationId: fromLocationId);
       if (currentStock < qtyMilli) {
-        final prod = await getProduct(productId);
         throw InsufficientStockException(
           productId: productId,
           productName: prod?.name ?? 'Product',
@@ -737,6 +930,7 @@ class LedgerRepository {
       type: 'transfer_out',
       qtyMilli: -qtyMilli.abs(),
       unitPriceCents: unitPriceCents,
+      tracksStock: true,
       note: outNote,
       locationId: fromLocationId,
       transferId: txId,
@@ -929,6 +1123,9 @@ class LedgerRepository {
 
   /// Calculates in-transit stock for a product destined for toLocationId (or any destination).
   Future<int> inTransitStockOf(String productId, {String? toLocationId}) async {
+    final prod = await getProduct(productId);
+    if (prod != null && prod.kind != 'stockable') return 0;
+
     final transfers = await getInTransitTransfers(toLocationId: toLocationId);
     int sum = 0;
     for (final t in transfers) {
@@ -961,7 +1158,7 @@ class LedgerRepository {
 
   /// Count of active products where stock is at or below their low stock threshold.
   Future<int> lowStockCount() async {
-    final prods = await (db.select(db.products)..where((p) => p.deletedAtMs.isNull())).get();
+    final prods = await (db.select(db.products)..where((p) => p.deletedAtMs.isNull() & p.kind.equals('stockable'))).get();
     int count = 0;
     for (final p in prods) {
       final stock = await stockOf(p.id);
@@ -1203,7 +1400,7 @@ class LedgerRepository {
   }
 
   Future<List<StockByLocationReportData>> getStockByLocationReport() async {
-    final prods = await (db.select(db.products)..where((p) => p.deletedAtMs.isNull())).get();
+    final prods = await (db.select(db.products)..where((p) => p.deletedAtMs.isNull() & p.kind.equals('stockable'))).get();
     final locs = await listLocations();
     final result = <StockByLocationReportData>[];
 
@@ -1362,6 +1559,15 @@ class LedgerRepository {
     await setSetting('last_weekly_snapshot_ms', ms.toString());
   }
 
+  Future<bool> getBlockSaleWhenMaterialShort() async {
+    final val = await getSetting('block_sale_when_material_short', defaultValue: 'false');
+    return val == 'true' || val == '1';
+  }
+
+  Future<void> setBlockSaleWhenMaterialShort(bool block) async {
+    await setSetting('block_sale_when_material_short', block ? 'true' : 'false');
+  }
+
   // ==========================================
   // REPORTS & SQL AGGREGATES
   // ==========================================
@@ -1374,21 +1580,15 @@ class LedgerRepository {
         m.product_id,
         p.name AS product_name,
         p.unit AS product_unit,
+        COALESCE(p.kind, 'stockable') AS product_kind,
         p.cost_price_cents,
         SUM(ABS(m.qty_milli)) AS total_qty_milli,
         SUM((ABS(m.qty_milli) * m.unit_price_cents) / 1000) AS total_revenue_cents,
-        SUM(
-          CASE WHEN p.cost_price_cents > 0 
-            THEN (ABS(m.qty_milli) * (m.unit_price_cents - p.cost_price_cents)) / 1000 
-            ELSE 0 
-          END
-        ) AS total_profit_cents,
-        SUM(CASE WHEN p.cost_price_cents > 0 THEN 1 ELSE 0 END) AS cost_item_sales_count,
         COUNT(*) AS sale_item_count
       FROM movements m
       JOIN products p ON m.product_id = p.id
       WHERE m.type = 'sale' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
-      GROUP BY m.product_id, p.name, p.unit, p.cost_price_cents
+      GROUP BY m.product_id, p.name, p.unit, p.kind, p.cost_price_cents
     ''';
 
     final vars = <Variable<Object>>[Variable.withInt(fromMs), Variable.withInt(toMs)];
@@ -1413,16 +1613,24 @@ class LedgerRepository {
       final pid = row.read<String>('product_id');
       final name = row.read<String>('product_name');
       final unit = row.read<String>('product_unit');
+      final kind = row.read<String>('product_kind');
+      final costPrice = (row.data['cost_price_cents'] as num?)?.toInt() ?? 0;
       final qty = (row.data['total_qty_milli'] as num?)?.toInt() ?? 0;
       final rev = (row.data['total_revenue_cents'] as num?)?.toInt() ?? 0;
-      final profit = (row.data['total_profit_cents'] as num?)?.toInt() ?? 0;
-      final costItems = (row.data['cost_item_sales_count'] as num?)?.toInt() ?? 0;
       final count = (row.data['sale_item_count'] as num?)?.toInt() ?? 0;
 
       totalRevenueCents += rev;
       salesCount += count;
-      profitSum += profit;
-      itemsWithCostCount += costItems;
+
+      if (kind == 'stockable') {
+        if (costPrice > 0) {
+          itemsWithCostCount++;
+          profitSum += rev - ((qty * costPrice) / 1000).round();
+        }
+      } else if (kind == 'service') {
+        itemsWithCostCount++;
+        profitSum += rev - ((qty * costPrice) / 1000).round();
+      }
 
       topItems.add(TopProductItem(
         productId: pid,
@@ -1431,6 +1639,44 @@ class LedgerRepository {
         totalQtyMilli: qty,
         totalRevenueCents: rev,
       ));
+    }
+
+    // Consumable profit: consumable revenue minus materials consumed * current material cost
+    final consumeSql = '''
+      SELECT 
+        m.product_id,
+        p.cost_price_cents,
+        SUM(ABS(m.qty_milli)) AS consumed_qty_milli
+      FROM movements m
+      JOIN products p ON m.product_id = p.id
+      WHERE m.type = 'consume' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
+      GROUP BY m.product_id, p.cost_price_cents
+    ''';
+    final consumeRows = await db.customSelect(
+      consumeSql,
+      variables: vars,
+      readsFrom: {db.movements, db.products},
+    ).get();
+
+    int totalConsumedMaterialCost = 0;
+    for (final cr in consumeRows) {
+      final cCost = (cr.data['cost_price_cents'] as num?)?.toInt() ?? 0;
+      final cQty = (cr.data['consumed_qty_milli'] as num?)?.toInt() ?? 0;
+      totalConsumedMaterialCost += ((cQty * cCost) / 1000).round();
+    }
+
+    int consumableRev = 0;
+    bool hasConsumableSales = false;
+    for (final row in rows) {
+      final kind = row.read<String>('product_kind');
+      if (kind == 'consumable') {
+        hasConsumableSales = true;
+        consumableRev += (row.data['total_revenue_cents'] as num?)?.toInt() ?? 0;
+      }
+    }
+    if (hasConsumableSales) {
+      itemsWithCostCount++;
+      profitSum += (consumableRev - totalConsumedMaterialCost);
     }
 
     final topByRevenue = List<TopProductItem>.from(topItems)
@@ -1450,7 +1696,105 @@ class LedgerRepository {
     );
   }
 
-  /// Computes stock valuation at cost and sell price using SQL aggregates.
+  /// Returns sales breakdown grouped by item kind: stockable, service, consumable.
+  Future<Map<String, SalesByKindData>> getSalesByKind({required int fromMs, required int toMs, String? locationId}) async {
+    final locClause = locationId != null ? 'AND m.location_id = ?' : '';
+    final sql = '''
+      SELECT 
+        COALESCE(p.kind, 'stockable') AS kind,
+        SUM(ABS(m.qty_milli)) AS total_qty_milli,
+        SUM((ABS(m.qty_milli) * m.unit_price_cents) / 1000) AS total_revenue_cents,
+        COUNT(*) AS sales_count
+      FROM movements m
+      JOIN products p ON m.product_id = p.id
+      WHERE m.type = 'sale' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
+      GROUP BY COALESCE(p.kind, 'stockable')
+    ''';
+
+    final vars = <Variable<Object>>[Variable.withInt(fromMs), Variable.withInt(toMs)];
+    if (locationId != null) {
+      vars.add(Variable.withString(locationId));
+    }
+
+    final rows = await db.customSelect(
+      sql,
+      variables: vars,
+      readsFrom: {db.movements, db.products},
+    ).get();
+
+    final result = {
+      'stockable': SalesByKindData(kind: 'stockable', totalRevenueCents: 0, totalQtyMilli: 0, salesCount: 0),
+      'service': SalesByKindData(kind: 'service', totalRevenueCents: 0, totalQtyMilli: 0, salesCount: 0),
+      'consumable': SalesByKindData(kind: 'consumable', totalRevenueCents: 0, totalQtyMilli: 0, salesCount: 0),
+    };
+
+    for (final row in rows) {
+      final kind = row.read<String>('kind');
+      final qty = (row.data['total_qty_milli'] as num?)?.toInt() ?? 0;
+      final rev = (row.data['total_revenue_cents'] as num?)?.toInt() ?? 0;
+      final count = (row.data['sales_count'] as num?)?.toInt() ?? 0;
+
+      result[kind] = SalesByKindData(
+        kind: kind,
+        totalRevenueCents: rev,
+        totalQtyMilli: qty,
+        salesCount: count,
+      );
+    }
+
+    return result;
+  }
+
+  /// Returns materials consumed by consumable sales in the period.
+  Future<List<MaterialUsedReportItem>> getMaterialsUsed({required int fromMs, required int toMs, String? locationId}) async {
+    final locClause = locationId != null ? 'AND m.location_id = ?' : '';
+    final sql = '''
+      SELECT 
+        m.product_id,
+        p.name AS product_name,
+        p.unit AS product_unit,
+        p.cost_price_cents,
+        SUM(ABS(m.qty_milli)) AS total_consumed_milli
+      FROM movements m
+      JOIN products p ON m.product_id = p.id
+      WHERE m.type = 'consume' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
+      GROUP BY m.product_id, p.name, p.unit, p.cost_price_cents
+      ORDER BY SUM(ABS(m.qty_milli)) DESC
+    ''';
+
+    final vars = <Variable<Object>>[Variable.withInt(fromMs), Variable.withInt(toMs)];
+    if (locationId != null) {
+      vars.add(Variable.withString(locationId));
+    }
+
+    final rows = await db.customSelect(
+      sql,
+      variables: vars,
+      readsFrom: {db.movements, db.products},
+    ).get();
+
+    final result = <MaterialUsedReportItem>[];
+    for (final row in rows) {
+      final pid = row.read<String>('product_id');
+      final name = row.read<String>('product_name');
+      final unit = row.read<String>('product_unit');
+      final cost = (row.data['cost_price_cents'] as num?)?.toInt() ?? 0;
+      final consumed = (row.data['total_consumed_milli'] as num?)?.toInt() ?? 0;
+      final totalCost = ((consumed * cost) / 1000).round();
+
+      result.add(MaterialUsedReportItem(
+        materialProductId: pid,
+        productName: name,
+        unit: unit,
+        totalConsumedMilli: consumed,
+        costPriceCents: cost,
+        totalCostCents: totalCost,
+      ));
+    }
+    return result;
+  }
+
+  /// Computes stock valuation at cost and sell price using SQL aggregates (strictly stockable products).
   Future<StockReportData> getStockReport({String? locationId}) async {
     final locJoin = locationId != null ? 'AND m.location_id = ?' : '';
     final sql = '''
@@ -1461,10 +1805,10 @@ class LedgerRepository {
         p.cost_price_cents,
         p.sell_price_cents,
         p.low_stock_at_milli,
-        COALESCE(SUM(m.qty_milli), 0) AS stock_milli
+        COALESCE(SUM(CASE WHEN m.tracks_stock = 1 THEN m.qty_milli ELSE 0 END), 0) AS stock_milli
       FROM products p
       LEFT JOIN movements m ON p.id = m.product_id $locJoin
-      WHERE p.deleted_at_ms IS NULL
+      WHERE p.deleted_at_ms IS NULL AND p.kind = 'stockable'
       GROUP BY p.id, p.name, p.unit, p.cost_price_cents, p.sell_price_cents, p.low_stock_at_milli
     ''';
 
@@ -1760,18 +2104,36 @@ class LedgerRepository {
 
     final targetLocId = locationId ?? await getActiveLocationId();
     final allowNegative = await getAllowNegativeStock();
+    final blockWhenShort = await getBlockSaleWhenMaterialShort();
 
-    // 1. Stock check
-    if (!allowNegative) {
-      for (final item in items) {
-        final currentStock = await stockOf(item.product.id, locationId: targetLocId);
-        if (currentStock < item.qtyMilli) {
-          throw InsufficientStockException(
-            productId: item.product.id,
-            productName: item.product.name,
-            currentStockMilli: currentStock,
-            requestedQtyMilli: item.qtyMilli,
-          );
+    // 1. Stock check: stockables check location inventory; consumables check raw materials
+    for (final item in items) {
+      if (item.product.kind == 'stockable') {
+        if (!allowNegative) {
+          final currentStock = await stockOf(item.product.id, locationId: targetLocId);
+          if (currentStock < item.qtyMilli) {
+            throw InsufficientStockException(
+              productId: item.product.id,
+              productName: item.product.name,
+              currentStockMilli: currentStock,
+              requestedQtyMilli: item.qtyMilli,
+            );
+          }
+        }
+      } else if (item.product.kind == 'consumable') {
+        final mats = await getProductMaterials(item.product.id);
+        for (final mat in mats) {
+          final requiredQty = ((mat.qtyMilli * item.qtyMilli) / 1000.0).round();
+          final matStock = await stockOf(mat.materialProductId, locationId: targetLocId);
+          if (blockWhenShort && matStock < requiredQty) {
+            final matProd = await getProduct(mat.materialProductId);
+            throw InsufficientStockException(
+              productId: mat.materialProductId,
+              productName: matProd?.name ?? 'Raw Material',
+              currentStockMilli: matStock,
+              requestedQtyMilli: requiredQty,
+            );
+          }
         }
       }
     }
@@ -1815,16 +2177,37 @@ class LedgerRepository {
 
       // B. Record movements referencing sale.id
       for (final item in items) {
-        await db.recordMovement(
+        final isStockable = item.product.kind == 'stockable';
+        final saleMov = await db.recordMovement(
           productId: item.product.id,
           type: 'sale',
           qtyMilli: -item.qtyMilli.abs(),
           unitPriceCents: item.unitPriceCents,
+          tracksStock: isStockable,
           note: note ?? 'Sale',
           locationId: targetLocId,
           saleId: sale.id,
           createdAtMs: nowMs,
         );
+
+        if (item.product.kind == 'consumable') {
+          final mats = await getProductMaterials(item.product.id);
+          for (final mat in mats) {
+            final consumedQty = ((mat.qtyMilli * item.qtyMilli) / 1000.0).round();
+            await db.recordMovement(
+              productId: mat.materialProductId,
+              type: 'consume',
+              qtyMilli: -consumedQty.abs(),
+              unitPriceCents: 0,
+              tracksStock: true,
+              sourceMovementId: saleMov.id,
+              note: 'Consumed for ${item.product.name}',
+              locationId: targetLocId,
+              saleId: sale.id,
+              createdAtMs: nowMs,
+            );
+          }
+        }
       }
 
       // C. Record payment(s)
@@ -2143,9 +2526,28 @@ class LedgerRepository {
         await db.recordMovement(
           productId: m.productId,
           type: 'adjust',
-          qtyMilli: m.qtyMilli.abs(), // Positive restores stock
+          qtyMilli: m.qtyMilli.abs(), // Positive restores stock if tracksStock
           unitPriceCents: m.unitPriceCents,
+          tracksStock: m.tracksStock,
+          sourceMovementId: m.id,
           note: 'Compensating undo for [${m.id}] (void sale ${sale.id})',
+          locationId: m.locationId,
+          saleId: sale.id,
+          createdAtMs: nowMs,
+        );
+      }
+
+      // 4. Reverse consume movements with compensating adjust
+      final consumeMovements = await (db.select(db.movements)..where((m) => m.saleId.equals(sale.id) & m.type.equals('consume'))).get();
+      for (final m in consumeMovements) {
+        await db.recordMovement(
+          productId: m.productId,
+          type: 'adjust',
+          qtyMilli: m.qtyMilli.abs(), // Positive restores consumed raw material stock
+          unitPriceCents: m.unitPriceCents,
+          tracksStock: true,
+          sourceMovementId: m.id,
+          note: 'Compensating undo for consume [${m.id}] (void sale ${sale.id})',
           locationId: m.locationId,
           saleId: sale.id,
           createdAtMs: nowMs,

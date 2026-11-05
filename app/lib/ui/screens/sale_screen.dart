@@ -68,12 +68,27 @@ class _SaleScreenState extends State<SaleScreen> {
   }
 
   Future<void> _promptQuantityAndPrice(Product product) async {
-    final currentStock = await widget.repository.stockOf(product.id);
+    final isService = product.kind == 'service';
+    final isConsumable = product.kind == 'consumable';
+    final currentStock = isService ? 0 : await widget.repository.stockOf(product.id, locationId: _activeLocation?.id);
     int qtyMilli = 1000; // default 1 unit
     int priceCents = product.sellPriceCents;
 
+    // Load recipe materials if consumable
+    final List<({Product materialProduct, int stockMilli, int requiredPerUnitMilli})> recipeMaterials = [];
+    if (isConsumable) {
+      final mats = await widget.repository.getProductMaterials(product.id);
+      for (final m in mats) {
+        final p = await widget.repository.getProduct(m.materialProductId);
+        if (p != null) {
+          final s = await widget.repository.stockOf(p.id, locationId: _activeLocation?.id);
+          recipeMaterials.add((materialProduct: p, stockMilli: s, requiredPerUnitMilli: m.qtyMilli));
+        }
+      }
+    }
+
     final priceCtrl = TextEditingController(
-      text: (priceCents / 100).toStringAsFixed(2),
+      text: (product.askPrice && priceCents == 0) ? '' : (priceCents / 100).toStringAsFixed(2),
     );
     final customQtyCtrl = TextEditingController(text: '1');
 
@@ -87,7 +102,20 @@ class _SaleScreenState extends State<SaleScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
-          final stockWarning = currentStock < qtyMilli;
+          final stockWarning = !isService && !isConsumable && (currentStock < qtyMilli);
+
+          final materialShortages = <String>[];
+          if (isConsumable) {
+            for (final rm in recipeMaterials) {
+              final needed = ((rm.requiredPerUnitMilli * qtyMilli) + 500) ~/ 1000;
+              if (rm.stockMilli < needed) {
+                materialShortages.add(
+                  '${rm.materialProduct.name}: needs ${QuantityFormatter.formatDisplay(needed)} ${rm.materialProduct.unit}, '
+                  'only ${QuantityFormatter.formatDisplay(rm.stockMilli)} available',
+                );
+              }
+            }
+          }
 
           return Padding(
             padding: EdgeInsets.only(
@@ -100,19 +128,55 @@ class _SaleScreenState extends State<SaleScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  product.name,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        product.name,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (isService)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('🛠 Service', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11)),
+                      )
+                    else if (isConsumable)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text('🧪 Consumable', style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 11)),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'Available Stock: ${QuantityFormatter.formatDisplay(currentStock)} ${product.unit}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: currentStock <= 0 ? Colors.red : Colors.green.shade800,
+                if (isService)
+                  Text(
+                    'Service • No stock tracking',
+                    style: TextStyle(fontSize: 13, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
+                  )
+                else if (isConsumable)
+                  Text(
+                    'Consumable • ${recipeMaterials.isEmpty ? 'No raw materials' : '${recipeMaterials.length} raw material(s)'}',
+                    style: TextStyle(fontSize: 13, color: Colors.purple.shade700, fontWeight: FontWeight.w500),
+                  )
+                else
+                  Text(
+                    'Available Stock: ${QuantityFormatter.formatDisplay(currentStock)} ${product.unit}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: currentStock <= 0 ? Colors.red : Colors.green.shade800,
+                    ),
                   ),
-                ),
                 if (stockWarning) ...[
                   const SizedBox(height: 6),
                   Container(
@@ -124,6 +188,31 @@ class _SaleScreenState extends State<SaleScreen> {
                     child: Text(
                       '⚠️ Warning: Requesting more than available stock',
                       style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                    ),
+                  ),
+                ],
+                if (materialShortages.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.amber.shade400),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '⚠️ Material Shortage Warning:',
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                        ),
+                        const SizedBox(height: 2),
+                        ...materialShortages.map((s) => Text(
+                          '• $s',
+                          style: TextStyle(fontSize: 11, color: Colors.amber.shade900),
+                        )),
+                      ],
                     ),
                   ),
                 ],
@@ -186,10 +275,11 @@ class _SaleScreenState extends State<SaleScreen> {
                       flex: 1,
                       child: TextField(
                         controller: priceCtrl,
+                        autofocus: product.askPrice,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(
-                          labelText: 'Unit Price (ETB)',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: product.askPrice ? 'Unit Price * (Ask)' : 'Unit Price (ETB)',
+                          border: const OutlineInputBorder(),
                         ),
                         onChanged: (val) {
                           setSheetState(() {
@@ -241,28 +331,67 @@ class _SaleScreenState extends State<SaleScreen> {
 
       if (!allowNegative) {
         for (final item in _cart) {
-          final currentStock = await widget.repository.stockOf(item.product.id, locationId: targetLocId);
-          if (currentStock < item.qtyMilli) {
-            if (mounted) {
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  title: const Text('⚠️ Insufficient Stock'),
-                  content: Text(
-                    'Cannot complete sale because "${item.product.name}" has only '
-                    '${QuantityFormatter.formatDisplay(currentStock)} available in stock.\n\n'
-                    'To allow selling into negative stock, enable "Allow Negative Stock" in Settings.',
-                  ),
-                  actions: [
-                    FilledButton(
-                      onPressed: () => Navigator.of(ctx).pop(),
-                      child: const Text('OK'),
+          if (item.product.kind == 'stockable') {
+            final currentStock = await widget.repository.stockOf(item.product.id, locationId: targetLocId);
+            if (currentStock < item.qtyMilli) {
+              if (mounted) {
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('⚠️ Insufficient Stock'),
+                    content: Text(
+                      'Cannot complete sale because "${item.product.name}" has only '
+                      '${QuantityFormatter.formatDisplay(currentStock)} available in stock.\n\n'
+                      'To allow selling into negative stock, enable "Allow Negative Stock" in Settings.',
                     ),
-                  ],
-                ),
-              );
+                    actions: [
+                      FilledButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('OK'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return;
             }
-            return;
+          }
+        }
+      }
+
+      final blockMaterialShort = await widget.repository.getBlockSaleWhenMaterialShort();
+      if (blockMaterialShort) {
+        for (final item in _cart) {
+          if (item.product.kind == 'consumable') {
+            final materials = await widget.repository.getProductMaterials(item.product.id);
+            for (final mat in materials) {
+              final matProd = await widget.repository.getProduct(mat.materialProductId);
+              final matStock = await widget.repository.stockOf(mat.materialProductId, locationId: targetLocId);
+              final neededMilli = ((mat.qtyMilli * item.qtyMilli) + 500) ~/ 1000;
+              if (matStock < neededMilli) {
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('⚠️ Material Shortage / የጥሬ ዕቃ እጥረት'),
+                      content: Text(
+                        'Cannot complete sale because raw material "${matProd?.name ?? mat.materialProductId}" '
+                        'for "${item.product.name}" is short (needs ${QuantityFormatter.formatDisplay(neededMilli)}, '
+                        'only ${QuantityFormatter.formatDisplay(matStock)} available).\n\n'
+                        'To allow selling when materials are short, disable "Block sale when raw materials are short" in Settings.',
+                      ),
+                      actions: [
+                        FilledButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return;
+              }
+            }
           }
         }
       }
@@ -287,15 +416,33 @@ class _SaleScreenState extends State<SaleScreen> {
           onComplete: () async {
             final notifService = NotificationService(repository: widget.repository);
             for (final item in itemsToNotify) {
-              final currentStock = await widget.repository.stockOf(
-                item.product.id,
-                locationId: _activeLocation?.id,
-              );
-              await notifService.notifyLowStock(
-                product: item.product,
-                currentStockMilli: currentStock,
-                locationName: _activeLocation?.name,
-              );
+              if (item.product.kind == 'stockable') {
+                final currentStock = await widget.repository.stockOf(
+                  item.product.id,
+                  locationId: _activeLocation?.id,
+                );
+                await notifService.notifyLowStock(
+                  product: item.product,
+                  currentStockMilli: currentStock,
+                  locationName: _activeLocation?.name,
+                );
+              } else if (item.product.kind == 'consumable') {
+                final materials = await widget.repository.getProductMaterials(item.product.id);
+                for (final mat in materials) {
+                  final matProd = await widget.repository.getProduct(mat.materialProductId);
+                  if (matProd != null) {
+                    final matStock = await widget.repository.stockOf(
+                      mat.materialProductId,
+                      locationId: _activeLocation?.id,
+                    );
+                    await notifService.notifyLowStock(
+                      product: matProd,
+                      currentStockMilli: matStock,
+                      locationName: _activeLocation?.name,
+                    );
+                  }
+                }
+              }
             }
 
             widget.onMutation?.call();
@@ -549,11 +696,16 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                 itemBuilder: (ctx, index) {
                   final item = filtered[index];
                   final p = item.product;
+                  String subtitle = '${MoneyFormatter.formatCents(p.sellPriceCents)} • Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${p.unit}';
+                  if (item.isService) {
+                    subtitle = '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🛠 Service${p.askPrice ? ' (Ask Price)' : ''}';
+                  } else if (item.isConsumable) {
+                    subtitle = '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🧪 Consumable';
+                  }
+
                   return ListTile(
                     title: Text(p.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      '${MoneyFormatter.formatCents(p.sellPriceCents)} • Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${p.unit}',
-                    ),
+                    subtitle: Text(subtitle),
                     trailing: const Icon(Icons.add_circle_outline, color: Colors.deepOrange),
                     onTap: () => Navigator.of(ctx).pop(p),
                   );

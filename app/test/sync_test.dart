@@ -356,8 +356,10 @@ void main() {
           id: 'prod_offline_$i',
           name: 'Offline Item $i',
           unit: 'pcs',
+          kind: 'stockable',
           costPriceCents: 1000 * i,
           sellPriceCents: 1500 * i,
+          askPrice: false,
           isActive: true,
           updatedAtMs: 1000 * i,
         ),
@@ -370,6 +372,7 @@ void main() {
           type: 'in',
           qtyMilli: 20000,
           unitPriceCents: 1000 * i,
+          tracksStock: true,
           createdAtMs: 1000 * i,
         ),
       );

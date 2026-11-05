@@ -45,6 +45,16 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     requiredDuringInsert: false,
     defaultValue: const Constant('pcs'),
   );
+  static const VerificationMeta _kindMeta = const VerificationMeta('kind');
+  @override
+  late final GeneratedColumn<String> kind = GeneratedColumn<String>(
+    'kind',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('stockable'),
+  );
   static const VerificationMeta _costPriceCentsMeta = const VerificationMeta(
     'costPriceCents',
   );
@@ -68,6 +78,21 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     type: DriftSqlType.int,
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _askPriceMeta = const VerificationMeta(
+    'askPrice',
+  );
+  @override
+  late final GeneratedColumn<bool> askPrice = GeneratedColumn<bool>(
+    'ask_price',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("ask_price" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
   );
   static const VerificationMeta _lowStockAtMilliMeta = const VerificationMeta(
     'lowStockAtMilli',
@@ -94,6 +119,17 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       'CHECK ("is_active" IN (0, 1))',
     ),
     defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _kindChangedAtMsMeta = const VerificationMeta(
+    'kindChangedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> kindChangedAtMs = GeneratedColumn<int>(
+    'kind_changed_at_ms',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
     'updatedAtMs',
@@ -123,10 +159,13 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
     name,
     sku,
     unit,
+    kind,
     costPriceCents,
     sellPriceCents,
+    askPrice,
     lowStockAtMilli,
     isActive,
+    kindChangedAtMs,
     updatedAtMs,
     deletedAtMs,
   ];
@@ -167,6 +206,12 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
       );
     }
+    if (data.containsKey('kind')) {
+      context.handle(
+        _kindMeta,
+        kind.isAcceptableOrUnknown(data['kind']!, _kindMeta),
+      );
+    }
     if (data.containsKey('cost_price_cents')) {
       context.handle(
         _costPriceCentsMeta,
@@ -185,6 +230,12 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         ),
       );
     }
+    if (data.containsKey('ask_price')) {
+      context.handle(
+        _askPriceMeta,
+        askPrice.isAcceptableOrUnknown(data['ask_price']!, _askPriceMeta),
+      );
+    }
     if (data.containsKey('low_stock_at_milli')) {
       context.handle(
         _lowStockAtMilliMeta,
@@ -198,6 +249,15 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       context.handle(
         _isActiveMeta,
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
+      );
+    }
+    if (data.containsKey('kind_changed_at_ms')) {
+      context.handle(
+        _kindChangedAtMsMeta,
+        kindChangedAtMs.isAcceptableOrUnknown(
+          data['kind_changed_at_ms']!,
+          _kindChangedAtMsMeta,
+        ),
       );
     }
     if (data.containsKey('updated_at_ms')) {
@@ -245,6 +305,10 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         DriftSqlType.string,
         data['${effectivePrefix}unit'],
       )!,
+      kind: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kind'],
+      )!,
       costPriceCents: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}cost_price_cents'],
@@ -252,6 +316,10 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       sellPriceCents: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sell_price_cents'],
+      )!,
+      askPrice: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}ask_price'],
       )!,
       lowStockAtMilli: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
@@ -261,6 +329,10 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      kindChangedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}kind_changed_at_ms'],
+      ),
       updatedAtMs: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}updated_at_ms'],
@@ -283,10 +355,13 @@ class Product extends DataClass implements Insertable<Product> {
   final String name;
   final String? sku;
   final String unit;
+  final String kind;
   final int costPriceCents;
   final int sellPriceCents;
+  final bool askPrice;
   final int? lowStockAtMilli;
   final bool isActive;
+  final int? kindChangedAtMs;
   final int updatedAtMs;
   final int? deletedAtMs;
   const Product({
@@ -294,10 +369,13 @@ class Product extends DataClass implements Insertable<Product> {
     required this.name,
     this.sku,
     required this.unit,
+    required this.kind,
     required this.costPriceCents,
     required this.sellPriceCents,
+    required this.askPrice,
     this.lowStockAtMilli,
     required this.isActive,
+    this.kindChangedAtMs,
     required this.updatedAtMs,
     this.deletedAtMs,
   });
@@ -310,12 +388,17 @@ class Product extends DataClass implements Insertable<Product> {
       map['sku'] = Variable<String>(sku);
     }
     map['unit'] = Variable<String>(unit);
+    map['kind'] = Variable<String>(kind);
     map['cost_price_cents'] = Variable<int>(costPriceCents);
     map['sell_price_cents'] = Variable<int>(sellPriceCents);
+    map['ask_price'] = Variable<bool>(askPrice);
     if (!nullToAbsent || lowStockAtMilli != null) {
       map['low_stock_at_milli'] = Variable<int>(lowStockAtMilli);
     }
     map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || kindChangedAtMs != null) {
+      map['kind_changed_at_ms'] = Variable<int>(kindChangedAtMs);
+    }
     map['updated_at_ms'] = Variable<int>(updatedAtMs);
     if (!nullToAbsent || deletedAtMs != null) {
       map['deleted_at_ms'] = Variable<int>(deletedAtMs);
@@ -329,12 +412,17 @@ class Product extends DataClass implements Insertable<Product> {
       name: Value(name),
       sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),
       unit: Value(unit),
+      kind: Value(kind),
       costPriceCents: Value(costPriceCents),
       sellPriceCents: Value(sellPriceCents),
+      askPrice: Value(askPrice),
       lowStockAtMilli: lowStockAtMilli == null && nullToAbsent
           ? const Value.absent()
           : Value(lowStockAtMilli),
       isActive: Value(isActive),
+      kindChangedAtMs: kindChangedAtMs == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kindChangedAtMs),
       updatedAtMs: Value(updatedAtMs),
       deletedAtMs: deletedAtMs == null && nullToAbsent
           ? const Value.absent()
@@ -352,10 +440,13 @@ class Product extends DataClass implements Insertable<Product> {
       name: serializer.fromJson<String>(json['name']),
       sku: serializer.fromJson<String?>(json['sku']),
       unit: serializer.fromJson<String>(json['unit']),
+      kind: serializer.fromJson<String>(json['kind']),
       costPriceCents: serializer.fromJson<int>(json['costPriceCents']),
       sellPriceCents: serializer.fromJson<int>(json['sellPriceCents']),
+      askPrice: serializer.fromJson<bool>(json['askPrice']),
       lowStockAtMilli: serializer.fromJson<int?>(json['lowStockAtMilli']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      kindChangedAtMs: serializer.fromJson<int?>(json['kindChangedAtMs']),
       updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
       deletedAtMs: serializer.fromJson<int?>(json['deletedAtMs']),
     );
@@ -368,10 +459,13 @@ class Product extends DataClass implements Insertable<Product> {
       'name': serializer.toJson<String>(name),
       'sku': serializer.toJson<String?>(sku),
       'unit': serializer.toJson<String>(unit),
+      'kind': serializer.toJson<String>(kind),
       'costPriceCents': serializer.toJson<int>(costPriceCents),
       'sellPriceCents': serializer.toJson<int>(sellPriceCents),
+      'askPrice': serializer.toJson<bool>(askPrice),
       'lowStockAtMilli': serializer.toJson<int?>(lowStockAtMilli),
       'isActive': serializer.toJson<bool>(isActive),
+      'kindChangedAtMs': serializer.toJson<int?>(kindChangedAtMs),
       'updatedAtMs': serializer.toJson<int>(updatedAtMs),
       'deletedAtMs': serializer.toJson<int?>(deletedAtMs),
     };
@@ -382,10 +476,13 @@ class Product extends DataClass implements Insertable<Product> {
     String? name,
     Value<String?> sku = const Value.absent(),
     String? unit,
+    String? kind,
     int? costPriceCents,
     int? sellPriceCents,
+    bool? askPrice,
     Value<int?> lowStockAtMilli = const Value.absent(),
     bool? isActive,
+    Value<int?> kindChangedAtMs = const Value.absent(),
     int? updatedAtMs,
     Value<int?> deletedAtMs = const Value.absent(),
   }) => Product(
@@ -393,12 +490,17 @@ class Product extends DataClass implements Insertable<Product> {
     name: name ?? this.name,
     sku: sku.present ? sku.value : this.sku,
     unit: unit ?? this.unit,
+    kind: kind ?? this.kind,
     costPriceCents: costPriceCents ?? this.costPriceCents,
     sellPriceCents: sellPriceCents ?? this.sellPriceCents,
+    askPrice: askPrice ?? this.askPrice,
     lowStockAtMilli: lowStockAtMilli.present
         ? lowStockAtMilli.value
         : this.lowStockAtMilli,
     isActive: isActive ?? this.isActive,
+    kindChangedAtMs: kindChangedAtMs.present
+        ? kindChangedAtMs.value
+        : this.kindChangedAtMs,
     updatedAtMs: updatedAtMs ?? this.updatedAtMs,
     deletedAtMs: deletedAtMs.present ? deletedAtMs.value : this.deletedAtMs,
   );
@@ -408,16 +510,21 @@ class Product extends DataClass implements Insertable<Product> {
       name: data.name.present ? data.name.value : this.name,
       sku: data.sku.present ? data.sku.value : this.sku,
       unit: data.unit.present ? data.unit.value : this.unit,
+      kind: data.kind.present ? data.kind.value : this.kind,
       costPriceCents: data.costPriceCents.present
           ? data.costPriceCents.value
           : this.costPriceCents,
       sellPriceCents: data.sellPriceCents.present
           ? data.sellPriceCents.value
           : this.sellPriceCents,
+      askPrice: data.askPrice.present ? data.askPrice.value : this.askPrice,
       lowStockAtMilli: data.lowStockAtMilli.present
           ? data.lowStockAtMilli.value
           : this.lowStockAtMilli,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      kindChangedAtMs: data.kindChangedAtMs.present
+          ? data.kindChangedAtMs.value
+          : this.kindChangedAtMs,
       updatedAtMs: data.updatedAtMs.present
           ? data.updatedAtMs.value
           : this.updatedAtMs,
@@ -434,10 +541,13 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('name: $name, ')
           ..write('sku: $sku, ')
           ..write('unit: $unit, ')
+          ..write('kind: $kind, ')
           ..write('costPriceCents: $costPriceCents, ')
           ..write('sellPriceCents: $sellPriceCents, ')
+          ..write('askPrice: $askPrice, ')
           ..write('lowStockAtMilli: $lowStockAtMilli, ')
           ..write('isActive: $isActive, ')
+          ..write('kindChangedAtMs: $kindChangedAtMs, ')
           ..write('updatedAtMs: $updatedAtMs, ')
           ..write('deletedAtMs: $deletedAtMs')
           ..write(')'))
@@ -450,10 +560,13 @@ class Product extends DataClass implements Insertable<Product> {
     name,
     sku,
     unit,
+    kind,
     costPriceCents,
     sellPriceCents,
+    askPrice,
     lowStockAtMilli,
     isActive,
+    kindChangedAtMs,
     updatedAtMs,
     deletedAtMs,
   );
@@ -465,10 +578,13 @@ class Product extends DataClass implements Insertable<Product> {
           other.name == this.name &&
           other.sku == this.sku &&
           other.unit == this.unit &&
+          other.kind == this.kind &&
           other.costPriceCents == this.costPriceCents &&
           other.sellPriceCents == this.sellPriceCents &&
+          other.askPrice == this.askPrice &&
           other.lowStockAtMilli == this.lowStockAtMilli &&
           other.isActive == this.isActive &&
+          other.kindChangedAtMs == this.kindChangedAtMs &&
           other.updatedAtMs == this.updatedAtMs &&
           other.deletedAtMs == this.deletedAtMs);
 }
@@ -478,10 +594,13 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<String> name;
   final Value<String?> sku;
   final Value<String> unit;
+  final Value<String> kind;
   final Value<int> costPriceCents;
   final Value<int> sellPriceCents;
+  final Value<bool> askPrice;
   final Value<int?> lowStockAtMilli;
   final Value<bool> isActive;
+  final Value<int?> kindChangedAtMs;
   final Value<int> updatedAtMs;
   final Value<int?> deletedAtMs;
   final Value<int> rowid;
@@ -490,10 +609,13 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.name = const Value.absent(),
     this.sku = const Value.absent(),
     this.unit = const Value.absent(),
+    this.kind = const Value.absent(),
     this.costPriceCents = const Value.absent(),
     this.sellPriceCents = const Value.absent(),
+    this.askPrice = const Value.absent(),
     this.lowStockAtMilli = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.kindChangedAtMs = const Value.absent(),
     this.updatedAtMs = const Value.absent(),
     this.deletedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -503,10 +625,13 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     required String name,
     this.sku = const Value.absent(),
     this.unit = const Value.absent(),
+    this.kind = const Value.absent(),
     this.costPriceCents = const Value.absent(),
     this.sellPriceCents = const Value.absent(),
+    this.askPrice = const Value.absent(),
     this.lowStockAtMilli = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.kindChangedAtMs = const Value.absent(),
     required int updatedAtMs,
     this.deletedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -518,10 +643,13 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<String>? name,
     Expression<String>? sku,
     Expression<String>? unit,
+    Expression<String>? kind,
     Expression<int>? costPriceCents,
     Expression<int>? sellPriceCents,
+    Expression<bool>? askPrice,
     Expression<int>? lowStockAtMilli,
     Expression<bool>? isActive,
+    Expression<int>? kindChangedAtMs,
     Expression<int>? updatedAtMs,
     Expression<int>? deletedAtMs,
     Expression<int>? rowid,
@@ -531,10 +659,13 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (name != null) 'name': name,
       if (sku != null) 'sku': sku,
       if (unit != null) 'unit': unit,
+      if (kind != null) 'kind': kind,
       if (costPriceCents != null) 'cost_price_cents': costPriceCents,
       if (sellPriceCents != null) 'sell_price_cents': sellPriceCents,
+      if (askPrice != null) 'ask_price': askPrice,
       if (lowStockAtMilli != null) 'low_stock_at_milli': lowStockAtMilli,
       if (isActive != null) 'is_active': isActive,
+      if (kindChangedAtMs != null) 'kind_changed_at_ms': kindChangedAtMs,
       if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (deletedAtMs != null) 'deleted_at_ms': deletedAtMs,
       if (rowid != null) 'rowid': rowid,
@@ -546,10 +677,13 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Value<String>? name,
     Value<String?>? sku,
     Value<String>? unit,
+    Value<String>? kind,
     Value<int>? costPriceCents,
     Value<int>? sellPriceCents,
+    Value<bool>? askPrice,
     Value<int?>? lowStockAtMilli,
     Value<bool>? isActive,
+    Value<int?>? kindChangedAtMs,
     Value<int>? updatedAtMs,
     Value<int?>? deletedAtMs,
     Value<int>? rowid,
@@ -559,10 +693,13 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       name: name ?? this.name,
       sku: sku ?? this.sku,
       unit: unit ?? this.unit,
+      kind: kind ?? this.kind,
       costPriceCents: costPriceCents ?? this.costPriceCents,
       sellPriceCents: sellPriceCents ?? this.sellPriceCents,
+      askPrice: askPrice ?? this.askPrice,
       lowStockAtMilli: lowStockAtMilli ?? this.lowStockAtMilli,
       isActive: isActive ?? this.isActive,
+      kindChangedAtMs: kindChangedAtMs ?? this.kindChangedAtMs,
       updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       deletedAtMs: deletedAtMs ?? this.deletedAtMs,
       rowid: rowid ?? this.rowid,
@@ -584,17 +721,26 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     if (unit.present) {
       map['unit'] = Variable<String>(unit.value);
     }
+    if (kind.present) {
+      map['kind'] = Variable<String>(kind.value);
+    }
     if (costPriceCents.present) {
       map['cost_price_cents'] = Variable<int>(costPriceCents.value);
     }
     if (sellPriceCents.present) {
       map['sell_price_cents'] = Variable<int>(sellPriceCents.value);
     }
+    if (askPrice.present) {
+      map['ask_price'] = Variable<bool>(askPrice.value);
+    }
     if (lowStockAtMilli.present) {
       map['low_stock_at_milli'] = Variable<int>(lowStockAtMilli.value);
     }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (kindChangedAtMs.present) {
+      map['kind_changed_at_ms'] = Variable<int>(kindChangedAtMs.value);
     }
     if (updatedAtMs.present) {
       map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
@@ -615,12 +761,294 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('name: $name, ')
           ..write('sku: $sku, ')
           ..write('unit: $unit, ')
+          ..write('kind: $kind, ')
           ..write('costPriceCents: $costPriceCents, ')
           ..write('sellPriceCents: $sellPriceCents, ')
+          ..write('askPrice: $askPrice, ')
           ..write('lowStockAtMilli: $lowStockAtMilli, ')
           ..write('isActive: $isActive, ')
+          ..write('kindChangedAtMs: $kindChangedAtMs, ')
           ..write('updatedAtMs: $updatedAtMs, ')
           ..write('deletedAtMs: $deletedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ProductMaterialsTable extends ProductMaterials
+    with TableInfo<$ProductMaterialsTable, ProductMaterial> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProductMaterialsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _productIdMeta = const VerificationMeta(
+    'productId',
+  );
+  @override
+  late final GeneratedColumn<String> productId = GeneratedColumn<String>(
+    'product_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _materialProductIdMeta = const VerificationMeta(
+    'materialProductId',
+  );
+  @override
+  late final GeneratedColumn<String> materialProductId =
+      GeneratedColumn<String>(
+        'material_product_id',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _qtyMilliMeta = const VerificationMeta(
+    'qtyMilli',
+  );
+  @override
+  late final GeneratedColumn<int> qtyMilli = GeneratedColumn<int>(
+    'qty_milli',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    productId,
+    materialProductId,
+    qtyMilli,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'product_materials';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ProductMaterial> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('product_id')) {
+      context.handle(
+        _productIdMeta,
+        productId.isAcceptableOrUnknown(data['product_id']!, _productIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_productIdMeta);
+    }
+    if (data.containsKey('material_product_id')) {
+      context.handle(
+        _materialProductIdMeta,
+        materialProductId.isAcceptableOrUnknown(
+          data['material_product_id']!,
+          _materialProductIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_materialProductIdMeta);
+    }
+    if (data.containsKey('qty_milli')) {
+      context.handle(
+        _qtyMilliMeta,
+        qtyMilli.isAcceptableOrUnknown(data['qty_milli']!, _qtyMilliMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_qtyMilliMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {productId, materialProductId};
+  @override
+  ProductMaterial map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProductMaterial(
+      productId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}product_id'],
+      )!,
+      materialProductId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}material_product_id'],
+      )!,
+      qtyMilli: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}qty_milli'],
+      )!,
+    );
+  }
+
+  @override
+  $ProductMaterialsTable createAlias(String alias) {
+    return $ProductMaterialsTable(attachedDatabase, alias);
+  }
+}
+
+class ProductMaterial extends DataClass implements Insertable<ProductMaterial> {
+  final String productId;
+  final String materialProductId;
+  final int qtyMilli;
+  const ProductMaterial({
+    required this.productId,
+    required this.materialProductId,
+    required this.qtyMilli,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['product_id'] = Variable<String>(productId);
+    map['material_product_id'] = Variable<String>(materialProductId);
+    map['qty_milli'] = Variable<int>(qtyMilli);
+    return map;
+  }
+
+  ProductMaterialsCompanion toCompanion(bool nullToAbsent) {
+    return ProductMaterialsCompanion(
+      productId: Value(productId),
+      materialProductId: Value(materialProductId),
+      qtyMilli: Value(qtyMilli),
+    );
+  }
+
+  factory ProductMaterial.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProductMaterial(
+      productId: serializer.fromJson<String>(json['productId']),
+      materialProductId: serializer.fromJson<String>(json['materialProductId']),
+      qtyMilli: serializer.fromJson<int>(json['qtyMilli']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'productId': serializer.toJson<String>(productId),
+      'materialProductId': serializer.toJson<String>(materialProductId),
+      'qtyMilli': serializer.toJson<int>(qtyMilli),
+    };
+  }
+
+  ProductMaterial copyWith({
+    String? productId,
+    String? materialProductId,
+    int? qtyMilli,
+  }) => ProductMaterial(
+    productId: productId ?? this.productId,
+    materialProductId: materialProductId ?? this.materialProductId,
+    qtyMilli: qtyMilli ?? this.qtyMilli,
+  );
+  ProductMaterial copyWithCompanion(ProductMaterialsCompanion data) {
+    return ProductMaterial(
+      productId: data.productId.present ? data.productId.value : this.productId,
+      materialProductId: data.materialProductId.present
+          ? data.materialProductId.value
+          : this.materialProductId,
+      qtyMilli: data.qtyMilli.present ? data.qtyMilli.value : this.qtyMilli,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductMaterial(')
+          ..write('productId: $productId, ')
+          ..write('materialProductId: $materialProductId, ')
+          ..write('qtyMilli: $qtyMilli')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(productId, materialProductId, qtyMilli);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProductMaterial &&
+          other.productId == this.productId &&
+          other.materialProductId == this.materialProductId &&
+          other.qtyMilli == this.qtyMilli);
+}
+
+class ProductMaterialsCompanion extends UpdateCompanion<ProductMaterial> {
+  final Value<String> productId;
+  final Value<String> materialProductId;
+  final Value<int> qtyMilli;
+  final Value<int> rowid;
+  const ProductMaterialsCompanion({
+    this.productId = const Value.absent(),
+    this.materialProductId = const Value.absent(),
+    this.qtyMilli = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProductMaterialsCompanion.insert({
+    required String productId,
+    required String materialProductId,
+    required int qtyMilli,
+    this.rowid = const Value.absent(),
+  }) : productId = Value(productId),
+       materialProductId = Value(materialProductId),
+       qtyMilli = Value(qtyMilli);
+  static Insertable<ProductMaterial> custom({
+    Expression<String>? productId,
+    Expression<String>? materialProductId,
+    Expression<int>? qtyMilli,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (productId != null) 'product_id': productId,
+      if (materialProductId != null) 'material_product_id': materialProductId,
+      if (qtyMilli != null) 'qty_milli': qtyMilli,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProductMaterialsCompanion copyWith({
+    Value<String>? productId,
+    Value<String>? materialProductId,
+    Value<int>? qtyMilli,
+    Value<int>? rowid,
+  }) {
+    return ProductMaterialsCompanion(
+      productId: productId ?? this.productId,
+      materialProductId: materialProductId ?? this.materialProductId,
+      qtyMilli: qtyMilli ?? this.qtyMilli,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (productId.present) {
+      map['product_id'] = Variable<String>(productId.value);
+    }
+    if (materialProductId.present) {
+      map['material_product_id'] = Variable<String>(materialProductId.value);
+    }
+    if (qtyMilli.present) {
+      map['qty_milli'] = Variable<int>(qtyMilli.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProductMaterialsCompanion(')
+          ..write('productId: $productId, ')
+          ..write('materialProductId: $materialProductId, ')
+          ..write('qtyMilli: $qtyMilli, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -684,6 +1112,17 @@ class $MovementsTable extends Movements
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sourceMovementIdMeta = const VerificationMeta(
+    'sourceMovementId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceMovementId = GeneratedColumn<String>(
+    'source_movement_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
   @override
   late final GeneratedColumn<String> type = GeneratedColumn<String>(
@@ -716,6 +1155,21 @@ class $MovementsTable extends Movements
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _tracksStockMeta = const VerificationMeta(
+    'tracksStock',
+  );
+  @override
+  late final GeneratedColumn<bool> tracksStock = GeneratedColumn<bool>(
+    'tracks_stock',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("tracks_stock" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
   static const VerificationMeta _noteMeta = const VerificationMeta('note');
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
@@ -743,9 +1197,11 @@ class $MovementsTable extends Movements
     saleId,
     locationId,
     transferId,
+    sourceMovementId,
     type,
     qtyMilli,
     unitPriceCents,
+    tracksStock,
     note,
     createdAtMs,
   ];
@@ -792,6 +1248,15 @@ class $MovementsTable extends Movements
         transferId.isAcceptableOrUnknown(data['transfer_id']!, _transferIdMeta),
       );
     }
+    if (data.containsKey('source_movement_id')) {
+      context.handle(
+        _sourceMovementIdMeta,
+        sourceMovementId.isAcceptableOrUnknown(
+          data['source_movement_id']!,
+          _sourceMovementIdMeta,
+        ),
+      );
+    }
     if (data.containsKey('type')) {
       context.handle(
         _typeMeta,
@@ -814,6 +1279,15 @@ class $MovementsTable extends Movements
         unitPriceCents.isAcceptableOrUnknown(
           data['unit_price_cents']!,
           _unitPriceCentsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tracks_stock')) {
+      context.handle(
+        _tracksStockMeta,
+        tracksStock.isAcceptableOrUnknown(
+          data['tracks_stock']!,
+          _tracksStockMeta,
         ),
       );
     }
@@ -863,6 +1337,10 @@ class $MovementsTable extends Movements
         DriftSqlType.string,
         data['${effectivePrefix}transfer_id'],
       ),
+      sourceMovementId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_movement_id'],
+      ),
       type: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}type'],
@@ -874,6 +1352,10 @@ class $MovementsTable extends Movements
       unitPriceCents: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}unit_price_cents'],
+      )!,
+      tracksStock: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}tracks_stock'],
       )!,
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -898,9 +1380,11 @@ class Movement extends DataClass implements Insertable<Movement> {
   final String? saleId;
   final String? locationId;
   final String? transferId;
+  final String? sourceMovementId;
   final String type;
   final int qtyMilli;
   final int unitPriceCents;
+  final bool tracksStock;
   final String? note;
   final int createdAtMs;
   const Movement({
@@ -909,9 +1393,11 @@ class Movement extends DataClass implements Insertable<Movement> {
     this.saleId,
     this.locationId,
     this.transferId,
+    this.sourceMovementId,
     required this.type,
     required this.qtyMilli,
     required this.unitPriceCents,
+    required this.tracksStock,
     this.note,
     required this.createdAtMs,
   });
@@ -929,9 +1415,13 @@ class Movement extends DataClass implements Insertable<Movement> {
     if (!nullToAbsent || transferId != null) {
       map['transfer_id'] = Variable<String>(transferId);
     }
+    if (!nullToAbsent || sourceMovementId != null) {
+      map['source_movement_id'] = Variable<String>(sourceMovementId);
+    }
     map['type'] = Variable<String>(type);
     map['qty_milli'] = Variable<int>(qtyMilli);
     map['unit_price_cents'] = Variable<int>(unitPriceCents);
+    map['tracks_stock'] = Variable<bool>(tracksStock);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
     }
@@ -952,9 +1442,13 @@ class Movement extends DataClass implements Insertable<Movement> {
       transferId: transferId == null && nullToAbsent
           ? const Value.absent()
           : Value(transferId),
+      sourceMovementId: sourceMovementId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceMovementId),
       type: Value(type),
       qtyMilli: Value(qtyMilli),
       unitPriceCents: Value(unitPriceCents),
+      tracksStock: Value(tracksStock),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAtMs: Value(createdAtMs),
     );
@@ -971,9 +1465,11 @@ class Movement extends DataClass implements Insertable<Movement> {
       saleId: serializer.fromJson<String?>(json['saleId']),
       locationId: serializer.fromJson<String?>(json['locationId']),
       transferId: serializer.fromJson<String?>(json['transferId']),
+      sourceMovementId: serializer.fromJson<String?>(json['sourceMovementId']),
       type: serializer.fromJson<String>(json['type']),
       qtyMilli: serializer.fromJson<int>(json['qtyMilli']),
       unitPriceCents: serializer.fromJson<int>(json['unitPriceCents']),
+      tracksStock: serializer.fromJson<bool>(json['tracksStock']),
       note: serializer.fromJson<String?>(json['note']),
       createdAtMs: serializer.fromJson<int>(json['createdAtMs']),
     );
@@ -987,9 +1483,11 @@ class Movement extends DataClass implements Insertable<Movement> {
       'saleId': serializer.toJson<String?>(saleId),
       'locationId': serializer.toJson<String?>(locationId),
       'transferId': serializer.toJson<String?>(transferId),
+      'sourceMovementId': serializer.toJson<String?>(sourceMovementId),
       'type': serializer.toJson<String>(type),
       'qtyMilli': serializer.toJson<int>(qtyMilli),
       'unitPriceCents': serializer.toJson<int>(unitPriceCents),
+      'tracksStock': serializer.toJson<bool>(tracksStock),
       'note': serializer.toJson<String?>(note),
       'createdAtMs': serializer.toJson<int>(createdAtMs),
     };
@@ -1001,9 +1499,11 @@ class Movement extends DataClass implements Insertable<Movement> {
     Value<String?> saleId = const Value.absent(),
     Value<String?> locationId = const Value.absent(),
     Value<String?> transferId = const Value.absent(),
+    Value<String?> sourceMovementId = const Value.absent(),
     String? type,
     int? qtyMilli,
     int? unitPriceCents,
+    bool? tracksStock,
     Value<String?> note = const Value.absent(),
     int? createdAtMs,
   }) => Movement(
@@ -1012,9 +1512,13 @@ class Movement extends DataClass implements Insertable<Movement> {
     saleId: saleId.present ? saleId.value : this.saleId,
     locationId: locationId.present ? locationId.value : this.locationId,
     transferId: transferId.present ? transferId.value : this.transferId,
+    sourceMovementId: sourceMovementId.present
+        ? sourceMovementId.value
+        : this.sourceMovementId,
     type: type ?? this.type,
     qtyMilli: qtyMilli ?? this.qtyMilli,
     unitPriceCents: unitPriceCents ?? this.unitPriceCents,
+    tracksStock: tracksStock ?? this.tracksStock,
     note: note.present ? note.value : this.note,
     createdAtMs: createdAtMs ?? this.createdAtMs,
   );
@@ -1029,11 +1533,17 @@ class Movement extends DataClass implements Insertable<Movement> {
       transferId: data.transferId.present
           ? data.transferId.value
           : this.transferId,
+      sourceMovementId: data.sourceMovementId.present
+          ? data.sourceMovementId.value
+          : this.sourceMovementId,
       type: data.type.present ? data.type.value : this.type,
       qtyMilli: data.qtyMilli.present ? data.qtyMilli.value : this.qtyMilli,
       unitPriceCents: data.unitPriceCents.present
           ? data.unitPriceCents.value
           : this.unitPriceCents,
+      tracksStock: data.tracksStock.present
+          ? data.tracksStock.value
+          : this.tracksStock,
       note: data.note.present ? data.note.value : this.note,
       createdAtMs: data.createdAtMs.present
           ? data.createdAtMs.value
@@ -1049,9 +1559,11 @@ class Movement extends DataClass implements Insertable<Movement> {
           ..write('saleId: $saleId, ')
           ..write('locationId: $locationId, ')
           ..write('transferId: $transferId, ')
+          ..write('sourceMovementId: $sourceMovementId, ')
           ..write('type: $type, ')
           ..write('qtyMilli: $qtyMilli, ')
           ..write('unitPriceCents: $unitPriceCents, ')
+          ..write('tracksStock: $tracksStock, ')
           ..write('note: $note, ')
           ..write('createdAtMs: $createdAtMs')
           ..write(')'))
@@ -1065,9 +1577,11 @@ class Movement extends DataClass implements Insertable<Movement> {
     saleId,
     locationId,
     transferId,
+    sourceMovementId,
     type,
     qtyMilli,
     unitPriceCents,
+    tracksStock,
     note,
     createdAtMs,
   );
@@ -1080,9 +1594,11 @@ class Movement extends DataClass implements Insertable<Movement> {
           other.saleId == this.saleId &&
           other.locationId == this.locationId &&
           other.transferId == this.transferId &&
+          other.sourceMovementId == this.sourceMovementId &&
           other.type == this.type &&
           other.qtyMilli == this.qtyMilli &&
           other.unitPriceCents == this.unitPriceCents &&
+          other.tracksStock == this.tracksStock &&
           other.note == this.note &&
           other.createdAtMs == this.createdAtMs);
 }
@@ -1093,9 +1609,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
   final Value<String?> saleId;
   final Value<String?> locationId;
   final Value<String?> transferId;
+  final Value<String?> sourceMovementId;
   final Value<String> type;
   final Value<int> qtyMilli;
   final Value<int> unitPriceCents;
+  final Value<bool> tracksStock;
   final Value<String?> note;
   final Value<int> createdAtMs;
   final Value<int> rowid;
@@ -1105,9 +1623,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     this.saleId = const Value.absent(),
     this.locationId = const Value.absent(),
     this.transferId = const Value.absent(),
+    this.sourceMovementId = const Value.absent(),
     this.type = const Value.absent(),
     this.qtyMilli = const Value.absent(),
     this.unitPriceCents = const Value.absent(),
+    this.tracksStock = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1118,9 +1638,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     this.saleId = const Value.absent(),
     this.locationId = const Value.absent(),
     this.transferId = const Value.absent(),
+    this.sourceMovementId = const Value.absent(),
     required String type,
     required int qtyMilli,
     this.unitPriceCents = const Value.absent(),
+    this.tracksStock = const Value.absent(),
     this.note = const Value.absent(),
     required int createdAtMs,
     this.rowid = const Value.absent(),
@@ -1135,9 +1657,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     Expression<String>? saleId,
     Expression<String>? locationId,
     Expression<String>? transferId,
+    Expression<String>? sourceMovementId,
     Expression<String>? type,
     Expression<int>? qtyMilli,
     Expression<int>? unitPriceCents,
+    Expression<bool>? tracksStock,
     Expression<String>? note,
     Expression<int>? createdAtMs,
     Expression<int>? rowid,
@@ -1148,9 +1672,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
       if (saleId != null) 'sale_id': saleId,
       if (locationId != null) 'location_id': locationId,
       if (transferId != null) 'transfer_id': transferId,
+      if (sourceMovementId != null) 'source_movement_id': sourceMovementId,
       if (type != null) 'type': type,
       if (qtyMilli != null) 'qty_milli': qtyMilli,
       if (unitPriceCents != null) 'unit_price_cents': unitPriceCents,
+      if (tracksStock != null) 'tracks_stock': tracksStock,
       if (note != null) 'note': note,
       if (createdAtMs != null) 'created_at_ms': createdAtMs,
       if (rowid != null) 'rowid': rowid,
@@ -1163,9 +1689,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     Value<String?>? saleId,
     Value<String?>? locationId,
     Value<String?>? transferId,
+    Value<String?>? sourceMovementId,
     Value<String>? type,
     Value<int>? qtyMilli,
     Value<int>? unitPriceCents,
+    Value<bool>? tracksStock,
     Value<String?>? note,
     Value<int>? createdAtMs,
     Value<int>? rowid,
@@ -1176,9 +1704,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
       saleId: saleId ?? this.saleId,
       locationId: locationId ?? this.locationId,
       transferId: transferId ?? this.transferId,
+      sourceMovementId: sourceMovementId ?? this.sourceMovementId,
       type: type ?? this.type,
       qtyMilli: qtyMilli ?? this.qtyMilli,
       unitPriceCents: unitPriceCents ?? this.unitPriceCents,
+      tracksStock: tracksStock ?? this.tracksStock,
       note: note ?? this.note,
       createdAtMs: createdAtMs ?? this.createdAtMs,
       rowid: rowid ?? this.rowid,
@@ -1203,6 +1733,9 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     if (transferId.present) {
       map['transfer_id'] = Variable<String>(transferId.value);
     }
+    if (sourceMovementId.present) {
+      map['source_movement_id'] = Variable<String>(sourceMovementId.value);
+    }
     if (type.present) {
       map['type'] = Variable<String>(type.value);
     }
@@ -1211,6 +1744,9 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
     }
     if (unitPriceCents.present) {
       map['unit_price_cents'] = Variable<int>(unitPriceCents.value);
+    }
+    if (tracksStock.present) {
+      map['tracks_stock'] = Variable<bool>(tracksStock.value);
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
@@ -1232,9 +1768,11 @@ class MovementsCompanion extends UpdateCompanion<Movement> {
           ..write('saleId: $saleId, ')
           ..write('locationId: $locationId, ')
           ..write('transferId: $transferId, ')
+          ..write('sourceMovementId: $sourceMovementId, ')
           ..write('type: $type, ')
           ..write('qtyMilli: $qtyMilli, ')
           ..write('unitPriceCents: $unitPriceCents, ')
+          ..write('tracksStock: $tracksStock, ')
           ..write('note: $note, ')
           ..write('createdAtMs: $createdAtMs, ')
           ..write('rowid: $rowid')
@@ -4831,6 +5369,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ProductsTable products = $ProductsTable(this);
+  late final $ProductMaterialsTable productMaterials = $ProductMaterialsTable(
+    this,
+  );
   late final $MovementsTable movements = $MovementsTable(this);
   late final $OutboxEntriesTable outboxEntries = $OutboxEntriesTable(this);
   late final $SyncMetaEntriesTable syncMetaEntries = $SyncMetaEntriesTable(
@@ -4850,6 +5391,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     products,
+    productMaterials,
     movements,
     outboxEntries,
     syncMetaEntries,
@@ -4868,10 +5410,13 @@ typedef $$ProductsTableCreateCompanionBuilder =
       required String name,
       Value<String?> sku,
       Value<String> unit,
+      Value<String> kind,
       Value<int> costPriceCents,
       Value<int> sellPriceCents,
+      Value<bool> askPrice,
       Value<int?> lowStockAtMilli,
       Value<bool> isActive,
+      Value<int?> kindChangedAtMs,
       required int updatedAtMs,
       Value<int?> deletedAtMs,
       Value<int> rowid,
@@ -4882,10 +5427,13 @@ typedef $$ProductsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String?> sku,
       Value<String> unit,
+      Value<String> kind,
       Value<int> costPriceCents,
       Value<int> sellPriceCents,
+      Value<bool> askPrice,
       Value<int?> lowStockAtMilli,
       Value<bool> isActive,
+      Value<int?> kindChangedAtMs,
       Value<int> updatedAtMs,
       Value<int?> deletedAtMs,
       Value<int> rowid,
@@ -4920,6 +5468,11 @@ class $$ProductsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get costPriceCents => $composableBuilder(
     column: $table.costPriceCents,
     builder: (column) => ColumnFilters(column),
@@ -4930,6 +5483,11 @@ class $$ProductsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get askPrice => $composableBuilder(
+    column: $table.askPrice,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<int> get lowStockAtMilli => $composableBuilder(
     column: $table.lowStockAtMilli,
     builder: (column) => ColumnFilters(column),
@@ -4937,6 +5495,11 @@ class $$ProductsTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get kindChangedAtMs => $composableBuilder(
+    column: $table.kindChangedAtMs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4980,6 +5543,11 @@ class $$ProductsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get kind => $composableBuilder(
+    column: $table.kind,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get costPriceCents => $composableBuilder(
     column: $table.costPriceCents,
     builder: (column) => ColumnOrderings(column),
@@ -4990,6 +5558,11 @@ class $$ProductsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get askPrice => $composableBuilder(
+    column: $table.askPrice,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get lowStockAtMilli => $composableBuilder(
     column: $table.lowStockAtMilli,
     builder: (column) => ColumnOrderings(column),
@@ -4997,6 +5570,11 @@ class $$ProductsTableOrderingComposer
 
   ColumnOrderings<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get kindChangedAtMs => $composableBuilder(
+    column: $table.kindChangedAtMs,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5032,6 +5610,9 @@ class $$ProductsTableAnnotationComposer
   GeneratedColumn<String> get unit =>
       $composableBuilder(column: $table.unit, builder: (column) => column);
 
+  GeneratedColumn<String> get kind =>
+      $composableBuilder(column: $table.kind, builder: (column) => column);
+
   GeneratedColumn<int> get costPriceCents => $composableBuilder(
     column: $table.costPriceCents,
     builder: (column) => column,
@@ -5042,6 +5623,9 @@ class $$ProductsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<bool> get askPrice =>
+      $composableBuilder(column: $table.askPrice, builder: (column) => column);
+
   GeneratedColumn<int> get lowStockAtMilli => $composableBuilder(
     column: $table.lowStockAtMilli,
     builder: (column) => column,
@@ -5049,6 +5633,11 @@ class $$ProductsTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<int> get kindChangedAtMs => $composableBuilder(
+    column: $table.kindChangedAtMs,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get updatedAtMs => $composableBuilder(
     column: $table.updatedAtMs,
@@ -5093,10 +5682,13 @@ class $$ProductsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String?> sku = const Value.absent(),
                 Value<String> unit = const Value.absent(),
+                Value<String> kind = const Value.absent(),
                 Value<int> costPriceCents = const Value.absent(),
                 Value<int> sellPriceCents = const Value.absent(),
+                Value<bool> askPrice = const Value.absent(),
                 Value<int?> lowStockAtMilli = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<int?> kindChangedAtMs = const Value.absent(),
                 Value<int> updatedAtMs = const Value.absent(),
                 Value<int?> deletedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5105,10 +5697,13 @@ class $$ProductsTableTableManager
                 name: name,
                 sku: sku,
                 unit: unit,
+                kind: kind,
                 costPriceCents: costPriceCents,
                 sellPriceCents: sellPriceCents,
+                askPrice: askPrice,
                 lowStockAtMilli: lowStockAtMilli,
                 isActive: isActive,
+                kindChangedAtMs: kindChangedAtMs,
                 updatedAtMs: updatedAtMs,
                 deletedAtMs: deletedAtMs,
                 rowid: rowid,
@@ -5119,10 +5714,13 @@ class $$ProductsTableTableManager
                 required String name,
                 Value<String?> sku = const Value.absent(),
                 Value<String> unit = const Value.absent(),
+                Value<String> kind = const Value.absent(),
                 Value<int> costPriceCents = const Value.absent(),
                 Value<int> sellPriceCents = const Value.absent(),
+                Value<bool> askPrice = const Value.absent(),
                 Value<int?> lowStockAtMilli = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<int?> kindChangedAtMs = const Value.absent(),
                 required int updatedAtMs,
                 Value<int?> deletedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5131,10 +5729,13 @@ class $$ProductsTableTableManager
                 name: name,
                 sku: sku,
                 unit: unit,
+                kind: kind,
                 costPriceCents: costPriceCents,
                 sellPriceCents: sellPriceCents,
+                askPrice: askPrice,
                 lowStockAtMilli: lowStockAtMilli,
                 isActive: isActive,
+                kindChangedAtMs: kindChangedAtMs,
                 updatedAtMs: updatedAtMs,
                 deletedAtMs: deletedAtMs,
                 rowid: rowid,
@@ -5161,6 +5762,176 @@ typedef $$ProductsTableProcessedTableManager =
       Product,
       PrefetchHooks Function()
     >;
+typedef $$ProductMaterialsTableCreateCompanionBuilder =
+    ProductMaterialsCompanion Function({
+      required String productId,
+      required String materialProductId,
+      required int qtyMilli,
+      Value<int> rowid,
+    });
+typedef $$ProductMaterialsTableUpdateCompanionBuilder =
+    ProductMaterialsCompanion Function({
+      Value<String> productId,
+      Value<String> materialProductId,
+      Value<int> qtyMilli,
+      Value<int> rowid,
+    });
+
+class $$ProductMaterialsTableFilterComposer
+    extends Composer<_$AppDatabase, $ProductMaterialsTable> {
+  $$ProductMaterialsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get materialProductId => $composableBuilder(
+    column: $table.materialProductId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get qtyMilli => $composableBuilder(
+    column: $table.qtyMilli,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ProductMaterialsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProductMaterialsTable> {
+  $$ProductMaterialsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get productId => $composableBuilder(
+    column: $table.productId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get materialProductId => $composableBuilder(
+    column: $table.materialProductId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get qtyMilli => $composableBuilder(
+    column: $table.qtyMilli,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ProductMaterialsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProductMaterialsTable> {
+  $$ProductMaterialsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get productId =>
+      $composableBuilder(column: $table.productId, builder: (column) => column);
+
+  GeneratedColumn<String> get materialProductId => $composableBuilder(
+    column: $table.materialProductId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get qtyMilli =>
+      $composableBuilder(column: $table.qtyMilli, builder: (column) => column);
+}
+
+class $$ProductMaterialsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ProductMaterialsTable,
+          ProductMaterial,
+          $$ProductMaterialsTableFilterComposer,
+          $$ProductMaterialsTableOrderingComposer,
+          $$ProductMaterialsTableAnnotationComposer,
+          $$ProductMaterialsTableCreateCompanionBuilder,
+          $$ProductMaterialsTableUpdateCompanionBuilder,
+          (
+            ProductMaterial,
+            BaseReferences<
+              _$AppDatabase,
+              $ProductMaterialsTable,
+              ProductMaterial
+            >,
+          ),
+          ProductMaterial,
+          PrefetchHooks Function()
+        > {
+  $$ProductMaterialsTableTableManager(
+    _$AppDatabase db,
+    $ProductMaterialsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProductMaterialsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProductMaterialsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProductMaterialsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> productId = const Value.absent(),
+                Value<String> materialProductId = const Value.absent(),
+                Value<int> qtyMilli = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ProductMaterialsCompanion(
+                productId: productId,
+                materialProductId: materialProductId,
+                qtyMilli: qtyMilli,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String productId,
+                required String materialProductId,
+                required int qtyMilli,
+                Value<int> rowid = const Value.absent(),
+              }) => ProductMaterialsCompanion.insert(
+                productId: productId,
+                materialProductId: materialProductId,
+                qtyMilli: qtyMilli,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ProductMaterialsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ProductMaterialsTable,
+      ProductMaterial,
+      $$ProductMaterialsTableFilterComposer,
+      $$ProductMaterialsTableOrderingComposer,
+      $$ProductMaterialsTableAnnotationComposer,
+      $$ProductMaterialsTableCreateCompanionBuilder,
+      $$ProductMaterialsTableUpdateCompanionBuilder,
+      (
+        ProductMaterial,
+        BaseReferences<_$AppDatabase, $ProductMaterialsTable, ProductMaterial>,
+      ),
+      ProductMaterial,
+      PrefetchHooks Function()
+    >;
 typedef $$MovementsTableCreateCompanionBuilder =
     MovementsCompanion Function({
       required String id,
@@ -5168,9 +5939,11 @@ typedef $$MovementsTableCreateCompanionBuilder =
       Value<String?> saleId,
       Value<String?> locationId,
       Value<String?> transferId,
+      Value<String?> sourceMovementId,
       required String type,
       required int qtyMilli,
       Value<int> unitPriceCents,
+      Value<bool> tracksStock,
       Value<String?> note,
       required int createdAtMs,
       Value<int> rowid,
@@ -5182,9 +5955,11 @@ typedef $$MovementsTableUpdateCompanionBuilder =
       Value<String?> saleId,
       Value<String?> locationId,
       Value<String?> transferId,
+      Value<String?> sourceMovementId,
       Value<String> type,
       Value<int> qtyMilli,
       Value<int> unitPriceCents,
+      Value<bool> tracksStock,
       Value<String?> note,
       Value<int> createdAtMs,
       Value<int> rowid,
@@ -5224,6 +5999,11 @@ class $$MovementsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get sourceMovementId => $composableBuilder(
+    column: $table.sourceMovementId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get type => $composableBuilder(
     column: $table.type,
     builder: (column) => ColumnFilters(column),
@@ -5236,6 +6016,11 @@ class $$MovementsTableFilterComposer
 
   ColumnFilters<int> get unitPriceCents => $composableBuilder(
     column: $table.unitPriceCents,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get tracksStock => $composableBuilder(
+    column: $table.tracksStock,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5284,6 +6069,11 @@ class $$MovementsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get sourceMovementId => $composableBuilder(
+    column: $table.sourceMovementId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get type => $composableBuilder(
     column: $table.type,
     builder: (column) => ColumnOrderings(column),
@@ -5296,6 +6086,11 @@ class $$MovementsTableOrderingComposer
 
   ColumnOrderings<int> get unitPriceCents => $composableBuilder(
     column: $table.unitPriceCents,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get tracksStock => $composableBuilder(
+    column: $table.tracksStock,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -5338,6 +6133,11 @@ class $$MovementsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get sourceMovementId => $composableBuilder(
+    column: $table.sourceMovementId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get type =>
       $composableBuilder(column: $table.type, builder: (column) => column);
 
@@ -5346,6 +6146,11 @@ class $$MovementsTableAnnotationComposer
 
   GeneratedColumn<int> get unitPriceCents => $composableBuilder(
     column: $table.unitPriceCents,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get tracksStock => $composableBuilder(
+    column: $table.tracksStock,
     builder: (column) => column,
   );
 
@@ -5391,9 +6196,11 @@ class $$MovementsTableTableManager
                 Value<String?> saleId = const Value.absent(),
                 Value<String?> locationId = const Value.absent(),
                 Value<String?> transferId = const Value.absent(),
+                Value<String?> sourceMovementId = const Value.absent(),
                 Value<String> type = const Value.absent(),
                 Value<int> qtyMilli = const Value.absent(),
                 Value<int> unitPriceCents = const Value.absent(),
+                Value<bool> tracksStock = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<int> createdAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5403,9 +6210,11 @@ class $$MovementsTableTableManager
                 saleId: saleId,
                 locationId: locationId,
                 transferId: transferId,
+                sourceMovementId: sourceMovementId,
                 type: type,
                 qtyMilli: qtyMilli,
                 unitPriceCents: unitPriceCents,
+                tracksStock: tracksStock,
                 note: note,
                 createdAtMs: createdAtMs,
                 rowid: rowid,
@@ -5417,9 +6226,11 @@ class $$MovementsTableTableManager
                 Value<String?> saleId = const Value.absent(),
                 Value<String?> locationId = const Value.absent(),
                 Value<String?> transferId = const Value.absent(),
+                Value<String?> sourceMovementId = const Value.absent(),
                 required String type,
                 required int qtyMilli,
                 Value<int> unitPriceCents = const Value.absent(),
+                Value<bool> tracksStock = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 required int createdAtMs,
                 Value<int> rowid = const Value.absent(),
@@ -5429,9 +6240,11 @@ class $$MovementsTableTableManager
                 saleId: saleId,
                 locationId: locationId,
                 transferId: transferId,
+                sourceMovementId: sourceMovementId,
                 type: type,
                 qtyMilli: qtyMilli,
                 unitPriceCents: unitPriceCents,
+                tracksStock: tracksStock,
                 note: note,
                 createdAtMs: createdAtMs,
                 rowid: rowid,
@@ -7332,6 +8145,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$ProductsTableTableManager get products =>
       $$ProductsTableTableManager(_db, _db.products);
+  $$ProductMaterialsTableTableManager get productMaterials =>
+      $$ProductMaterialsTableTableManager(_db, _db.productMaterials);
   $$MovementsTableTableManager get movements =>
       $$MovementsTableTableManager(_db, _db.movements);
   $$OutboxEntriesTableTableManager get outboxEntries =>

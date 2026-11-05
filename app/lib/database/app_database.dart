@@ -55,15 +55,27 @@ class Products extends Table {
   TextColumn get name => text()();
   TextColumn get sku => text().nullable()();
   TextColumn get unit => text().withDefault(const Constant('pcs'))();
+  TextColumn get kind => text().withDefault(const Constant('stockable'))(); // 'stockable', 'service', 'consumable'
   IntColumn get costPriceCents => integer().withDefault(const Constant(0))();
   IntColumn get sellPriceCents => integer().withDefault(const Constant(0))();
+  BoolColumn get askPrice => boolean().withDefault(const Constant(false))();
   IntColumn get lowStockAtMilli => integer().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  IntColumn get kindChangedAtMs => integer().nullable()();
   IntColumn get updatedAtMs => integer()();
   IntColumn get deletedAtMs => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+class ProductMaterials extends Table {
+  TextColumn get productId => text()();
+  TextColumn get materialProductId => text()();
+  IntColumn get qtyMilli => integer()(); // quantity of raw material used per ONE unit sold
+
+  @override
+  Set<Column> get primaryKey => {productId, materialProductId};
 }
 
 class Movements extends Table {
@@ -72,9 +84,11 @@ class Movements extends Table {
   TextColumn get saleId => text().nullable()();
   TextColumn get locationId => text().nullable()();
   TextColumn get transferId => text().nullable()();
-  TextColumn get type => text()(); // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in'
+  TextColumn get sourceMovementId => text().nullable()();
+  TextColumn get type => text()(); // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in', 'consume'
   IntColumn get qtyMilli => integer()(); // signed integer thousandths (e.g. 5000 = 5.000, -2500 = -2.500)
   IntColumn get unitPriceCents => integer().withDefault(const Constant(0))();
+  BoolColumn get tracksStock => boolean().withDefault(const Constant(true))();
   TextColumn get note => text().nullable()();
   IntColumn get createdAtMs => integer()();
 
@@ -185,6 +199,7 @@ class AppSettings extends Table {
 
 @DriftDatabase(tables: [
   Products,
+  ProductMaterials,
   Movements,
   OutboxEntries,
   SyncMetaEntries,
@@ -201,7 +216,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -211,6 +226,7 @@ class AppDatabase extends _$AppDatabase {
       await _seedDefaultLocationIfEmpty();
       await _seedStarterPaymentProviders();
       await _seedDefaultPaymentSettings();
+      await _seedDefaultSetting('block_sale_when_material_short', 'false');
       await backfillLegacySales();
     },
     onUpgrade: (m, from, to) async {
@@ -257,8 +273,27 @@ class AppDatabase extends _$AppDatabase {
         // 3. Seed starter payment providers and settings
         await _seedStarterPaymentProviders();
         await _seedDefaultPaymentSettings();
+      }
 
-        // 4. Backfill legacy sales
+      if (from < 4) {
+        // 1. Add columns to products
+        await m.addColumn(products, products.kind);
+        await m.addColumn(products, products.askPrice);
+        await m.addColumn(products, products.kindChangedAtMs);
+
+        // 2. Add columns to movements
+        await m.addColumn(movements, movements.tracksStock);
+        await m.addColumn(movements, movements.sourceMovementId);
+
+        // 3. Create product_materials table
+        await m.createTable(productMaterials);
+
+        // 4. Seed default setting for block_sale_when_material_short
+        await _seedDefaultSetting('block_sale_when_material_short', 'false');
+      }
+
+      if (from < 3) {
+        // Backfill legacy sales after all movement columns are ready
         await backfillLegacySales();
       }
 
@@ -269,6 +304,13 @@ class AppDatabase extends _$AppDatabase {
       await _createIndexes();
     },
   );
+
+  Future<void> _seedDefaultSetting(String key, String value) async {
+    await customStatement(
+      'INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?);',
+      [key, value],
+    );
+  }
 
   Future<void> _createIndexes() async {
     await customStatement(
@@ -287,7 +329,19 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS idx_movements_sale ON movements(sale_id);',
     );
     await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movements_tracks_stock ON movements(tracks_stock);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_movements_source ON movements(source_movement_id);',
+    );
+    await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted_at_ms);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_product_materials_product ON product_materials(product_id);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_product_materials_material ON product_materials(material_product_id);',
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS idx_sales_customer ON sales(customer_id);',
@@ -452,9 +506,13 @@ class AppDatabase extends _$AppDatabase {
     required String name,
     String? sku,
     String unit = 'pcs',
+    String kind = 'stockable',
     int costPriceCents = 0,
     int sellPriceCents = 0,
+    bool askPrice = false,
     int? lowStockAtMilli,
+    int? kindChangedAtMs,
+    List<Map<String, dynamic>>? materials,
   }) async {
     final prodId = id ?? UuidGenerator.v7();
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
@@ -465,8 +523,11 @@ class AppDatabase extends _$AppDatabase {
         name: name,
         sku: sku,
         unit: unit,
+        kind: kind,
         costPriceCents: costPriceCents,
         sellPriceCents: sellPriceCents,
+        askPrice: askPrice,
+        kindChangedAtMs: kindChangedAtMs,
         lowStockAtMilli: lowStockAtMilli,
         isActive: true,
         updatedAtMs: nowMs,
@@ -475,13 +536,40 @@ class AppDatabase extends _$AppDatabase {
 
       await into(products).insert(product, mode: InsertMode.insertOrReplace);
 
+      List<Map<String, dynamic>>? wireMaterials;
+      if (materials != null && materials.isNotEmpty) {
+        wireMaterials = [];
+        for (final mat in materials) {
+          final matProdId = mat['product_id'] as String;
+          final qMilli = mat['qty_milli'] is int
+              ? mat['qty_milli'] as int
+              : QuantityFormatter.parseQty(mat['qty']?.toString() ?? '0');
+          await into(productMaterials).insert(
+            ProductMaterialsCompanion.insert(
+              productId: prodId,
+              materialProductId: matProdId,
+              qtyMilli: qMilli,
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+          wireMaterials.add({
+            'product_id': matProdId,
+            'qty': QuantityFormatter.toWireQty(qMilli),
+          });
+        }
+      }
+
       final payload = {
         'id': prodId,
         'name': name,
         'sku': sku,
         'unit': unit,
+        'kind': kind,
         'cost_price_cents': costPriceCents,
         'sell_price_cents': sellPriceCents,
+        'ask_price': askPrice,
+        'materials': wireMaterials,
+        'kind_changed_at': kindChangedAtMs,
         'low_stock_at': lowStockAtMilli != null ? QuantityFormatter.toWireQty(lowStockAtMilli) : null,
         'is_active': true,
         'updated_at': nowMs,
@@ -505,20 +593,56 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Updates an existing product and appends to Outbox in the same transaction.
-  Future<void> updateProduct(Product product) async {
+  Future<void> updateProduct(Product product, {List<Map<String, dynamic>>? materials}) async {
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     final updated = product.copyWith(updatedAtMs: nowMs);
 
     await transaction(() async {
       await update(products).replace(updated);
 
+      List<Map<String, dynamic>>? wireMaterials;
+      if (materials != null) {
+        await (delete(productMaterials)..where((pm) => pm.productId.equals(updated.id))).go();
+        wireMaterials = [];
+        for (final mat in materials) {
+          final matProdId = mat['product_id'] as String;
+          final qMilli = mat['qty_milli'] is int
+              ? mat['qty_milli'] as int
+              : QuantityFormatter.parseQty(mat['qty']?.toString() ?? '0');
+          await into(productMaterials).insert(
+            ProductMaterialsCompanion.insert(
+              productId: updated.id,
+              materialProductId: matProdId,
+              qtyMilli: qMilli,
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+          wireMaterials.add({
+            'product_id': matProdId,
+            'qty': QuantityFormatter.toWireQty(qMilli),
+          });
+        }
+      } else {
+        final existingMats = await (select(productMaterials)..where((pm) => pm.productId.equals(updated.id))).get();
+        if (existingMats.isNotEmpty) {
+          wireMaterials = existingMats.map((m) => {
+            'product_id': m.materialProductId,
+            'qty': QuantityFormatter.toWireQty(m.qtyMilli),
+          }).toList();
+        }
+      }
+
       final payload = {
         'id': updated.id,
         'name': updated.name,
         'sku': updated.sku,
         'unit': updated.unit,
+        'kind': updated.kind,
         'cost_price_cents': updated.costPriceCents,
         'sell_price_cents': updated.sellPriceCents,
+        'ask_price': updated.askPrice,
+        'materials': wireMaterials,
+        'kind_changed_at': updated.kindChangedAtMs,
         'low_stock_at': updated.lowStockAtMilli != null ? QuantityFormatter.toWireQty(updated.lowStockAtMilli!) : null,
         'is_active': updated.isActive,
         'updated_at': nowMs,
@@ -555,13 +679,25 @@ class AppDatabase extends _$AppDatabase {
 
       await update(products).replace(updated);
 
+      final existingMats = await (select(productMaterials)..where((pm) => pm.productId.equals(id))).get();
+      final wireMaterials = existingMats.isNotEmpty
+          ? existingMats.map((m) => {
+              'product_id': m.materialProductId,
+              'qty': QuantityFormatter.toWireQty(m.qtyMilli),
+            }).toList()
+          : null;
+
       final payload = {
         'id': id,
         'name': existing.name,
         'sku': existing.sku,
         'unit': existing.unit,
+        'kind': existing.kind,
         'cost_price_cents': existing.costPriceCents,
         'sell_price_cents': existing.sellPriceCents,
+        'ask_price': existing.askPrice,
+        'materials': wireMaterials,
+        'kind_changed_at': existing.kindChangedAtMs,
         'low_stock_at': existing.lowStockAtMilli != null ? QuantityFormatter.toWireQty(existing.lowStockAtMilli!) : null,
         'is_active': false,
         'updated_at': nowMs,
@@ -586,13 +722,15 @@ class AppDatabase extends _$AppDatabase {
   Future<Movement> recordMovement({
     String? id,
     required String productId,
-    required String type, // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in'
-    required int qtyMilli, // signed: positive for intake, negative for sale
+    required String type, // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in', 'consume'
+    required int qtyMilli, // signed: positive for intake, negative for sale/consume
     int unitPriceCents = 0,
+    bool tracksStock = true,
     String? note,
     String? locationId,
     String? transferId,
     String? saleId,
+    String? sourceMovementId,
     int? createdAtMs,
   }) async {
     final movId = id ?? UuidGenerator.v7();
@@ -614,11 +752,13 @@ class AppDatabase extends _$AppDatabase {
         type: type,
         qtyMilli: qtyMilli,
         unitPriceCents: unitPriceCents,
+        tracksStock: tracksStock,
         note: note,
         createdAtMs: nowMs,
         locationId: resolvedLocId,
         transferId: transferId,
         saleId: saleId,
+        sourceMovementId: sourceMovementId,
       );
 
       await into(movements).insert(movement, mode: InsertMode.insertOrIgnore);
@@ -629,7 +769,9 @@ class AppDatabase extends _$AppDatabase {
         'location_id': resolvedLocId,
         'transfer_id': transferId,
         'sale_id': saleId,
+        'source_movement_id': sourceMovementId,
         'type': type,
+        'tracks_stock': tracksStock,
         'qty': QuantityFormatter.toWireQty(qtyMilli),
         'unit_price_cents': unitPriceCents,
         'note': note,
@@ -1107,11 +1249,11 @@ class AppDatabase extends _$AppDatabase {
 
   // --- Stock Queries ---
 
-  /// Computes the authoritative stock for a product: SUM(movements), optionally filtered by location.
+  /// Computes the authoritative stock for a product: SUM(movements where tracks_stock = true), optionally filtered by location.
   Future<int> getStock(String productId, {String? locationId}) async {
     var query = selectOnly(movements)
       ..addColumns([movements.qtyMilli.sum()])
-      ..where(movements.productId.equals(productId));
+      ..where(movements.productId.equals(productId) & movements.tracksStock.equals(true));
 
     if (locationId != null) {
       query = query..where(movements.locationId.equals(locationId));
@@ -1125,7 +1267,7 @@ class AppDatabase extends _$AppDatabase {
   Stream<int> watchStock(String productId, {String? locationId}) {
     var query = selectOnly(movements)
       ..addColumns([movements.qtyMilli.sum()])
-      ..where(movements.productId.equals(productId));
+      ..where(movements.productId.equals(productId) & movements.tracksStock.equals(true));
 
     if (locationId != null) {
       query = query..where(movements.locationId.equals(locationId));
@@ -1134,9 +1276,9 @@ class AppDatabase extends _$AppDatabase {
     return query.watchSingle().map((row) => row.read(movements.qtyMilli.sum()) ?? 0);
   }
 
-  /// Checks if any product currently has negative stock.
+  /// Checks if any product currently has negative stock (only stockable products).
   Future<bool> hasNegativeStock() async {
-    final prods = await (select(products)..where((p) => p.deletedAtMs.isNull())).get();
+    final prods = await (select(products)..where((p) => p.deletedAtMs.isNull() & p.kind.equals('stockable'))).get();
     for (final p in prods) {
       final stock = await getStock(p.id);
       if (stock < 0) return true;
@@ -1229,13 +1371,25 @@ class AppDatabase extends _$AppDatabase {
       for (final p in allProds) {
         final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(p.id))).getSingleOrNull();
         if (exists == null) {
+          final mats = await (select(productMaterials)..where((pm) => pm.productId.equals(p.id))).get();
+          final materialsWire = mats.isNotEmpty
+              ? mats.map((m) => {
+                  'product_id': m.materialProductId,
+                  'qty': QuantityFormatter.toWireQty(m.qtyMilli),
+                }).toList()
+              : null;
+
           final payload = {
             'id': p.id,
             'name': p.name,
             'sku': p.sku,
             'unit': p.unit,
+            'kind': p.kind,
             'cost_price_cents': p.costPriceCents,
             'sell_price_cents': p.sellPriceCents,
+            'ask_price': p.askPrice,
+            'materials': materialsWire,
+            'kind_changed_at': p.kindChangedAtMs,
             'low_stock_at': p.lowStockAtMilli != null ? QuantityFormatter.toWireQty(p.lowStockAtMilli!) : null,
             'is_active': p.isActive,
             'updated_at': p.updatedAtMs,
@@ -1268,7 +1422,9 @@ class AppDatabase extends _$AppDatabase {
             'location_id': m.locationId,
             'transfer_id': m.transferId,
             'sale_id': m.saleId,
+            'source_movement_id': m.sourceMovementId,
             'type': m.type,
+            'tracks_stock': m.tracksStock,
             'qty': QuantityFormatter.toWireQty(m.qtyMilli),
             'unit_price_cents': m.unitPriceCents,
             'note': m.note,
@@ -1498,8 +1654,11 @@ class ProductWithStock {
     this.inTransitMilli = 0,
   });
 
-  bool get isNegative => stockMilli < 0;
-  bool get isLow => product.lowStockAtMilli != null && stockMilli <= product.lowStockAtMilli!;
+  bool get isStockable => product.kind == 'stockable';
+  bool get isService => product.kind == 'service';
+  bool get isConsumable => product.kind == 'consumable';
+  bool get isNegative => isStockable && stockMilli < 0;
+  bool get isLow => isStockable && product.lowStockAtMilli != null && stockMilli <= product.lowStockAtMilli!;
 }
 
 LazyDatabase _openConnection() {

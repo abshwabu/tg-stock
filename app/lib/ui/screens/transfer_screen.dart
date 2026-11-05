@@ -58,7 +58,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
     final locs = await widget.repository.listLocations();
-    final prods = (await widget.repository.listProducts()).map((pws) => pws.product).toList();
+    final prods = (await widget.repository.listProducts(kindFilter: 'stockable')).map((pws) => pws.product).toList();
     final reqReceipt = await widget.repository.getTransferRequiresReceipt();
     final activeLoc = await widget.repository.getActiveLocation();
     final disc = await widget.repository.getDiscrepancies();

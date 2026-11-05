@@ -60,7 +60,7 @@ class _StockInScreenState extends State<StockInScreen> {
   }
 
   Future<void> _pickProduct() async {
-    final products = await widget.repository.listProducts();
+    final products = await widget.repository.listProducts(kindFilter: 'stockable');
     if (!mounted) return;
 
     final p = await showModalBottomSheet<Product>(

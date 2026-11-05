@@ -338,6 +338,10 @@ class SyncEngine {
       final locId = data['location_id'] as String?;
       final transferId = data['transfer_id'] as String?;
       final saleId = data['sale_id'] as String?;
+      final sourceMovementId = data['source_movement_id']?.toString();
+      final tracksStock = data['tracks_stock'] == null
+          ? true
+          : (data['tracks_stock'] == true || data['tracks_stock'] == 1 || data['tracks_stock'] == '1');
 
       final movement = Movement(
         id: movId,
@@ -345,11 +349,13 @@ class SyncEngine {
         type: type,
         qtyMilli: qtyMilli,
         unitPriceCents: unitPrice,
+        tracksStock: tracksStock,
         note: note,
         createdAtMs: createdAt,
         locationId: locId,
         transferId: transferId,
         saleId: saleId,
+        sourceMovementId: sourceMovementId,
       );
 
       // Append-only: insert or ignore duplicate IDs
@@ -531,6 +537,12 @@ class SyncEngine {
       final name = data['name']?.toString() ?? (existing?.name ?? 'Product');
       final sku = data['sku']?.toString();
       final unit = data['unit']?.toString() ?? 'pcs';
+      final kind = data['kind']?.toString() ?? (existing?.kind ?? 'stockable');
+      final askPrice = data['ask_price'] == true || data['ask_price'] == 1 || data['ask_price'] == '1';
+      final kindChangedAt = data['kind_changed_at'] is int
+          ? data['kind_changed_at'] as int
+          : (data['kind_changed_at'] != null ? int.tryParse(data['kind_changed_at'].toString()) : null);
+
       final costPrice = data['cost_price_cents'] is int
           ? data['cost_price_cents'] as int
           : int.tryParse(data['cost_price_cents']?.toString() ?? '0') ?? 0;
@@ -546,8 +558,11 @@ class SyncEngine {
         name: name,
         sku: sku,
         unit: unit,
+        kind: kind,
         costPriceCents: costPrice,
         sellPriceCents: sellPrice,
+        askPrice: askPrice,
+        kindChangedAtMs: kindChangedAt ?? existing?.kindChangedAtMs,
         lowStockAtMilli: lowStockMilli,
         isActive: isActive,
         updatedAtMs: incomingUpdatedAt,
@@ -555,6 +570,28 @@ class SyncEngine {
       );
 
       await db.into(db.products).insert(product, mode: InsertMode.insertOrReplace);
+
+      // Ingest materials if provided
+      if (data['materials'] is List) {
+        await (db.delete(db.productMaterials)..where((pm) => pm.productId.equals(prodId))).go();
+        for (final item in (data['materials'] as List)) {
+          if (item is Map) {
+            final matId = (item['product_id'] ?? item['id'])?.toString();
+            final qtyStr = item['qty']?.toString() ?? '0.000';
+            final qtyMilli = QuantityFormatter.parseQty(qtyStr);
+            if (matId != null && matId.isNotEmpty) {
+              await db.into(db.productMaterials).insert(
+                ProductMaterialsCompanion.insert(
+                  productId: prodId,
+                  materialProductId: matId,
+                  qtyMilli: qtyMilli,
+                ),
+                mode: InsertMode.insertOrReplace,
+              );
+            }
+          }
+        }
+      }
     }
   }
 

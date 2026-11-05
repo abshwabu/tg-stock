@@ -55,6 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _currency = 'ETB';
   int _defaultLowStockMilli = 5000;
   bool _allowNegativeStock = false;
+  bool _blockSaleWhenMaterialShort = false;
 
   // Notification state
   bool _notificationsEnabled = true;
@@ -105,6 +106,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final curr = await widget.repository.getCurrencyLabel();
     final lowStock = await widget.repository.getDefaultLowStockThresholdMilli();
     final allowNeg = await widget.repository.getAllowNegativeStock();
+    final blockMatShort = await widget.repository.getBlockSaleWhenMaterialShort();
 
     // Notifications
     final notifs = await widget.repository.isNotificationsEnabled();
@@ -145,6 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _currency = curr;
         _defaultLowStockMilli = lowStock;
         _allowNegativeStock = allowNeg;
+        _blockSaleWhenMaterialShort = blockMatShort;
         _notificationsEnabled = notifs;
         _lowStockNotifications = lowNotifs;
         _dailySummaryEnabled = dailySummary;
@@ -676,6 +679,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         value: _allowNegativeStock,
                         onChanged: (val) async {
                           await widget.repository.setAllowNegativeStock(val);
+                          await _loadAllSettings();
+                        },
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.inventory_2_outlined),
+                        title: const Text('Block sale when raw materials are short / ጥሬ ዕቃ ሲያጥር ሽያጭ ከልክል'),
+                        subtitle: const Text('Prevent selling consumables if raw material stock is insufficient'),
+                        value: _blockSaleWhenMaterialShort,
+                        onChanged: (val) async {
+                          await widget.repository.setBlockSaleWhenMaterialShort(val);
                           await _loadAllSettings();
                         },
                       ),

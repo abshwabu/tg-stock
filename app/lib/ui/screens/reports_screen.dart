@@ -38,6 +38,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   SalesReportData? _salesReport;
   StockReportData? _stockReport;
+  Map<String, SalesByKindData> _salesByKind = {};
+  List<MaterialUsedReportItem> _materialsUsed = [];
 
   Map<String, int> _receivedByMethod = {};
   Map<String, int> _receivedByProvider = {};
@@ -116,6 +118,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final stock = await widget.repository.getStockReport(
       locationId: _selectedLocationId,
     );
+    final salesByKind = await widget.repository.getSalesByKind(
+      fromMs: fromMs,
+      toMs: toMs,
+      locationId: _selectedLocationId,
+    );
+    final matUsed = await widget.repository.getMaterialsUsed(
+      fromMs: fromMs,
+      toMs: toMs,
+      locationId: _selectedLocationId,
+    );
 
     final recMethod = await widget.repository.getReceivedTodayByMethod();
     final recProvider = await widget.repository.getReceivedTodayByProvider();
@@ -133,6 +145,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _discrepancies = disc;
         _salesReport = sales;
         _stockReport = stock;
+        _salesByKind = salesByKind;
+        _materialsUsed = matUsed;
         _receivedByMethod = recMethod;
         _receivedByProvider = recProvider;
         _cashInDrawer = cashDrawer;
@@ -312,6 +326,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         _buildPaymentsAndDubeSection(),
                         const SizedBox(height: 18),
 
+                        // Section 1.6: Sales by Type
+                        _buildSalesByTypeSection(),
+                        const SizedBox(height: 18),
+
+                        // Section 1.7: Materials Used
+                        _buildMaterialsUsedSection(),
+                        const SizedBox(height: 18),
+
                         // Section 2: Top Products by Revenue
                         _buildTopProductsSection(
                           title: '🏆 Top Products by Revenue / በገቢ ቀዳሚ',
@@ -456,7 +478,183 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ],
         ),
+        if (profitCents != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '* Profit based on current raw material costs, not a historical cost snapshot / * ትርፉ አሁን ባለው የጥሬ ዕቃዎች መግዣ ዋጋ ላይ የተመሠረተ ነው።',
+              style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Colors.grey.shade600),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildSalesByTypeSection() {
+    final stockRev = _salesByKind['stockable']?.totalRevenueCents ?? 0;
+    final servRev = _salesByKind['service']?.totalRevenueCents ?? 0;
+    final consRev = _salesByKind['consumable']?.totalRevenueCents ?? 0;
+    final stockCount = _salesByKind['stockable']?.salesCount ?? 0;
+    final servCount = _salesByKind['service']?.salesCount ?? 0;
+    final consCount = _salesByKind['consumable']?.salesCount ?? 0;
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.category_outlined, color: Color(0xFF0F766E), size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Sales by Type / ሽያጭ በዓይነት',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('📦 Products', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text(
+                          MoneyFormatter.formatCents(stockRev),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green.shade900),
+                        ),
+                        Text('$stockCount sold', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('🛠 Services', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text(
+                          MoneyFormatter.formatCents(servRev),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue.shade900),
+                        ),
+                        Text('$servCount sold', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('🧪 Consumables', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const SizedBox(height: 4),
+                        Text(
+                          MoneyFormatter.formatCents(consRev),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.purple.shade900),
+                        ),
+                        Text('$consCount sold', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMaterialsUsedSection() {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.inventory_2_outlined, color: Color(0xFF0F766E), size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Materials Used / ጥቅም ላይ የዋሉ ጥሬ ዕቃዎች',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_materialsUsed.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No raw materials consumed in this period / በዚህ ወቅት ጥቅም ላይ የዋለ ጥሬ ዕቃ የለም',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _materialsUsed.length,
+                separatorBuilder: (_, __) => const Divider(height: 12),
+                itemBuilder: (context, idx) {
+                  final mat = _materialsUsed[idx];
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          mat.productName,
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        '${QuantityFormatter.formatDisplay(mat.totalConsumedMilli)} ${mat.unit}',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        MoneyFormatter.formatCents(mat.totalCostCents),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                    ],
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
     );
   }
 

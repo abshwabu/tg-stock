@@ -262,4 +262,78 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get overdue => 'Overdue';
+
+  @override
+  String get kindProduct => 'Product';
+
+  @override
+  String get kindService => 'Service';
+
+  @override
+  String get kindConsumable => 'Consumable';
+
+  @override
+  String get kindMaterial => 'Raw Material';
+
+  @override
+  String get whatAreYouAdding => 'What are you adding?';
+
+  @override
+  String get askPriceEverySale => 'Ask the price at every sale';
+
+  @override
+  String get materialsUsed => 'Materials Used';
+
+  @override
+  String get salesByType => 'Sales by Type';
+
+  @override
+  String get blockSaleWhenMaterialShort =>
+      'Block sale when raw materials are short';
+
+  @override
+  String get profitDisclaimer =>
+      '* Profit based on current raw material costs, not a historical cost snapshot';
+
+  @override
+  String get cannotChangeKindWithStock =>
+      'Cannot change kind: stock must be 0 across all locations';
+
+  @override
+  String get cannotDeleteUsedAsMaterial =>
+      'Cannot delete: This product is used as a raw material in recipes';
+
+  @override
+  String get cannotChangeKindUsedAsMaterial =>
+      'Cannot change kind: This product is used as a raw material in recipes';
+
+  @override
+  String get addMaterial => 'Add Raw Material';
+
+  @override
+  String get qtyPerUnit => 'Qty per 1 unit sold';
+
+  @override
+  String get estMaterialCost => 'Est. Material Cost';
+
+  @override
+  String get marginPerUnit => 'Margin per unit';
+
+  @override
+  String get noMaterialsAssigned => 'No materials assigned yet';
+
+  @override
+  String get shortageWarning => 'Material shortage';
+
+  @override
+  String get filterProducts => 'Products';
+
+  @override
+  String get filterServices => 'Services';
+
+  @override
+  String get filterConsumables => 'Consumables';
+
+  @override
+  String get filterMaterials => 'Materials';
 }

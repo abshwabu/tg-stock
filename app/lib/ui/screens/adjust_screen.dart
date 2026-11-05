@@ -57,7 +57,7 @@ class _AdjustScreenState extends State<AdjustScreen> {
   }
 
   Future<void> _pickProduct() async {
-    final products = await widget.repository.listProducts();
+    final products = await widget.repository.listProducts(kindFilter: 'stockable');
     if (!mounted) return;
 
     final p = await showModalBottomSheet<Product>(

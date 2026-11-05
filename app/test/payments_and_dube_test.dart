@@ -463,6 +463,7 @@ void main() {
           type: 'sale',
           qtyMilli: -2000,
           unitPriceCents: 5000,
+          tracksStock: true,
           createdAtMs: nowMs,
         ),
       );
@@ -473,6 +474,7 @@ void main() {
           type: 'sale',
           qtyMilli: -1000,
           unitPriceCents: 5000,
+          tracksStock: true,
           createdAtMs: nowMs,
         ),
       );

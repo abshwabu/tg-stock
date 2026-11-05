@@ -38,21 +38,22 @@ class ExportService {
 
     // Write UTF-8 BOM so Excel and spreadsheet viewers recognize Amharic script
     buffer.write('\uFEFF');
-    buffer.writeln('Product ID,Name,SKU,Unit,Cost Price (ETB),Sell Price (ETB),Low Stock Limit,Current Stock,Location,Status');
+    buffer.writeln('Product ID,Name,SKU,Kind,Unit,Cost Price (ETB),Sell Price (ETB),Low Stock Limit,Current Stock,Location,Status');
 
     for (final p in products) {
-      final stockDisplay = QuantityFormatter.formatDisplay(p.stockMilli);
+      final stockDisplay = p.isStockable ? QuantityFormatter.formatDisplay(p.stockMilli) : 'N/A';
       final costStr = (p.product.costPriceCents / 100).toStringAsFixed(2);
       final sellStr = (p.product.sellPriceCents / 100).toStringAsFixed(2);
-      final lowStr = p.product.lowStockAtMilli != null
+      final lowStr = p.isStockable && p.product.lowStockAtMilli != null
           ? QuantityFormatter.formatDisplay(p.product.lowStockAtMilli!)
           : '';
-      final status = p.isLow ? 'Low Stock' : (p.isNegative ? 'Negative' : 'In Stock');
+      final status = !p.isStockable ? p.product.kind : (p.isLow ? 'Low Stock' : (p.isNegative ? 'Negative' : 'In Stock'));
 
       buffer.writeln([
         _escape(p.product.id),
         _escape(p.product.name),
         _escape(p.product.sku ?? ''),
+        _escape(p.product.kind),
         _escape(p.product.unit),
         _escape(costStr),
         _escape(sellStr),
@@ -77,7 +78,7 @@ class ExportService {
 
     // UTF-8 BOM
     buffer.write('\uFEFF');
-    buffer.writeln('Date,Time,Sale Movement ID,Product Name,SKU,Quantity,Unit,Unit Price (ETB),Total (ETB),Location,Note');
+    buffer.writeln('Date,Time,Sale Movement ID,Product Name,SKU,Kind,Quantity,Unit,Unit Price (ETB),Tracks Stock,Total (ETB),Location,Note');
 
     for (final s in sales) {
       final dt = DateTime.fromMillisecondsSinceEpoch(s.movement.createdAtMs).toLocal();
@@ -88,6 +89,8 @@ class ExportService {
       final unitPriceStr = (s.movement.unitPriceCents / 100).toStringAsFixed(2);
       final totalStr = ((absQty * s.movement.unitPriceCents) / 100000).toStringAsFixed(2);
       final locName = s.location?.name ?? (s.movement.locationId ?? '');
+      final kind = s.product?.kind ?? 'stockable';
+      final tracksStock = s.movement.tracksStock ? 'true' : 'false';
 
       buffer.writeln([
         _escape(dateStr),
@@ -95,9 +98,11 @@ class ExportService {
         _escape(s.movement.id),
         _escape(s.product?.name ?? 'Unknown Product'),
         _escape(s.product?.sku ?? ''),
+        _escape(kind),
         _escape(qtyDisplay),
         _escape(s.product?.unit ?? 'pcs'),
         _escape(unitPriceStr),
+        _escape(tracksStock),
         _escape(totalStr),
         _escape(locName),
         _escape(s.movement.note ?? ''),
@@ -111,14 +116,14 @@ class ExportService {
     return file;
   }
 
-  /// Exports all inventory movements (in, sale, adjust, transfer_out, transfer_in) with signed quantities (UTF-8 with BOM).
+  /// Exports all inventory movements (in, sale, adjust, transfer_out, transfer_in, consume) with signed quantities (UTF-8 with BOM).
   Future<File> exportMovementsCsv({int? fromMs, int? toMs, String? locationId}) async {
     final movements = await repository.getMovementsWithProduct(fromMs: fromMs, toMs: toMs, locationId: locationId);
     final buffer = StringBuffer();
 
     // UTF-8 BOM
     buffer.write('\uFEFF');
-    buffer.writeln('Date,Time,Movement ID,Product Name,Type,Signed Quantity,Unit,Unit Price (ETB),Location,Transfer ID,Note');
+    buffer.writeln('Date,Time,Movement ID,Product Name,Type,Tracks Stock,Signed Quantity,Unit,Unit Price (ETB),Location,Transfer ID,Source Movement ID,Note');
 
     for (final m in movements) {
       final dt = DateTime.fromMillisecondsSinceEpoch(m.movement.createdAtMs).toLocal();
@@ -127,6 +132,7 @@ class ExportService {
       final qtyDisplay = QuantityFormatter.toWireQty(m.movement.qtyMilli);
       final unitPriceStr = (m.movement.unitPriceCents / 100).toStringAsFixed(2);
       final locName = m.location?.name ?? (m.movement.locationId ?? '');
+      final tracksStock = m.movement.tracksStock ? 'true' : 'false';
 
       buffer.writeln([
         _escape(dateStr),
@@ -134,11 +140,13 @@ class ExportService {
         _escape(m.movement.id),
         _escape(m.product?.name ?? 'Unknown Product'),
         _escape(m.movement.type),
+        _escape(tracksStock),
         _escape(qtyDisplay),
         _escape(m.product?.unit ?? 'pcs'),
         _escape(unitPriceStr),
         _escape(locName),
         _escape(m.movement.transferId ?? ''),
+        _escape(m.movement.sourceMovementId ?? ''),
         _escape(m.movement.note ?? ''),
       ].join(','));
     }
