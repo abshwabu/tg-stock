@@ -26,7 +26,6 @@ class PairingScreen extends StatefulWidget {
 
 class _PairingScreenState extends State<PairingScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _serverUrlController = TextEditingController();
   final _shopNameController = TextEditingController();
   final _deviceNameController = TextEditingController();
 
@@ -53,12 +52,10 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Future<void> _loadInitialValues() async {
-    final serverUrl = await widget.authStorage.getServerUrl();
     final shop = await widget.authStorage.getShopName();
     final device = await widget.authStorage.getDeviceName();
     if (mounted) {
       setState(() {
-        _serverUrlController.text = serverUrl;
         if (shop != null) _shopNameController.text = shop;
         _deviceNameController.text = device;
       });
@@ -69,7 +66,6 @@ class _PairingScreenState extends State<PairingScreen> {
   void dispose() {
     _pollingTimer?.cancel();
     _countdownTimer?.cancel();
-    _serverUrlController.dispose();
     _shopNameController.dispose();
     _deviceNameController.dispose();
     super.dispose();
@@ -84,7 +80,7 @@ class _PairingScreenState extends State<PairingScreen> {
     });
 
     try {
-      final serverUrl = _serverUrlController.text.trim();
+      final serverUrl = await widget.authStorage.getServerUrl();
       final shopName = _shopNameController.text.trim();
       final deviceName = _deviceNameController.text.trim();
 
@@ -286,24 +282,35 @@ class _PairingScreenState extends State<PairingScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          TextFormField(
-            controller: _serverUrlController,
-            decoration: const InputDecoration(
-              labelText: 'Server URL / የሰርቨር አድራሻ',
-              hintText: 'https://...',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.cloud_outlined),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
             ),
-            validator: (val) {
-              if (val == null || val.trim().isEmpty) {
-                return 'Please enter the server URL / እባክዎ የሰርቨር አድራሻ ያስገቡ';
-              }
-              final uri = Uri.tryParse(val.trim());
-              if (uri == null || (!uri.isScheme('http') && !uri.isScheme('https'))) {
-                return 'Please enter a valid http:// or https:// URL';
-              }
-              return null;
-            },
+            child: Row(
+              children: [
+                const Icon(Icons.cloud_done_outlined, size: 20, color: Color(0xFF0F766E)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cloud Server / የደመና ሰርቨር',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'https://stock.yenesuq.com',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           TextFormField(

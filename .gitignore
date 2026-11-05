@@ -2,6 +2,7 @@
 
 # Built deployment zip archives
 /dist/
+*.zip
 
 # Server ignored files
 /server/vendor/

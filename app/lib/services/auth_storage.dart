@@ -29,7 +29,7 @@ class SecureAuthStorage implements AuthStorage {
   static const _keyShopName = 'shop_name';
   static const _keyDeviceName = 'device_name';
 
-  static const defaultServerUrl = 'https://techniques-under-gilbert-proceeding.trycloudflare.com';
+  static const defaultServerUrl = 'https://stock.yenesuq.com';
   static const defaultDeviceName = 'Android POS 1';
 
   SecureAuthStorage({FlutterSecureStorage? storage})
@@ -74,7 +74,7 @@ class SecureAuthStorage implements AuthStorage {
   @override
   Future<String> getServerUrl() async {
     final val = await _storage.read(key: _keyServerUrl);
-    if (val != null && (val.isEmpty || val.contains('study-creek-easier-flat.trycloudflare.com'))) {
+    if (val != null && (val.isEmpty || val.contains('trycloudflare.com') || val.contains('localhost'))) {
       return defaultServerUrl;
     }
     return val?.isNotEmpty == true ? val! : defaultServerUrl;
