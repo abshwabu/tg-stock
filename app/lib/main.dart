@@ -9,6 +9,7 @@ import 'services/auth_storage.dart';
 import 'services/sync_engine.dart';
 import 'ui/screens/first_run_screen.dart';
 import 'ui/screens/home_screen.dart';
+import 'ui/theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,19 +49,36 @@ class InventoryApp extends StatefulWidget {
     required this.syncEngine,
   });
 
+  static InventoryAppState? of(BuildContext context) {
+    return context.findAncestorStateOfType<InventoryAppState>();
+  }
+
   @override
-  State<InventoryApp> createState() => _InventoryAppState();
+  State<InventoryApp> createState() => InventoryAppState();
 }
 
-class _InventoryAppState extends State<InventoryApp> {
+class InventoryAppState extends State<InventoryApp> {
   bool _isLoading = true;
   bool _firstRunCompleted = true;
   bool _isLocked = false;
   String _localeStr = 'am';
+  ThemeMode _themeMode = ThemeMode.system;
   String? _savedPin;
 
   final _pinInputController = TextEditingController();
   String? _pinError;
+
+  void setThemeMode(ThemeMode mode) {
+    setState(() {
+      _themeMode = mode;
+    });
+  }
+
+  void setLocale(String lang) {
+    setState(() {
+      _localeStr = lang;
+    });
+  }
 
   @override
   void initState() {
@@ -73,6 +91,13 @@ class _InventoryAppState extends State<InventoryApp> {
     final lockEnabled = await widget.repository.isAppLockEnabled();
     final pin = await widget.repository.getAppLockPin();
     final lang = await widget.repository.getLanguage();
+    final themeStr = await widget.repository.getThemeMode();
+
+    final themeMode = switch (themeStr) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
 
     if (mounted) {
       setState(() {
@@ -80,6 +105,7 @@ class _InventoryAppState extends State<InventoryApp> {
         _isLocked = lockEnabled && (pin != null && pin.isNotEmpty);
         _savedPin = pin;
         _localeStr = lang;
+        _themeMode = themeMode;
         _isLoading = false;
       });
     }
@@ -100,8 +126,12 @@ class _InventoryAppState extends State<InventoryApp> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const MaterialApp(
-        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: _themeMode,
+        home: const Scaffold(body: Center(child: CircularProgressIndicator())),
       );
     }
 
@@ -170,8 +200,9 @@ class _InventoryAppState extends State<InventoryApp> {
       );
     }
 
+    final isAm = _localeStr == 'am';
     return MaterialApp(
-      title: 'Inventory Ethiopia',
+      title: isAm ? 'ዕቃ ዝርዝር' : 'Inventory',
       debugShowCheckedModeBanner: false,
       locale: Locale(_localeStr),
       localizationsDelegates: const [
@@ -184,12 +215,9 @@ class _InventoryAppState extends State<InventoryApp> {
         Locale('am'),
         Locale('en'),
       ],
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0F766E), // Teal Ethiopian aesthetic
-        ),
-      ),
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: _themeMode,
       home: rootWidget,
     );
   }

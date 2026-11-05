@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="drop" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#042F2E" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <g filter="url(#drop)">
+    <!-- Crate interior top gap -->
+    <path d="M 320 440 L 400 360 L 624 360 L 704 440 Z" fill="#0D9488" opacity="0.6"/>
+    
+    <!-- Left open flap -->
+    <path d="M 290 445 L 240 330 C 238 325 242 320 248 320 L 382 320 C 388 320 393 324 396 330 L 436 445 Z" fill="#CCFBF1"/>
+    
+    <!-- Right open flap -->
+    <path d="M 734 445 L 784 330 C 786 325 782 320 776 320 L 642 320 C 636 320 631 324 628 330 L 588 445 Z" fill="#99F6E4"/>
+    
+    <!-- Crate upper slat -->
+    <rect x="276" y="435" width="472" height="120" rx="24" fill="#FFFFFF"/>
+    
+    <!-- Crate lower slat -->
+    <rect x="276" y="575" width="472" height="155" rx="24" fill="#F8FAFC"/>
+
+    <!-- Crate handle cutout in upper slat -->
+    <rect x="432" y="475" width="160" height="36" rx="18" fill="#0F766E" opacity="0.25"/>
+
+    <!-- Checkmark shadow/border for WCAG contrast -->
+    <path d="M 380 575 L 475 670 L 685 410" fill="none" stroke="#042F2E" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <!-- Checkmark active stroke -->
+    <path d="M 380 575 L 475 670 L 685 410" fill="none" stroke="#F59E0B" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

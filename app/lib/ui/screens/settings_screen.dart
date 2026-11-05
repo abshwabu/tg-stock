@@ -6,6 +6,7 @@ import 'package:local_auth/local_auth.dart';
 import 'package:path/path.dart' as p;
 
 import '../../database/app_database.dart';
+import '../../main.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_storage.dart';
@@ -52,6 +53,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Local preferences
   String _language = 'am';
+  String _themeMode = 'system';
   String _currency = 'ETB';
   int _defaultLowStockMilli = 5000;
   bool _allowNegativeStock = false;
@@ -103,6 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     // Preferences
     final lang = await widget.repository.getLanguage();
+    final themeMode = await widget.repository.getThemeMode();
     final curr = await widget.repository.getCurrencyLabel();
     final lowStock = await widget.repository.getDefaultLowStockThresholdMilli();
     final allowNeg = await widget.repository.getAllowNegativeStock();
@@ -144,6 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _shopName = shop;
         _serverUrl = url;
         _language = lang;
+        _themeMode = themeMode;
         _currency = curr;
         _defaultLowStockMilli = lowStock;
         _allowNegativeStock = allowNeg;
@@ -651,6 +655,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onSelectionChanged: (set) async {
                             final val = set.first;
                             await widget.repository.setLanguage(val);
+                            if (context.mounted) {
+                              InventoryApp.of(context)?.setLocale(val);
+                            }
+                            await _loadAllSettings();
+                          },
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.palette_outlined),
+                        title: Text(isAm ? 'የመተግበሪያ ገጽታ' : 'Theme / Appearance'),
+                        subtitle: Text(
+                          _themeMode == 'light'
+                              ? (isAm ? 'ቀላል (Light)' : 'Light')
+                              : _themeMode == 'dark'
+                                  ? (isAm ? 'ጨለማ (Dark)' : 'Dark')
+                                  : (isAm ? 'የስልክ ስርዓት (System)' : 'System'),
+                        ),
+                        trailing: SegmentedButton<String>(
+                          segments: [
+                            ButtonSegment(value: 'system', icon: const Icon(Icons.brightness_auto, size: 16), label: Text(isAm ? 'ስርዓት' : 'Auto')),
+                            ButtonSegment(value: 'light', icon: const Icon(Icons.light_mode, size: 16), label: Text(isAm ? 'ቀላል' : 'Light')),
+                            ButtonSegment(value: 'dark', icon: const Icon(Icons.dark_mode, size: 16), label: Text(isAm ? 'ጨለማ' : 'Dark')),
+                          ],
+                          selected: {_themeMode},
+                          onSelectionChanged: (set) async {
+                            final val = set.first;
+                            await widget.repository.setThemeMode(val);
+                            final tm = switch (val) {
+                              'light' => ThemeMode.light,
+                              'dark' => ThemeMode.dark,
+                              _ => ThemeMode.system,
+                            };
+                            if (context.mounted) {
+                              InventoryApp.of(context)?.setThemeMode(tm);
+                            }
                             await _loadAllSettings();
                           },
                         ),

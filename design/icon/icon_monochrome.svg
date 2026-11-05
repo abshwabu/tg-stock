@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <mask id="monoMask">
+    <rect width="1024" height="1024" fill="white"/>
+    <!-- Cutout for handle slot -->
+    <rect x="432" y="475" width="160" height="36" rx="18" fill="black"/>
+    <!-- Cutout for checkmark border to separate from crate -->
+    <path d="M 380 575 L 475 670 L 685 410" fill="none" stroke="black" stroke-width="84" stroke-linecap="round" stroke-linejoin="round"/>
+  </mask>
+
+  <!-- Left open flap -->
+  <path d="M 290 445 L 240 330 C 238 325 242 320 248 320 L 382 320 C 388 320 393 324 396 330 L 436 445 Z" fill="#FFFFFF"/>
+  
+  <!-- Right open flap -->
+  <path d="M 734 445 L 784 330 C 786 325 782 320 776 320 L 642 320 C 636 320 631 324 628 330 L 588 445 Z" fill="#FFFFFF"/>
+  
+  <!-- Crate slats with mask -->
+  <g mask="url(#monoMask)">
+    <rect x="276" y="435" width="472" height="120" rx="24" fill="#FFFFFF"/>
+    <rect x="276" y="575" width="472" height="155" rx="24" fill="#FFFFFF"/>
+  </g>
+
+  <!-- Standalone solid checkmark -->
+  <path d="M 380 575 L 475 670 L 685 410" fill="none" stroke="#FFFFFF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

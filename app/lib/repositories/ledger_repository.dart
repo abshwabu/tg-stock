@@ -1568,6 +1568,14 @@ class LedgerRepository {
     await setSetting('block_sale_when_material_short', block ? 'true' : 'false');
   }
 
+  Future<String> getThemeMode() async {
+    return (await getSetting('theme_mode', defaultValue: 'system'))!;
+  }
+
+  Future<void> setThemeMode(String mode) async {
+    await setSetting('theme_mode', mode);
+  }
+
   // ==========================================
   // REPORTS & SQL AGGREGATES
   // ==========================================

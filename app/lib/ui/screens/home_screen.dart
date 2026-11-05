@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../database/app_database.dart';
+import '../../main.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_storage.dart';
@@ -130,6 +131,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             onPressed: () async {
               final newLang = isAm ? 'en' : 'am';
               await widget.repository.setLanguage(newLang);
+              if (context.mounted) {
+                InventoryApp.of(context)?.setLocale(newLang);
+              }
               await _loadShopInfo();
             },
           ),

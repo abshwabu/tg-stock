@@ -1,5 +1,5 @@
 name: app
-description: "A new Flutter project."
+description: "Offline-first inventory and POS application for Ethiopian small shops"
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -63,6 +63,24 @@ flutter:
 
   assets:
     - assets/payment_catalog.json
+
+  fonts:
+    - family: NotoSansEthiopic
+      fonts:
+        - asset: assets/fonts/NotoSansEthiopic-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansEthiopic-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansEthiopic-Bold.ttf
+          weight: 700
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:
