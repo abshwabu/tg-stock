@@ -72,6 +72,12 @@ class StockInHandler
             return;
         }
 
+        if (!$product->isStockable()) {
+            $msg = $locale === 'en' ? '⚠️ Cannot restock a non-stockable item (service or consumable).' : '⚠️ ስቶክ የሌለው ዕቃ መመዝገብ አይቻልም።';
+            $this->telegram->sendMessage($chatId, $msg);
+            return;
+        }
+
         $currentStock = LedgerService::formatQty($this->ledger->stockOf($product));
 
         $this->botState->start($chatId, 'stock_in', 'await_qty', [

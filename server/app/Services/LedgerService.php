@@ -108,10 +108,26 @@ class LedgerService
                 }
             }
 
+            // Enforce non-stockable product rules
+            if (!$product->isStockable()) {
+                if ($movement->type !== 'sale') {
+                    throw new InvalidArgumentException('not_stockable');
+                }
+                $movement->tracks_stock = false;
+            } else {
+                if ($movement->tracks_stock === null) {
+                    $movement->tracks_stock = true;
+                }
+            }
+
+            if (!$movement->tracks_stock && $movement->type !== 'sale') {
+                throw new InvalidArgumentException('tracks_stock=false is allowed only on sale lines');
+            }
+
             // Enforce negative stock rule per location
             if ($shop !== null && !$shop->allow_negative_stock) {
                 if ($movement->type === 'transfer_out') {
-                    $currentLocationStock = $this->stockOf($movement->product_id, $movement->location_id, $shopId);
+                    $currentLocationStock = $this->stockOf($movement->product_id, $movement->location_id, $shopId) ?? 0;
                     if ($currentLocationStock + $movement->qty_milli < 0) {
                         throw new InsufficientStockException(
                             sprintf(
@@ -159,12 +175,17 @@ class LedgerService
      */
     protected function checkLowStockAlert(Product $product, Movement $movement, string $shopId): void
     {
+        if (!$product->isStockable()) {
+            return;
+        }
+
         $shop = Shop::find($shopId);
         $threshold = $product->low_stock_at_milli ?? $shop?->low_stock_default_milli ?? 5000;
         $locationId = $movement->location_id;
         $currentStockMilli = $locationId
             ? $this->stockOf($product, $locationId, $shopId)
             : $this->stockOf($product, $shopId);
+        $currentStockMilli = $currentStockMilli ?? 0;
         $nowMs = (int) (microtime(true) * 1000);
         $debounceMs = 86400000; // 24 hours
 
@@ -185,14 +206,15 @@ class LedgerService
 
     /**
      * Compute authoritative stock for a single product from the append-only ledger:
-     * Stock = SUM(movements.qty_milli).
+     * Stock = SUM(movements.qty_milli) where tracks_stock = true.
      *
      * If location is specified, returns stock for that specific location.
      * If location is null, returns total stock across all locations in the shop.
+     * Non-stockable items (services, consumables) return null.
      *
-     * @return int Stock in integer thousandths (e.g., 2500 for 2.500 units)
+     * @return int|null Stock in integer thousandths (e.g., 2500 for 2.500 units), or null if not stockable
      */
-    public function stockOf(Product|string $product, Location|string|null $location = null, ?string $shopId = null): int
+    public function stockOf(Product|string $product, Location|string|null $location = null, ?string $shopId = null): ?int
     {
         $locationId = null;
 
@@ -244,9 +266,15 @@ class LedgerService
             );
         }
 
+        // Return null for non-stockable items (services, consumables)
+        if (!$prod->isStockable()) {
+            return null;
+        }
+
         $query = Movement::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $shopId)
-            ->where('product_id', $productId);
+            ->where('product_id', $productId)
+            ->where('tracks_stock', true);
 
         if ($locationId !== null) {
             $query->where('location_id', $locationId);
@@ -294,7 +322,8 @@ class LedgerService
             ->leftJoin('movements', function ($join) use ($shopId, $productId): void {
                 $join->on('locations.id', '=', 'movements.location_id')
                     ->where('movements.shop_id', '=', $shopId)
-                    ->where('movements.product_id', '=', $productId);
+                    ->where('movements.product_id', '=', $productId)
+                    ->where('movements.tracks_stock', '=', true);
             })
             ->select('locations.*')
             ->selectRaw('CAST(COALESCE(SUM(movements.qty_milli), 0) AS INTEGER) AS stock_milli')
@@ -361,6 +390,10 @@ class LedgerService
 
         if ($prod === null) {
             throw new InvalidArgumentException("Product [{$productId}] does not exist in shop [{$shopId}].");
+        }
+
+        if (!$prod->isStockable()) {
+            throw new InvalidArgumentException('not_stockable');
         }
 
         $qtyMilli = abs(self::parseQty($qty));
@@ -476,6 +509,11 @@ class LedgerService
                 throw new InvalidArgumentException("Transfer [{$transferId}] not found.");
             }
 
+            $prod = Product::withoutGlobalScope(ShopScope::class)->find($out->product_id);
+            if ($prod !== null && !$prod->isStockable()) {
+                throw new InvalidArgumentException('not_stockable');
+            }
+
             // Check if transfer_in already exists (idempotency check)
             $existingIn = Movement::withoutGlobalScope(ShopScope::class)
                 ->where('transfer_id', $transferId)
@@ -549,8 +587,14 @@ class LedgerService
         }
 
         $outMovements = Movement::withoutGlobalScope(ShopScope::class)
+            ->join('products', function ($join) use ($shopId): void {
+                $join->on('movements.product_id', '=', 'products.id')
+                    ->where('products.shop_id', '=', $shopId)
+                    ->where('products.kind', '=', 'stockable');
+            })
             ->where('movements.shop_id', $shopId)
             ->where('movements.type', 'transfer_out')
+            ->where('movements.tracks_stock', true)
             ->whereNotNull('movements.transfer_id')
             ->whereNotExists(function ($query): void {
                 $query->select(DB::raw(1))
@@ -558,7 +602,8 @@ class LedgerService
                     ->whereColumn('in_m.transfer_id', 'movements.transfer_id')
                     ->where('in_m.type', 'transfer_in');
             })
-            ->with(['product', 'location', 'user'])
+            ->select('movements.*')
+            ->with(['location', 'user'])
             ->orderByDesc('movements.created_at_ms')
             ->get();
 
@@ -676,10 +721,12 @@ class LedgerService
 
         return Product::withoutGlobalScope(ShopScope::class)
             ->where('products.shop_id', $shopId)
+            ->where('products.kind', 'stockable')
             ->whereNull('products.deleted_at_ms')
             ->leftJoin('movements', function ($join) use ($shopId): void {
                 $join->on('products.id', '=', 'movements.product_id')
-                    ->where('movements.shop_id', '=', $shopId);
+                    ->where('movements.shop_id', '=', $shopId)
+                    ->where('movements.tracks_stock', '=', true);
             })
             ->select('products.*')
             ->selectRaw('CAST(COALESCE(SUM(movements.qty_milli), 0) AS INTEGER) AS stock_milli')

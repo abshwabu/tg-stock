@@ -35,6 +35,7 @@ class Shop extends Model
         'payment_methods_enabled',
         'dube_default_days',
         'require_payment_reference',
+        'block_sale_when_material_short',
         'dube_reminder_last_sent_date',
     ];
 
@@ -48,6 +49,7 @@ class Shop extends Model
         'payment_methods_enabled' => 'array',
         'dube_default_days' => 'integer',
         'require_payment_reference' => 'boolean',
+        'block_sale_when_material_short' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

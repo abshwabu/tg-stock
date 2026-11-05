@@ -150,7 +150,8 @@ class GenerateExportJob implements ShouldQueue
             ->get();
 
         foreach ($products as $p) {
-            $stock = LedgerService::formatQty($ledger->stockOf($p));
+            $stockRaw = $ledger->stockOf($p);
+            $stock = $stockRaw !== null ? LedgerService::formatQty($stockRaw) : 'N/A';
             $row = [
                 $p->id,
                 $p->name,
@@ -163,7 +164,8 @@ class GenerateExportJob implements ShouldQueue
 
             if ($locations->count() > 1) {
                 foreach ($locations as $loc) {
-                    $row[] = LedgerService::formatQty($ledger->stockOf($p, $loc));
+                    $locStock = $ledger->stockOf($p, $loc);
+                    $row[] = $locStock !== null ? LedgerService::formatQty($locStock) : 'N/A';
                 }
             }
 
@@ -313,7 +315,10 @@ class GenerateExportJob implements ShouldQueue
 
         foreach ($locations as $loc) {
             foreach ($products as $p) {
-                $qtyMilli = $ledger->stockOf($p, $loc);
+                if (!$p->isStockable()) {
+                    continue;
+                }
+                $qtyMilli = $ledger->stockOf($p, $loc) ?? 0;
                 if ($qtyMilli != 0) {
                     $qty = LedgerService::formatQty($qtyMilli);
                     $valCostCents = (int) round(($qtyMilli * $p->cost_price_cents) / 1000);

@@ -28,6 +28,8 @@ class Movement extends Model
         'user_id',
         'device_id',
         'type',
+        'tracks_stock',
+        'source_movement_id',
         'qty_milli',
         'unit_price_cents',
         'note',
@@ -36,6 +38,8 @@ class Movement extends Model
     ];
 
     protected $casts = [
+        'tracks_stock' => 'boolean',
+        'source_movement_id' => 'string',
         'qty_milli' => 'integer',
         'unit_price_cents' => 'integer',
         'created_at_ms' => 'integer',
@@ -77,5 +81,10 @@ class Movement extends Model
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class, 'sale_id');
+    }
+
+    public function sourceMovement(): BelongsTo
+    {
+        return $this->belongsTo(Movement::class, 'source_movement_id');
     }
 }

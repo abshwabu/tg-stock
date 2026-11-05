@@ -938,7 +938,7 @@ class SyncService
         }
 
         // Strict data field check
-        $allowedFields = ['id', 'product_id', 'location_id', 'transfer_id', 'sale_id', 'type', 'qty', 'unit_price_cents', 'note', 'created_at'];
+        $allowedFields = ['id', 'product_id', 'location_id', 'transfer_id', 'sale_id', 'type', 'qty', 'unit_price_cents', 'note', 'created_at', 'tracks_stock', 'source_movement_id'];
         $unknown = array_diff(array_keys($data), $allowedFields);
         if (!empty($unknown)) {
             $rejected[] = ['id' => $id, 'reason' => 'Unknown field(s) in movement data: ' . implode(', ', $unknown)];
@@ -949,8 +949,8 @@ class SyncService
         $type = (string) ($data['type'] ?? '');
         $rawQty = $data['qty'] ?? '0.000';
 
-        if (!in_array($type, ['in', 'sale', 'adjust', 'transfer_out', 'transfer_in'], true)) {
-            $rejected[] = ['id' => $id, 'reason' => "Invalid movement type [{$type}]. Must be in, sale, adjust, transfer_out, or transfer_in."];
+        if (!in_array($type, ['in', 'sale', 'adjust', 'transfer_out', 'transfer_in', 'consume'], true)) {
+            $rejected[] = ['id' => $id, 'reason' => "Invalid movement type [{$type}]. Must be in, sale, adjust, transfer_out, transfer_in, or consume."];
             return;
         }
 
@@ -961,7 +961,7 @@ class SyncService
 
         // Map movement type to permission
         $requiredPerm = match ($type) {
-            'sale' => 'sale.create',
+            'sale', 'consume' => 'sale.create',
             'in' => 'stock.in',
             'adjust' => 'stock.adjust',
             'transfer_out' => 'transfer.create',
@@ -1002,6 +1002,34 @@ class SyncService
             return;
         }
 
+        // Wire defaults for older clients
+        $tracksStock = isset($data['tracks_stock']) ? (bool) $data['tracks_stock'] : true;
+        $sourceMovementId = !empty($data['source_movement_id']) ? (string) $data['source_movement_id'] : null;
+
+        // Stock-in, adjust, transfer on non-stockable products rejected with not_stockable
+        if (!$product->isStockable() && in_array($type, ['in', 'adjust', 'transfer_out', 'transfer_in'], true)) {
+            $rejected[] = ['id' => $id, 'reason' => 'not_stockable'];
+            return;
+        }
+
+        // Validation: tracks_stock=false is allowed only on sale lines
+        if (!$tracksStock && $type !== 'sale') {
+            $rejected[] = ['id' => $id, 'reason' => 'tracks_stock_not_allowed'];
+            return;
+        }
+
+        // Validation: if movement created_at is after product kind_changed_at, tracks_stock must match product kind
+        if ($product->kind_changed_at_ms !== null && $createdMs > $product->kind_changed_at_ms) {
+            if ($product->isStockable() && !$tracksStock) {
+                $rejected[] = ['id' => $id, 'reason' => 'tracks_stock_mismatch'];
+                return;
+            }
+            if (!$product->isStockable() && $tracksStock) {
+                $rejected[] = ['id' => $id, 'reason' => 'tracks_stock_mismatch'];
+                return;
+            }
+        }
+
         // Verify sale_id reference if provided
         $saleId = !empty($data['sale_id']) ? (string) $data['sale_id'] : null;
         if (!empty($saleId)) {
@@ -1016,6 +1044,35 @@ class SyncService
             }
         }
 
+        $qtyMilli = LedgerService::parseQty($rawQty);
+
+        // Validation: consume movement rules
+        if ($type === 'consume') {
+            if ($qtyMilli >= 0 || empty($saleId) || empty($sourceMovementId) || !$product->isStockable()) {
+                $rejected[] = ['id' => $id, 'reason' => 'invalid_consume'];
+                return;
+            }
+
+            $sourceMovement = Movement::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $sourceMovementId)
+                ->first();
+
+            if ($sourceMovement === null || (string) $sourceMovement->sale_id !== (string) $saleId || $sourceMovement->type !== 'sale' || $sourceMovement->tracks_stock !== false) {
+                $rejected[] = ['id' => $id, 'reason' => 'invalid_consume'];
+                return;
+            }
+
+            $shop = Shop::find($shopId);
+            if ($shop?->block_sale_when_material_short) {
+                $currentStock = $this->ledger->stockOf($product->id, $locationId, $shopId) ?? 0;
+                if ($currentStock + $qtyMilli < 0) {
+                    $rejected[] = ['id' => $id, 'reason' => 'insufficient_material'];
+                    return;
+                }
+            }
+        }
+
         $transferId = !empty($data['transfer_id']) ? (string) $data['transfer_id'] : null;
 
         $movement = new Movement([
@@ -1025,10 +1082,12 @@ class SyncService
             'location_id' => $locationId,
             'transfer_id' => $transferId,
             'sale_id' => $saleId,
+            'source_movement_id' => $sourceMovementId,
             'user_id' => $device->user_id,
             'device_id' => $device->id,
             'type' => $type,
-            'qty_milli' => LedgerService::parseQty($rawQty),
+            'tracks_stock' => $tracksStock,
+            'qty_milli' => $qtyMilli,
             'unit_price_cents' => isset($data['unit_price_cents']) ? (int) $data['unit_price_cents'] : 0,
             'note' => isset($data['note']) ? (string) $data['note'] : null,
             'created_at_ms' => $createdMs,
@@ -1058,7 +1117,11 @@ class SyncService
         array &$accepted,
         array &$rejected
     ): void {
-        $allowedFields = ['id', 'name', 'sku', 'unit', 'cost_price_cents', 'sell_price_cents', 'low_stock_at', 'is_active', 'updated_at'];
+        $allowedFields = [
+            'id', 'name', 'sku', 'unit', 'cost_price_cents', 'sell_price_cents',
+            'low_stock_at', 'is_active', 'updated_at',
+            'kind', 'ask_price', 'materials', 'kind_changed_at',
+        ];
         $unknown = array_diff(array_keys($data), $allowedFields);
         if (!empty($unknown)) {
             $rejected[] = ['id' => $id, 'reason' => 'Unknown field(s) in product data: ' . implode(', ', $unknown)];
@@ -1081,6 +1144,12 @@ class SyncService
             if (!$this->permissionService->can($user, 'products.delete', null, $updatedMs)) {
                 $this->recordRejectedChange($shopId, $device, $id, 'product', $op, $fullItem, $updatedMs, 'forbidden_permission', 'User lacks [products.delete] permission.');
                 $rejected[] = ['id' => $id, 'reason' => 'forbidden_permission'];
+                return;
+            }
+
+            // Material delete protection: cannot delete if used in any consumable's recipe
+            if ($existing !== null && app(SalesService::class)->isUsedAsMaterial($id, $shopId)) {
+                $rejected[] = ['id' => $id, 'reason' => 'used_as_material'];
                 return;
             }
         } elseif ($existing === null) {
@@ -1146,6 +1215,43 @@ class SyncService
             return;
         }
 
+        // Parse and validate materials if provided
+        $parsedMaterials = null;
+        if (array_key_exists('materials', $data) && $data['materials'] !== null) {
+            $rawMaterials = $data['materials'];
+            if (!is_array($rawMaterials)) {
+                $rejected[] = ['id' => $id, 'reason' => 'invalid_materials'];
+                return;
+            }
+            $parsedMaterials = [];
+            foreach ($rawMaterials as $mat) {
+                $matId = (string) ($mat['product_id'] ?? '');
+                if ($matId === '' || $matId === $id) {
+                    $rejected[] = ['id' => $id, 'reason' => 'invalid_materials'];
+                    return;
+                }
+                $matProd = Product::withoutGlobalScope(ShopScope::class)
+                    ->where('shop_id', $shopId)
+                    ->where('id', $matId)
+                    ->first();
+                if ($matProd === null || !$matProd->isStockable()) {
+                    $rejected[] = ['id' => $id, 'reason' => 'invalid_materials'];
+                    return;
+                }
+                $qtyMilli = isset($mat['qty_milli'])
+                    ? (int) $mat['qty_milli']
+                    : LedgerService::parseQty((string) ($mat['qty'] ?? '0.000'));
+                if ($qtyMilli <= 0) {
+                    $rejected[] = ['id' => $id, 'reason' => 'invalid_materials'];
+                    return;
+                }
+                $parsedMaterials[] = [
+                    'product_id' => $matId,
+                    'qty_milli' => $qtyMilli,
+                ];
+            }
+        }
+
         if ($existing !== null) {
             // Check if incoming edit is stale
             if ($updatedMs < $existing->updated_at_ms) {
@@ -1179,6 +1285,19 @@ class SyncService
                 }
             }
 
+            // Kind change validation
+            if (array_key_exists('kind', $data) && $data['kind'] !== ($existing->kind ?? 'stockable')) {
+                $newKind = (string) $data['kind'];
+                try {
+                    app(SalesService::class)->validateKindChange($existing, $newKind, $shopId);
+                } catch (\InvalidArgumentException $e) {
+                    $rejected[] = ['id' => $id, 'reason' => $e->getMessage()];
+                    return;
+                }
+                $existing->kind = $newKind;
+                $existing->kind_changed_at_ms = (int) ($data['kind_changed_at'] ?? $updatedMs);
+            }
+
             $existing->name = $name;
             $existing->sku = $data['sku'] ?? $existing->sku;
             $existing->unit = $data['unit'] ?? $existing->unit;
@@ -1187,6 +1306,12 @@ class SyncService
             }
             if (array_key_exists('sell_price_cents', $data)) {
                 $existing->sell_price_cents = (int) $data['sell_price_cents'];
+            }
+            if (array_key_exists('ask_price', $data)) {
+                $existing->ask_price = (bool) $data['ask_price'];
+            }
+            if (array_key_exists('materials', $data)) {
+                $existing->materials = $parsedMaterials;
             }
             if (array_key_exists('low_stock_at', $data)) {
                 $existing->low_stock_at_milli = $data['low_stock_at'] !== null
@@ -1210,14 +1335,19 @@ class SyncService
         }
 
         // Create new product
+        $newKind = $data['kind'] ?? 'stockable';
         Product::withoutGlobalScope(ShopScope::class)->create([
             'id' => $id,
             'shop_id' => $shopId,
             'name' => $name,
             'sku' => $data['sku'] ?? null,
             'unit' => $data['unit'] ?? 'pcs',
+            'kind' => $newKind,
             'cost_price_cents' => $costPrice,
             'sell_price_cents' => $sellPrice,
+            'ask_price' => isset($data['ask_price']) ? (bool) $data['ask_price'] : false,
+            'materials' => $parsedMaterials,
+            'kind_changed_at_ms' => isset($data['kind_changed_at']) ? (int) $data['kind_changed_at'] : null,
             'low_stock_at_milli' => isset($data['low_stock_at']) ? LedgerService::parseQty((string) $data['low_stock_at']) : null,
             'is_active' => isset($data['is_active']) ? (bool) $data['is_active'] : true,
             'updated_at_ms' => $updatedMs,
@@ -1458,7 +1588,9 @@ class SyncService
                     'location_id' => $m->location_id,
                     'transfer_id' => $m->transfer_id,
                     'sale_id' => $m->sale_id,
+                    'source_movement_id' => $m->source_movement_id,
                     'type' => $m->type,
+                    'tracks_stock' => (bool) ($m->tracks_stock ?? true),
                     'qty' => LedgerService::formatQty($m->qty_milli),
                     'unit_price_cents' => $unitPrice,
                     'note' => $m->note,
@@ -1486,21 +1618,40 @@ class SyncService
             $isDeleted = $p->deleted_at_ms !== null;
             $costPrice = $hasCostView ? $p->cost_price_cents : null;
 
+            $materialsWire = null;
+            if (!empty($p->materials) && is_array($p->materials)) {
+                $materialsWire = array_map(function ($mat) {
+                    return [
+                        'product_id' => $mat['product_id'],
+                        'qty' => LedgerService::formatQty((int) ($mat['qty_milli'] ?? 0)),
+                    ];
+                }, $p->materials);
+            }
+
+            $productData = [
+                'id' => $p->id,
+                'name' => $p->name,
+                'sku' => $p->sku,
+                'unit' => $p->unit,
+                'kind' => $p->kind ?? 'stockable',
+                'cost_price_cents' => $costPrice,
+                'sell_price_cents' => $p->sell_price_cents,
+                'ask_price' => (bool) ($p->ask_price ?? false),
+                'materials' => $materialsWire,
+                'low_stock_at' => $p->low_stock_at_milli !== null ? LedgerService::formatQty($p->low_stock_at_milli) : null,
+                'is_active' => (bool) $p->is_active,
+                'updated_at' => $p->updated_at_ms,
+            ];
+
+            if ($p->kind_changed_at_ms !== null) {
+                $productData['kind_changed_at'] = $p->kind_changed_at_ms;
+            }
+
             return [
                 'id' => $p->id,
                 'entity' => 'product',
                 'op' => $isDeleted ? 'delete' : 'upsert',
-                'data' => [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'sku' => $p->sku,
-                    'unit' => $p->unit,
-                    'cost_price_cents' => $costPrice,
-                    'sell_price_cents' => $p->sell_price_cents,
-                    'low_stock_at' => $p->low_stock_at_milli !== null ? LedgerService::formatQty($p->low_stock_at_milli) : null,
-                    'is_active' => (bool) $p->is_active,
-                    'updated_at' => $p->updated_at_ms,
-                ],
+                'data' => $productData,
                 'cursor' => $change->seq,
             ];
         }

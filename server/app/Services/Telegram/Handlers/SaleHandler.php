@@ -112,7 +112,7 @@ class SaleHandler
 
         $curLoc = $this->locationHandler->getCurrentLocation($user);
         $stockMilli = $curLoc ? $this->ledger->stockOf($product, $curLoc) : $this->ledger->stockOf($product);
-        $stockFormatted = LedgerService::formatQty($stockMilli);
+        $stockFormatted = $stockMilli !== null ? LedgerService::formatQty($stockMilli) : ($locale === 'en' ? 'N/A' : 'አይቆጠርም');
         $priceEtb = number_format($product->sell_price_cents / 100, 2);
 
         $state = $this->botState->get($chatId);
@@ -185,10 +185,11 @@ class SaleHandler
 
         $neededMilli = LedgerService::parseQty((string) $qty);
 
-        // Check if negative stock is disallowed
-        if (!$shop?->allow_negative_stock) {
+        // Check if negative stock is disallowed (stockable items only)
+        if ($product->isStockable() && !$shop?->allow_negative_stock) {
             $curLoc = $this->locationHandler->getCurrentLocation($user);
             $currentStockMilli = $curLoc ? $this->ledger->stockOf($product, $curLoc) : $this->ledger->stockOf($product);
+            $currentStockMilli = $currentStockMilli ?? 0;
 
             // Subtract any quantity of this product already in cart
             $alreadyInCartMilli = 0;
@@ -1426,30 +1427,25 @@ class SaleHandler
                 'entity_id' => $saleId,
             ]);
 
-            // 2. Create Movements with sale_id
+            // 2. Create Movements with sale_id (supports stockable, service, and consumable items)
+            $salesService = app(\App\Services\SalesService::class);
             $receiptLines = '';
             foreach ($cart as $idx => $item) {
                 $num = $idx + 1;
                 $linePrice = number_format($item['total_cents'] / 100, 2) . ' ETB';
                 $receiptLines .= "{$num}. {$item['name']} × {$item['qty_formatted']} {$item['unit']} = <b>{$linePrice}</b>\n";
 
-                $movId = (string) Str::uuid7();
-                $movement = new Movement([
-                    'id' => $movId,
-                    'shop_id' => $shopId,
-                    'product_id' => $item['product_id'],
-                    'location_id' => $curLoc?->id,
-                    'user_id' => $user?->id,
-                    'device_id' => null,
-                    'sale_id' => $saleId,
-                    'type' => 'sale',
-                    'qty_milli' => -((int) $item['qty_milli']),
-                    'unit_price_cents' => (int) $item['unit_price_cents'],
-                    'note' => 'Telegram Sale',
-                    'created_at_ms' => $nowMs,
-                ]);
-
-                $this->ledger->record($movement);
+                $salesService->addLine(
+                    sale: $sale,
+                    product: $item['product_id'],
+                    qty: (int) $item['qty_milli'],
+                    unitPriceCents: (int) $item['unit_price_cents'],
+                    location: $curLoc?->id,
+                    user: $user,
+                    device: null,
+                    note: 'Telegram Sale',
+                    createdAtMs: $nowMs
+                );
             }
 
             // 3. Create Payment if paid portion > 0

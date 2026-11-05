@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Customer;
+use App\Models\Movement;
 use App\Models\Payment;
 use App\Models\PaymentProvider;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Shop;
 use App\Scopes\ShopScope;
@@ -396,6 +398,227 @@ class PaymentReportService
             'cash_repayments_cents' => $cashRepayments,
             'cash_reversals_cents' => $cashReversals,
             'count' => $payments->count(),
+        ];
+    }
+
+    /**
+     * Report: Sales broken down by product kind (stockable, service, consumable).
+     *
+     * @param Shop|string $shop
+     * @param array{0: int, 1: int} $range [startMs, endMs]
+     * @param string|null $locationId
+     * @return array{
+     *     by_kind: array<string, array{sales_count: int, units_sold_milli: int, units_sold: string, revenue_cents: int}>,
+     *     total_revenue_cents: int,
+     *     total_units_sold_milli: int,
+     *     total_units_sold: string
+     * }
+     */
+    public function salesByKind(
+        Shop|string $shop,
+        array $range,
+        ?string $locationId = null
+    ): array {
+        $shopModel = $shop instanceof Shop ? $shop : Shop::findOrFail($shop);
+        $shopId = (string) $shopModel->id;
+        [$startMs, $endMs] = $range;
+
+        $query = Movement::withoutGlobalScope(ShopScope::class)
+            ->join('products', 'products.id', '=', 'movements.product_id')
+            ->where('movements.shop_id', $shopId)
+            ->where('movements.type', 'sale')
+            ->whereBetween('movements.created_at_ms', [$startMs, $endMs]);
+
+        if (!empty($locationId) && $locationId !== 'all') {
+            $query->where('movements.location_id', $locationId);
+        }
+
+        $rows = $query->select([
+            'movements.id',
+            'movements.qty_milli',
+            'movements.unit_price_cents',
+            'products.kind',
+        ])->get();
+
+        $byKind = [
+            'stockable' => ['sales_count' => 0, 'units_sold_milli' => 0, 'units_sold' => '0.000', 'revenue_cents' => 0],
+            'service' => ['sales_count' => 0, 'units_sold_milli' => 0, 'units_sold' => '0.000', 'revenue_cents' => 0],
+            'consumable' => ['sales_count' => 0, 'units_sold_milli' => 0, 'units_sold' => '0.000', 'revenue_cents' => 0],
+        ];
+
+        $totalRevenue = 0;
+        $totalUnitsMilli = 0;
+
+        foreach ($rows as $row) {
+            $kind = $row->kind ?: 'stockable';
+            if (!isset($byKind[$kind])) {
+                $byKind[$kind] = ['sales_count' => 0, 'units_sold_milli' => 0, 'units_sold' => '0.000', 'revenue_cents' => 0];
+            }
+
+            $unitsMilli = abs((int) $row->qty_milli);
+            $revCents = (int) round(($unitsMilli * (int) $row->unit_price_cents) / 1000);
+
+            $byKind[$kind]['sales_count']++;
+            $byKind[$kind]['units_sold_milli'] += $unitsMilli;
+            $byKind[$kind]['revenue_cents'] += $revCents;
+
+            $totalRevenue += $revCents;
+            $totalUnitsMilli += $unitsMilli;
+        }
+
+        foreach ($byKind as $k => $data) {
+            $byKind[$k]['units_sold'] = LedgerService::formatQty($data['units_sold_milli']);
+        }
+
+        return [
+            'by_kind' => $byKind,
+            'total_revenue_cents' => $totalRevenue,
+            'total_units_sold_milli' => $totalUnitsMilli,
+            'total_units_sold' => LedgerService::formatQty($totalUnitsMilli),
+        ];
+    }
+
+    /**
+     * Report: Raw materials consumed by consumable sales in the range.
+     *
+     * @param Shop|string $shop
+     * @param array{0: int, 1: int} $range [startMs, endMs]
+     * @param string|null $locationId
+     * @return array{
+     *     materials: array<int, array{product_id: string, product_name: string, sku: ?string, unit: string, qty_milli: int, qty: string, cost_price_cents: int, total_cost_cents: int}>,
+     *     total_cost_cents: int,
+     *     count: int
+     * }
+     */
+    public function materialsUsed(
+        Shop|string $shop,
+        array $range,
+        ?string $locationId = null
+    ): array {
+        $shopModel = $shop instanceof Shop ? $shop : Shop::findOrFail($shop);
+        $shopId = (string) $shopModel->id;
+        [$startMs, $endMs] = $range;
+
+        $query = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('type', 'consume')
+            ->whereBetween('created_at_ms', [$startMs, $endMs]);
+
+        if (!empty($locationId) && $locationId !== 'all') {
+            $query->where('location_id', $locationId);
+        }
+
+        $consumeRows = $query->get();
+
+        $grouped = [];
+        $totalCost = 0;
+
+        foreach ($consumeRows as $row) {
+            $pid = (string) $row->product_id;
+            if (!isset($grouped[$pid])) {
+                $prod = Product::withoutGlobalScope(ShopScope::class)->find($pid);
+                $grouped[$pid] = [
+                    'product_id' => $pid,
+                    'product_name' => $prod?->name ?? 'Unknown',
+                    'sku' => $prod?->sku,
+                    'unit' => $prod?->unit ?? 'pcs',
+                    'qty_milli' => 0,
+                    'cost_price_cents' => (int) ($prod?->cost_price_cents ?? 0),
+                    'total_cost_cents' => 0,
+                ];
+            }
+
+            $deductMilli = abs((int) $row->qty_milli);
+            $grouped[$pid]['qty_milli'] += $deductMilli;
+        }
+
+        $materialsList = [];
+        foreach ($grouped as $item) {
+            $itemCost = (int) round(($item['qty_milli'] * $item['cost_price_cents']) / 1000);
+            $item['total_cost_cents'] = $itemCost;
+            $item['qty'] = LedgerService::formatQty($item['qty_milli']);
+            $totalCost += $itemCost;
+            $materialsList[] = $item;
+        }
+
+        usort($materialsList, fn($a, $b) => $b['total_cost_cents'] <=> $a['total_cost_cents']);
+
+        return [
+            'materials' => $materialsList,
+            'total_cost_cents' => $totalCost,
+            'count' => count($materialsList),
+        ];
+    }
+
+    /**
+     * Compute estimated profit for a range considering stockable, service, and consumable lines.
+     */
+    public function estimatedProfit(
+        Shop|string $shop,
+        array $range,
+        ?string $locationId = null
+    ): array {
+        $shopModel = $shop instanceof Shop ? $shop : Shop::findOrFail($shop);
+        $shopId = (string) $shopModel->id;
+        [$startMs, $endMs] = $range;
+
+        $salesQuery = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('type', 'sale')
+            ->whereBetween('created_at_ms', [$startMs, $endMs]);
+
+        if (!empty($locationId) && $locationId !== 'all') {
+            $salesQuery->where('location_id', $locationId);
+        }
+
+        $salesRows = $salesQuery->get();
+        $totalRevenueCents = 0;
+        $totalCostCents = 0;
+
+        foreach ($salesRows as $s) {
+            $qtySold = abs($s->qty_milli) / 1000;
+            $saleRevenue = (int) round($qtySold * $s->unit_price_cents);
+            $totalRevenueCents += $saleRevenue;
+
+            $prod = Product::withoutGlobalScope(ShopScope::class)->find($s->product_id);
+            if ($prod === null) {
+                continue;
+            }
+
+            if ($prod->isStockable()) {
+                // Stockable lines use cost price
+                if ($prod->cost_price_cents > 0) {
+                    $totalCostCents += (int) round($qtySold * $prod->cost_price_cents);
+                }
+            } elseif ($prod->isService()) {
+                // Service lines use optional cost_price_cents (0 if empty)
+                if ($prod->cost_price_cents > 0) {
+                    $totalCostCents += (int) round($qtySold * $prod->cost_price_cents);
+                }
+            } elseif ($prod->isConsumable()) {
+                // Consumable lines use materials consumed x material current cost price
+                $consumes = Movement::withoutGlobalScope(ShopScope::class)
+                    ->where('shop_id', $shopId)
+                    ->where('type', 'consume')
+                    ->where('source_movement_id', $s->id)
+                    ->get();
+
+                foreach ($consumes as $c) {
+                    $matProd = Product::withoutGlobalScope(ShopScope::class)->find($c->product_id);
+                    if ($matProd !== null && $matProd->cost_price_cents > 0) {
+                        $matQty = abs($c->qty_milli) / 1000;
+                        $totalCostCents += (int) round($matQty * $matProd->cost_price_cents);
+                    }
+                }
+            }
+        }
+
+        $profit = $totalRevenueCents - $totalCostCents;
+
+        return [
+            'revenue_cents' => $totalRevenueCents,
+            'cost_cents' => $totalCostCents,
+            'profit_cents' => $profit,
         ];
     }
 }

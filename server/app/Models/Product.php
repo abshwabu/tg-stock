@@ -24,24 +24,47 @@ class Product extends Model
         'name',
         'sku',
         'unit',
+        'kind',
         'cost_price_cents',
         'sell_price_cents',
+        'ask_price',
+        'materials',
         'low_stock_at_milli',
         'is_active',
+        'kind_changed_at_ms',
         'updated_at_ms',
         'deleted_at_ms',
         'low_stock_alerted_at_ms',
     ];
 
     protected $casts = [
+        'kind' => 'string',
         'cost_price_cents' => 'integer',
         'sell_price_cents' => 'integer',
+        'ask_price' => 'boolean',
+        'materials' => 'array',
         'low_stock_at_milli' => 'integer',
         'is_active' => 'boolean',
+        'kind_changed_at_ms' => 'integer',
         'updated_at_ms' => 'integer',
         'deleted_at_ms' => 'integer',
         'low_stock_alerted_at_ms' => 'integer',
     ];
+
+    public function isStockable(): bool
+    {
+        return ($this->kind ?? 'stockable') === 'stockable';
+    }
+
+    public function isService(): bool
+    {
+        return ($this->kind ?? 'stockable') === 'service';
+    }
+
+    public function isConsumable(): bool
+    {
+        return ($this->kind ?? 'stockable') === 'consumable';
+    }
 
     protected static function booted(): void
     {

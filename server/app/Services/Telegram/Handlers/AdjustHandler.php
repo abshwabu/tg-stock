@@ -52,6 +52,12 @@ class AdjustHandler
             return;
         }
 
+        if (!$product->isStockable()) {
+            $msg = $locale === 'en' ? '⚠️ Cannot adjust stock for a non-stockable item (service or consumable).' : '⚠️ ስቶክ የሌለው ዕቃ ማስተካከል አይቻልም።';
+            $this->telegram->sendMessage($chatId, $msg);
+            return;
+        }
+
         $currentStockMilli = $curLoc ? $this->ledger->stockOf($product, $curLoc) : $this->ledger->stockOf($product);
         $currentFormatted = LedgerService::formatQty($currentStockMilli);
 
@@ -160,6 +166,12 @@ class AdjustHandler
 
         if ($product === null) {
             $this->telegram->sendMessage($chatId, 'Product not found.');
+            return;
+        }
+
+        if (!$product->isStockable()) {
+            $msg = $locale === 'en' ? '⚠️ Cannot adjust stock for a non-stockable item (service or consumable).' : '⚠️ ስቶክ የሌለው ዕቃ ማስተካከል አይቻልም።';
+            $this->telegram->sendMessage($chatId, $msg);
             return;
         }
 

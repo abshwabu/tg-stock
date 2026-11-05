@@ -82,8 +82,13 @@ class ProductHandler
 
         foreach ($products as $prod) {
             $stockMilli = $this->ledger->stockOf($prod);
-            $stockQty = LedgerService::formatQty($stockMilli);
-            $lowMark = $stockMilli <= ($prod->low_stock_at_milli ?? $lowThreshold) ? '🔴 ' : '🟢 ';
+            if ($stockMilli !== null) {
+                $stockQty = LedgerService::formatQty($stockMilli);
+                $lowMark = $stockMilli <= ($prod->low_stock_at_milli ?? $lowThreshold) ? '🔴 ' : '🟢 ';
+            } else {
+                $stockQty = $prod->isService() ? ($locale === 'en' ? 'Service' : 'አገልግሎት') : ($locale === 'en' ? 'Consumable' : 'የሚዘጋጅ');
+                $lowMark = '✨ ';
+            }
             $priceEtb = number_format($prod->sell_price_cents / 100, 2);
 
             $rows[] = [
@@ -147,10 +152,15 @@ class ProductHandler
 
         $shop = Shop::find($shopId);
         $totalStockMilli = $this->ledger->stockOf($product);
-        $totalStockFormatted = LedgerService::formatQty($totalStockMilli);
-        $threshold = $product->low_stock_at_milli ?? $shop?->low_stock_default_milli ?? 5000;
-        $isLow = $totalStockMilli <= $threshold;
-        $badge = $isLow ? __('stock_badge_low') : __('stock_badge_ok');
+        if ($totalStockMilli !== null) {
+            $totalStockFormatted = LedgerService::formatQty($totalStockMilli);
+            $threshold = $product->low_stock_at_milli ?? $shop?->low_stock_default_milli ?? 5000;
+            $isLow = $totalStockMilli <= $threshold;
+            $badge = $isLow ? __('stock_badge_low') : __('stock_badge_ok');
+        } else {
+            $totalStockFormatted = $product->isService() ? ($locale === 'en' ? 'Service (No Stock)' : 'አገልግሎት') : ($locale === 'en' ? 'Consumable' : 'የሚዘጋጅ');
+            $badge = '✨ ' . ($locale === 'en' ? 'Non-Stockable' : 'ስቶክ የሌለው');
+        }
 
         // Cost price visibility check
         $canSeeCost = $this->permissionService->can($user, 'cost.view');
@@ -307,7 +317,9 @@ class ProductHandler
         $rows = [];
         foreach ($matches as $prod) {
             $stockMilli = $this->ledger->stockOf($prod);
-            $stockQty = LedgerService::formatQty($stockMilli);
+            $stockQty = $stockMilli !== null
+                ? LedgerService::formatQty($stockMilli)
+                : ($prod->isService() ? ($locale === 'en' ? 'Service' : 'አገልግሎት') : ($locale === 'en' ? 'Consumable' : 'የሚዘጋጅ'));
             $priceEtb = number_format($prod->sell_price_cents / 100, 2);
 
             $rows[] = [

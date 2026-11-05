@@ -222,9 +222,28 @@ class ReportHandler
 
             if ($canSeeCost) {
                 $prod = Product::withoutGlobalScope(ShopScope::class)->find($s->product_id);
-                if ($prod && $prod->cost_price_cents > 0) {
-                    $totalCostCents += (int) round($qtySold * $prod->cost_price_cents);
-                    $itemsWithCost++;
+                if ($prod) {
+                    if ($prod->isStockable() || $prod->isService()) {
+                        if ($prod->cost_price_cents > 0) {
+                            $totalCostCents += (int) round($qtySold * $prod->cost_price_cents);
+                            $itemsWithCost++;
+                        }
+                    } elseif ($prod->isConsumable()) {
+                        $consumes = Movement::withoutGlobalScope(ShopScope::class)
+                            ->where('shop_id', $shopId)
+                            ->where('type', 'consume')
+                            ->where('source_movement_id', $s->id)
+                            ->get();
+
+                        foreach ($consumes as $c) {
+                            $matProd = Product::withoutGlobalScope(ShopScope::class)->find($c->product_id);
+                            if ($matProd && $matProd->cost_price_cents > 0) {
+                                $matQty = abs($c->qty_milli) / 1000;
+                                $totalCostCents += (int) round($matQty * $matProd->cost_price_cents);
+                                $itemsWithCost++;
+                            }
+                        }
+                    }
                 }
             }
         }
