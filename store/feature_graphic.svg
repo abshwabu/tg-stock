@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F766E" />
+      <stop offset="60%" stop-color="#115E59" />
+      <stop offset="100%" stop-color="#042F2E" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.04" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="500" fill="url(#bgGrad)" />
+
+  <!-- Subtle geometric circles in background -->
+  <circle cx="950" cy="80" r="260" fill="#FFFFFF" fill-opacity="0.03" />
+  <circle cx="850" cy="400" r="320" fill="#F59E0B" fill-opacity="0.04" />
+  <circle cx="80" cy="450" r="200" fill="#FFFFFF" fill-opacity="0.02" />
+
+  <!-- Brand Card on Left / Center -->
+  <g transform="translate(70, 75)">
+    <!-- Category Badge -->
+    <rect x="0" y="0" width="165" height="32" rx="16" fill="url(#goldGrad)" />
+    <text x="82" y="21" font-family="sans-serif" font-weight="bold" font-size="13" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">RETAIL POS &amp; STOCK</text>
+
+    <!-- Main Title -->
+    <text x="0" y="95" font-family="sans-serif" font-weight="900" font-size="62" fill="#FFFFFF" letter-spacing="-1">Inventory</text>
+    <text x="310" y="95" font-family="sans-serif" font-weight="700" font-size="44" fill="#38BDF8">/ የኔ ሱቅ</text>
+
+    <!-- Subtitle -->
+    <text x="0" y="145" font-family="sans-serif" font-weight="500" font-size="22" fill="#E2E8F0">
+      Simple, Offline Inventory, POS &amp; Credit Ledger
+    </text>
+    <text x="0" y="178" font-family="sans-serif" font-weight="400" font-size="18" fill="#94A3B8">
+      ለኢትዮጵያ ቸርቻሪ ሱቆች የተዘጋጀ ከመስመር ውጭ የሚሰራ
+    </text>
+
+    <!-- Feature Pills -->
+    <g transform="translate(0, 225)">
+      <!-- Pill 1 -->
+      <rect x="0" y="0" width="155" height="38" rx="19" fill="#FFFFFF" fill-opacity="0.15" stroke="#FFFFFF" stroke-opacity="0.2" />
+      <text x="77" y="24" font-family="sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">⚡ 100% OFFLINE</text>
+
+      <!-- Pill 2 -->
+      <rect x="170" y="0" width="165" height="38" rx="19" fill="#FFFFFF" fill-opacity="0.15" stroke="#FFFFFF" stroke-opacity="0.2" />
+      <text x="252" y="24" font-family="sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">📒 DUBE / ዱቤ LEDGER</text>
+
+      <!-- Pill 3 -->
+      <rect x="350" y="0" width="190" height="38" rx="19" fill="#FFFFFF" fill-opacity="0.15" stroke="#FFFFFF" stroke-opacity="0.2" />
+      <text x="445" y="24" font-family="sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">📱 TELEBIRR &amp; CASH</text>
+    </g>
+  </g>
+
+  <!-- Visual Card Graphic on Right -->
+  <g transform="translate(710, 80)">
+    <!-- App Mockup Floating Container -->
+    <rect x="0" y="0" width="240" height="340" rx="24" fill="url(#cardGrad)" stroke="#FFFFFF" stroke-opacity="0.25" stroke-width="1.5" />
+    
+    <!-- Mini App Icon in Card -->
+    <rect x="75" y="45" width="90" height="90" rx="20" fill="#0F766E" stroke="#38BDF8" stroke-width="2" />
+    <!-- Shopping bag / box icon -->
+    <path d="M102 78 L120 62 L138 78 L138 108 L102 108 Z" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linejoin="round" />
+    <line x1="120" y1="62" x2="120" y2="108" stroke="#FFFFFF" stroke-width="3" />
+    <path d="M107 78 L133 78" stroke="#F59E0B" stroke-width="3" />
+
+    <text x="120" y="175" font-family="sans-serif" font-weight="bold" font-size="18" fill="#FFFFFF" text-anchor="middle">Inventory POS</text>
+    <text x="120" y="200" font-family="sans-serif" font-size="12" fill="#38BDF8" text-anchor="middle">Fast • Private • Safe</text>
+
+    <!-- Simulated Mini POS Ticker -->
+    <rect x="25" y="235" width="190" height="42" rx="10" fill="#0F172A" fill-opacity="0.6" />
+    <text x="38" y="261" font-family="monospace" font-size="13" font-weight="bold" fill="#22C55E">ETB 3,450.00</text>
+    <text x="195" y="261" font-family="sans-serif" font-size="11" fill="#F59E0B" text-anchor="end">PAID ✓</text>
+
+    <rect x="25" y="285" width="190" height="28" rx="8" fill="#F59E0B" />
+    <text x="120" y="303" font-family="sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF" text-anchor="middle">NEW SALE (ሽያጭ)</text>
+  </g>
+</svg>

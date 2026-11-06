@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\DeviceController;
 use App\Http\Controllers\Api\PairingController;
 use App\Http\Controllers\Api\RejectedChangeController;
@@ -28,6 +29,9 @@ Route::get('/health', [HealthController::class, 'check']);
 Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 
 Route::prefix('v1')->group(function (): void {
+    // Mobile App Version & Update check endpoint (unauthenticated)
+    Route::get('/app/version', [AppVersionController::class, 'show']);
+
     // Webhook alias
     Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
     // 1. Device pairing endpoints (unauthenticated, short-polling)

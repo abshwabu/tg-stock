@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../widgets/empty_state_widget.dart';
+import 'sale_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   final LedgerRepository repository;
@@ -342,8 +344,24 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
               final list = snapshot.data!;
               if (list.isEmpty) {
-                return const Center(
-                  child: Text('No movements recorded yet / ምንም እንቅስቃሴ የለም', style: TextStyle(color: Colors.grey)),
+                return EmptyStateWidget(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'ምንም እንቅስቃሴ አልተመዘገበም\nNo Transactions Yet',
+                  description:
+                      'ሽያጭ ሲያካሂዱ ወይም ዕቃ ሲያስገቡ የግብይት ደረሰኞች እና ዝርዝሮች እዚህ በግልጽ ይቀመጣሉ።\n'
+                      'Recorded sales, stock intakes, and adjustments will appear here with full undo support.',
+                  primaryButtonLabel: 'አዲስ ሽያጭ ጀምር / Record Sale',
+                  primaryButtonIcon: Icons.point_of_sale_rounded,
+                  onPrimaryPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => SaleScreen(
+                          repository: widget.repository,
+                          onMutation: widget.onMutation,
+                        ),
+                      ),
+                    );
+                  },
                 );
               }
 

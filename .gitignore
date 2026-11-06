@@ -27,6 +27,12 @@
 /app/.pub-cache/
 /app/.pub/
 
+# Android Signing Keys and Keystores (Strictly ignored)
+*.jks
+*.keystore
+key.properties
+/app/android/key.properties
+
 # Explicitly ensure lockfiles are committed
 !/server/composer.lock
 !/app/pubspec.lock

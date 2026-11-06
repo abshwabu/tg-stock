@@ -1149,6 +1149,33 @@ class TelegramRouter
             return;
         }
 
+        // Privacy Policy command
+        if (in_array(strtolower($text), ['/privacy', 'privacy', 'የግላዊነት ፖሊሲ', 'ፖሊሲ'], true)) {
+            $msg = $locale === 'en'
+                ? "🔒 <b>Privacy Policy:</b>\nRead our full offline-first privacy policy at:\nhttps://stock.yenesuq.com/privacy/\n\nYour data stays on your device. Online sync stores only Telegram ID, device token, and synced shop ledger. You can delete your cloud data at any time via /delete_shop or in the app."
+                : "🔒 <b>የግላዊነት ፖሊሲ፦</b>\nየመተግበሪያውን ሙሉ የግላዊነት መመሪያ በሚከተለው ሊንክ ይመልከቱ፦\nhttps://stock.yenesuq.com/privacy/\n\nመረጃዎ በስልክዎ ላይ ብቻ የሚቀመጥ ሲሆን፡ በመስመር ላይ የሚቀመጠው የቴሌግራም መለያዎ እና የመረጧቸው መረጃዎች ብቻ ናቸው። በማንኛውም ሰዓት በ /delete_shop ወይም በመተግበሪያው ላይ ማጥፋት ይችላሉ።";
+            $this->telegram->sendMessage($chatId, $msg, ['parse_mode' => 'HTML']);
+            return;
+        }
+
+        // Terms of Service command
+        if (in_array(strtolower($text), ['/terms', 'terms', 'የአጠቃቀም ደንቦች', 'ደንቦች'], true)) {
+            $msg = $locale === 'en'
+                ? "📜 <b>Terms of Service:</b>\nRead our terms of service at:\nhttps://stock.yenesuq.com/terms/\n\nSupport contact: support@yenesuq.com"
+                : "📜 <b>የአጠቃቀም ደንቦች፦</b>\nየአጠቃቀም ደንቦቹን በሚከተለው ሊንክ ይመልከቱ፦\nhttps://stock.yenesuq.com/terms/\n\nየድጋፍ አድራሻ፦ support@yenesuq.com";
+            $this->telegram->sendMessage($chatId, $msg, ['parse_mode' => 'HTML']);
+            return;
+        }
+
+        // Direct Download link command
+        if (in_array(strtolower($text), ['/download', '/app', 'download', 'አውርድ', 'መተግበሪያ'], true)) {
+            $msg = $locale === 'en'
+                ? "📦 <b>Download Mobile App:</b>\nDownload the latest Android APK directly from our official portal:\nhttps://stock.yenesuq.com/app/\n\nAvailable for arm64-v8a, armeabi-v7a (32-bit), and Universal."
+                : "📦 <b>የስልክ መተግበሪያውን ያውርዱ፦</b>\nየቅርብ ጊዜውን የአንድሮይድ መተግበሪያ (APK) ከኦፊሴላዊው ድረ-ገጻችን ያውርዱ፦\nhttps://stock.yenesuq.com/app/\n\nለ 64-bit፣ ለአሮጌ 32-bit እና ሁለንተናዊ (Universal) ስልኮች ዝግጁ ነው።";
+            $this->telegram->sendMessage($chatId, $msg, ['parse_mode' => 'HTML']);
+            return;
+        }
+
         // Check active conversation state
         $state = $this->botState->get($chatId);
         if ($state !== null) {

@@ -21,8 +21,13 @@ class InvalidBackupException implements Exception {
 class BackupService {
   final AppDatabase db;
   final LedgerRepository repository;
+  final Directory? customBackupsDir;
 
-  BackupService({required this.db, required this.repository});
+  BackupService({
+    required this.db,
+    required this.repository,
+    this.customBackupsDir,
+  });
 
   /// Returns the target File of the main SQLite database.
   Future<File> getDatabaseFile() async {
@@ -31,12 +36,29 @@ class BackupService {
 
   /// Returns the internal app directory dedicated to backups and snapshots.
   Future<Directory> getBackupsDirectory() async {
-    final docs = await getApplicationDocumentsDirectory();
-    final dir = Directory(p.join(docs.path, 'backups'));
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
+    if (customBackupsDir != null) {
+      if (!await customBackupsDir!.exists()) {
+        await customBackupsDir!.create(recursive: true);
+      }
+      return customBackupsDir!;
     }
-    return dir;
+    try {
+      final docs = await getApplicationDocumentsDirectory().timeout(
+        const Duration(milliseconds: 100),
+      );
+      final dir = Directory(p.join(docs.path, 'backups'));
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return dir;
+    } catch (_) {
+      final sysTemp = Directory.systemTemp;
+      final dir = Directory(p.join(sysTemp.path, 'inventory_backups'));
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return dir;
+    }
   }
 
   /// Creates a single-file backup or automatic weekly snapshot.
@@ -62,10 +84,12 @@ class BackupService {
 
     final targetPath = p.join(backupsDir.path, fileName);
     final backupFile = await dbFile.copy(targetPath);
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    await repository.setLastBackupMs(nowMs);
 
     if (isWeeklySnapshot) {
       await _rotateSnapshots(backupsDir);
-      await repository.setLastWeeklySnapshotMs(DateTime.now().toUtc().millisecondsSinceEpoch);
+      await repository.setLastWeeklySnapshotMs(nowMs);
     }
 
     return backupFile;
@@ -209,6 +233,19 @@ class BackupService {
       } catch (_) {}
     }
     return false;
+  }
+
+  /// Returns whether a backup is currently overdue according to the configured reminder days.
+  Future<bool> isBackupOverdue() async {
+    final reminderDays = await repository.getBackupReminderDays();
+    if (reminderDays <= 0) return false;
+
+    final lastMs = await repository.getLastBackupMs();
+    if (lastMs == null) return true;
+
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final overdueMs = reminderDays * 24 * 60 * 60 * 1000;
+    return (nowMs - lastMs) >= overdueMs;
   }
 
   /// Opens the system share sheet with the backup file.

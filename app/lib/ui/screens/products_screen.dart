@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 
 import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
+import '../../services/demo_data_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../widgets/empty_state_widget.dart';
 import 'adjust_screen.dart';
 import 'stock_in_screen.dart';
 import 'transfer_screen.dart';
@@ -24,12 +28,59 @@ class ProductsScreen extends StatefulWidget {
 }
 
 class _ProductsScreenState extends State<ProductsScreen> {
+  late final DemoDataService _demoService;
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedKindFilter = 'all';
+  bool _isDemoLoaded = false;
+  Timer? _searchDebounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _demoService = DemoDataService(repository: widget.repository);
+    _checkDemoStatus();
+  }
+
+  Future<void> _checkDemoStatus() async {
+    final loaded = await _demoService.isDemoProductsLoaded();
+    if (mounted) setState(() => _isDemoLoaded = loaded);
+  }
+
+  Future<void> _loadDemoProducts() async {
+    await _demoService.loadDemoProducts();
+    await _checkDemoStatus();
+    widget.onMutation?.call();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Demo products loaded! / የሙከራ ዕቃዎች ተጭነዋል')),
+      );
+    }
+  }
+
+  Future<void> _removeDemoProducts() async {
+    await _demoService.removeDemoProducts();
+    await _checkDemoStatus();
+    widget.onMutation?.call();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Demo products removed. / የሙከራ ዕቃዎች ተሰርዘዋል')),
+      );
+    }
+  }
+
+  void _onSearchChanged(String val) {
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        setState(() => _searchQuery = val.trim());
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _searchDebounceTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -694,9 +745,42 @@ class _ProductsScreenState extends State<ProductsScreen> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
               ),
-              onChanged: (val) => setState(() => _searchQuery = val),
+              onChanged: _onSearchChanged,
             ),
           ),
+
+          // Demo Data Banner
+          if (_isDemoLoaded)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF59E0B)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, size: 20, color: Color(0xFFB45309)),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'የሙከራ ዕቃዎች እየታዩ ነው (Demo Products)',
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                    ),
+                  ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red.shade900,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: _removeDemoProducts,
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('ሰርዝ / Remove'),
+                  ),
+                ],
+              ),
+            ),
 
           // Filter Chips
           SingleChildScrollView(
@@ -751,13 +835,42 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                 final products = snapshot.data!;
                 if (products.isEmpty) {
-                  return Center(
-                    child: Text(
-                      _searchQuery.isNotEmpty
-                          ? 'No matching products found / ምንም አልተገኘም'
-                          : 'No products yet / ምንም ዕቃዎች አልተመዘገቡም',
-                      style: const TextStyle(color: Colors.grey),
-                    ),
+                  if (_searchQuery.isNotEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.search_off_rounded, size: 48, color: Colors.grey),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No matching products for "$_searchQuery"',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                          const SizedBox(height: 8),
+                          OutlinedButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                            child: const Text('Clear Search / ፍለጋውን አጽዳ'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return EmptyStateWidget(
+                    icon: Icons.inventory_2_outlined,
+                    title: 'ምንም ዕቃዎች አልተመዘገቡም\nNo Products Yet',
+                    description:
+                        'የመጀመሪያዎን ዕቃ መዝግበው ሽያጭ ይጀምሩ ወይም ለሙከራ ዝግጁ የሆኑ የኢትዮጵያ ሱቅ ዕቃዎችን ይጫኑ።\n'
+                        'Add your first item or load realistic sample products to try out the app immediately.',
+                    primaryButtonLabel: 'አዲስ ዕቃ መዝግብ / Add Product',
+                    primaryButtonIcon: Icons.add_circle_outline,
+                    onPrimaryPressed: () => _showAddOrEditProductDialog(),
+                    secondaryButtonLabel: 'የሙከራ ዕቃዎችን ጫን / Load Demo Items',
+                    secondaryButtonIcon: Icons.auto_awesome,
+                    onSecondaryPressed: _loadDemoProducts,
                   );
                 }
 

@@ -130,9 +130,10 @@ class MenuHandler
 
         // 8.5 Privacy & Data Protection Notice
         if (in_array($clean, ['/privacy', 'privacy', 'ግላዊነት'], true)) {
+            $siteUrl = rtrim((string) config('app.url'), '/');
             $privacyMsg = $locale === 'am'
-                ? "🔒 <b>የግላዊነት እና የዳታ ጥበቃ ማስታወሻ</b>\n\n• ኢንቬንቶሪ ኦፍላይን እንዲሰራ የታሰበ ነው።\n• በሰርቨሩ ላይ የሱቅዎ ስም፣ የዕቃዎች ዝርዝርና የግብይት እንቅስቃሴዎች ብቻ ይቀመጣሉ።\n• ምንም ዓይነት የደንበኞች የግል መረጃ ወይም የክፍያ ካርድ አይቀመጥም።\n• የኦንላይን ዳታዎን ለማጥፋት ከሞባይል አፑ ላይ Settings > 'Delete Online Shop' የሚለውን ይጫኑ።\n\nሙሉ መረጃ: /docs/PRIVACY.md"
-                : "🔒 <b>Privacy & Data Protection Notice</b>\n\n• Inventory is offline-first.\n• Only shop catalog metadata, stock movements, and paired device hashes are stored online.\n• No customer personal info, banking data, or passwords are ever stored.\n• To delete all online data, open Mobile App Settings > 'Delete Online Shop on Server'.\n\nFull notice: /docs/PRIVACY.md";
+                ? "🔒 <b>የግላዊነት እና የዳታ ጥበቃ ማስታወሻ</b>\n\n• መተግበሪያው ከመስመር ውጭ ይሰራል፤ የመስመር ላይ ማመሳሰል አማራጭ ነው።\n• ማመሳሰልን ሲያበሩ የቴሌግራም መለያ፣ የሱቅ መረጃ እና የመሣሪያ ቶከን በሰርቨሩ ላይ ይቀመጣሉ።\n• የመስመር ላይ መረጃዎን በአፑ ቅንብሮች ውስጥ ወይም /delete_shop በመጠቀም ያጥፉ።\n\nሙሉ ፖሊሲ: {$siteUrl}/privacy/\nየአጠቃቀም ደንቦች: {$siteUrl}/terms/\nድጋፍ: support@yenesuq.com"
+                : "🔒 <b>Privacy & Data Protection Notice</b>\n\n• Inventory works offline; online sync is optional.\n• When enabled, the server stores your Telegram ID, shop data, and device token.\n• Delete online data in the app settings or with /delete_shop.\n\nPrivacy policy: {$siteUrl}/privacy/\nTerms of service: {$siteUrl}/terms/\nSupport: support@yenesuq.com";
 
             $this->telegram->sendMessage(
                 $chatId,

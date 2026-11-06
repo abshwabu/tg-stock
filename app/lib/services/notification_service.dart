@@ -35,13 +35,19 @@ class NotificationService {
       );
 
       await _plugin.initialize(settings: settings);
+    } catch (_) {
+      // Gracefully handles test runners or unsupported headless environments.
+    }
+  }
 
-      // Request notification permissions for Android 13+
-      await _plugin
+  /// Requests notification permissions on Android 13+ only on user opt-in
+  Future<bool?> requestPermission() async {
+    try {
+      return await _plugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
     } catch (_) {
-      // Gracefully handles test runners or unsupported headless environments.
+      return null;
     }
   }
 

@@ -7,6 +7,7 @@ import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/phone_validator.dart';
+import '../widgets/empty_state_widget.dart';
 
 class DubeScreen extends StatefulWidget {
   final LedgerRepository repository;
@@ -271,24 +272,15 @@ class _DubeScreenState extends State<DubeScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _profiles.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                            const SizedBox(height: 12),
-                            const Text(
-                              'No customers found',
-                              style: TextStyle(fontSize: 16, color: Colors.grey),
-                            ),
-                            const SizedBox(height: 8),
-                            FilledButton.icon(
-                              onPressed: _addNewCustomer,
-                              icon: const Icon(Icons.person_add),
-                              label: const Text('Add Customer / ደንበኛ መዝግብ'),
-                            ),
-                          ],
-                        ),
+                    ? EmptyStateWidget(
+                        icon: Icons.menu_book_rounded,
+                        title: 'ምንም የዱቤ ወይም የደንበኛ መዝገብ የለም\nNo Credit Records Yet',
+                        description:
+                            'በዱቤ ሲሸጡ የደንበኞችን ስም፣ ስልክ፣ የመክፈያ ቀነ-ገደብ እና የቀሪ እዳ መጠን እዚህ በቀላሉ መከታተል ይችላሉ።\n'
+                            'Track customer credit balances, payment deadlines, and overdue amounts with 1-tap reminders.',
+                        primaryButtonLabel: 'አዲስ ደንበኛ መዝግብ / Add Customer',
+                        primaryButtonIcon: Icons.person_add_alt_1_rounded,
+                        onPrimaryPressed: _addNewCustomer,
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

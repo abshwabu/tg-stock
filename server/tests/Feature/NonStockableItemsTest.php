@@ -20,6 +20,7 @@ use App\Services\PermissionService;
 use App\Services\SalesService;
 use App\Services\SyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -44,6 +45,8 @@ class NonStockableItemsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Http::fake(['*' => Http::response(['ok' => true], 200)]);
 
         $this->pairing = app(PairingService::class);
         $this->ledger = app(LedgerService::class);

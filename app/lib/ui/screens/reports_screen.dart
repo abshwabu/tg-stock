@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 
 import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
+import '../../services/demo_data_service.dart';
 import '../../services/export_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../widgets/empty_state_widget.dart';
 
 enum ReportRange {
   today,
@@ -293,7 +295,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : RefreshIndicator(
+                : ((_salesReport?.salesCount ?? 0) == 0 && (_stockReport?.totalProductsCount ?? 0) == 0)
+                    ? EmptyStateWidget(
+                        icon: Icons.insights_outlined,
+                        title: 'ሪፖርት የሚሰራ ዳታ የለም / No Report Data',
+                        description:
+                            'ሽያጭ በማካሄድ ወይም ዕቃዎችን በማስገባት የእለት፣ የሳምንት እና የወር የንግድ ሪፖርቶችዎን እዚህ ይመልከቱ።\nStart selling or adding products to view business performance reports.',
+                        primaryButtonLabel: 'ወደ ኋላ ተመለስ / Go Back',
+                        primaryButtonIcon: Icons.arrow_back,
+                        onPrimaryPressed: () => Navigator.of(context).pop(),
+                        secondaryButtonLabel: 'የሙከራ ዕቃዎች ጫን / Load Demo Data',
+                        secondaryButtonIcon: Icons.auto_awesome,
+                        onSecondaryPressed: () async {
+                          final demoService = DemoDataService(repository: widget.repository);
+                          await demoService.loadDemoProducts();
+                          await _loadReport();
+                        },
+                      )
+                    : RefreshIndicator(
                     onRefresh: _loadReport,
                     child: ListView(
                       padding: const EdgeInsets.all(16),

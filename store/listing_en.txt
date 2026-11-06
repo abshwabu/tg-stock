@@ -1,0 +1,66 @@
+================================================================================
+GOOGLE PLAY STORE LISTING (ENGLISH)
+================================================================================
+
+APP TITLE (Max 30 characters):
+Inventory: Offline POS & Stock
+[Length: 29 characters]
+
+SHORT DESCRIPTION (Max 80 characters):
+Offline inventory, POS, cash register & customer credit ledger for your shop.
+[Length: 78 characters]
+
+CATEGORY:
+Business
+
+DEFAULT LANGUAGE:
+English (United States) / en-US
+
+SUPPORT CONTACT:
+Email: support@yenesuq.com
+Website: https://stock.yenesuq.com
+Privacy Policy: https://stock.yenesuq.com/privacy/
+Terms of Service: https://stock.yenesuq.com/terms/
+
+--------------------------------------------------------------------------------
+FULL DESCRIPTION (Max 4,000 characters):
+--------------------------------------------------------------------------------
+Inventory is a lightning-fast, 100% offline-first inventory management and Point of Sale (POS) system built specifically for retail shop owners, kiosks, mini-markets, and wholesale traders.
+
+Never lose a sale because of network cuts or slow internet. Every single feature—recording sales, managing inventory, issuing receipts, tracking customer debts (Dube), and checking daily profits—works completely offline on your Android device.
+
+KEY FEATURES BUILT FOR RETAIL SUCCESS:
+
+⚡ Fast POS & Cash Register
+• Ring up sales in seconds with an easy-to-use touch counter.
+• Split and accept local payment methods: Cash, Telebirr, CBE Birr, and Customer Credit (Dube).
+• Instant change calculator and printable or shareable digital receipts.
+• Support for item barcode scanning using your phone camera.
+
+📦 Accurate Offline Stock & Inventory Control
+• Track stockable products, services, and prepared consumable goods with composite recipes (e.g. injera packs made from teff).
+• Real-time low-stock alerts before you run out of essential products.
+• Record stock-in purchases, supplier costs, and track spoilage/damage adjustments.
+• Manage multiple inventory locations: easily transfer stock between your Main Store and Warehouse without discrepancies.
+
+📒 Customer Credit & Debt Ledger (Dube / ዱቤ)
+• Keep accurate records of regular customers who take items on credit.
+• Track outstanding customer balances, payment due dates, and custom credit limits.
+• Record partial payments, track payment history, and share debt reminder summaries directly via Telegram or SMS.
+
+📊 Daily Profits & Business Analytics
+• Instant end-of-day summary: total sales, cash collected, digital payments, and estimated gross margin.
+• Track your best-selling items, high-profit categories, and dead stock.
+• View transaction history with one-tap reversals and audit logs.
+• Works with both the Ethiopian Calendar (ዓመተ ምሕረት) and Gregorian Calendar.
+
+🔒 100% Data Privacy & Safe Backups
+• Offline-First Guarantee: Your financial records and customer lists remain in the app's local SQLite database unless you enable sync.
+• No ads, no third-party tracking, and no forced cloud accounts.
+• One-tap database backup: Export your shop database (.sqlite) and share it with a destination you choose.
+• Optional Cloud Sync: Connect to our lightweight Telegram bot whenever you want to check shop numbers remotely or collaborate with assistants.
+
+BUILT FOR RELIABILITY:
+Runs smoothly on both modern 64-bit devices and older budget 32-bit Android phones (Android 5.0+). Ultra-compact download size (under 25 MB).
+
+Get started in under 30 seconds with pre-loaded sample items. Download Inventory today and take complete control of your shop!

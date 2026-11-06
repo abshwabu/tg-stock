@@ -1,4 +1,4 @@
-package com.inventory.app
+package com.yenesuq.inventory
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

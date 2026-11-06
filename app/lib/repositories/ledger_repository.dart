@@ -1576,6 +1576,62 @@ class LedgerRepository {
     await setSetting('theme_mode', mode);
   }
 
+  Future<int> getBackupReminderDays() async {
+    final val = await getSetting('backup_reminder_days', defaultValue: '7');
+    return int.tryParse(val ?? '7') ?? 7;
+  }
+
+  Future<void> setBackupReminderDays(int days) async {
+    await setSetting('backup_reminder_days', days.toString());
+  }
+
+  Future<int?> getLastUpdateCheckMs() async {
+    final val = await getSetting('last_update_check_ms');
+    return val != null && val.isNotEmpty ? int.tryParse(val) : null;
+  }
+
+  Future<void> setLastUpdateCheckMs(int ms) async {
+    await setSetting('last_update_check_ms', ms.toString());
+  }
+
+  Future<String?> getLastUpdateInfoJson() async {
+    return await getSetting('last_update_info_json');
+  }
+
+  Future<void> setLastUpdateInfoJson(String json) async {
+    await setSetting('last_update_info_json', json);
+  }
+
+  Future<int?> getLastBackupMs() async {
+    final val = await getSetting('last_backup_ms');
+    return val != null ? int.tryParse(val) : null;
+  }
+
+  Future<void> setLastBackupMs(int? ms) async {
+    if (ms == null) {
+      await setSetting('last_backup_ms', '');
+    } else {
+      await setSetting('last_backup_ms', ms.toString());
+    }
+  }
+
+  Future<bool> getUseEthiopianCalendar() async {
+    final val = await getSetting('use_ethiopian_calendar', defaultValue: 'true');
+    return val == 'true';
+  }
+
+  Future<void> setUseEthiopianCalendar(bool enabled) async {
+    await setSetting('use_ethiopian_calendar', enabled ? 'true' : 'false');
+  }
+
+  Future<String> getNumberFormat() async {
+    return (await getSetting('number_format', defaultValue: 'standard'))!;
+  }
+
+  Future<void> setNumberFormat(String format) async {
+    await setSetting('number_format', format);
+  }
+
   // ==========================================
   // REPORTS & SQL AGGREGATES
   // ==========================================

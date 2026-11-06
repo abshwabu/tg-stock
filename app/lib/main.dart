@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -5,7 +6,9 @@ import 'database/app_database.dart';
 import 'l10n/app_localizations.dart';
 import 'repositories/ledger_repository.dart';
 import 'services/api_client.dart';
+import 'services/app_update_service.dart';
 import 'services/auth_storage.dart';
+import 'services/error_logger.dart';
 import 'services/sync_engine.dart';
 import 'ui/screens/first_run_screen.dart';
 import 'ui/screens/home_screen.dart';
@@ -14,14 +17,29 @@ import 'ui/theme.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Global Error Handler without exposing raw stack traces to users
+  FlutterError.onError = (details) {
+    ErrorLogger.instance.log(details.exception, details.stack, context: 'FlutterError');
+    FlutterError.presentError(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    ErrorLogger.instance.log(error, stack, context: 'PlatformDispatcher');
+    return true;
+  };
+
   final db = AppDatabase();
   final repository = LedgerRepository(db);
   final authStorage = SecureAuthStorage();
   final apiClient = ApiClient();
+  final updateService = AppUpdateService(
+    authStorage: authStorage,
+    repository: repository,
+  );
   final syncEngine = SyncEngine(
     db: db,
     api: apiClient,
     storage: authStorage,
+    updateService: updateService,
   );
 
   runApp(InventoryApp(
@@ -30,6 +48,7 @@ void main() {
     apiClient: apiClient,
     authStorage: authStorage,
     syncEngine: syncEngine,
+    updateService: updateService,
   ));
 }
 
@@ -39,6 +58,7 @@ class InventoryApp extends StatefulWidget {
   final ApiClient apiClient;
   final AuthStorage authStorage;
   final SyncEngine syncEngine;
+  final AppUpdateService? updateService;
 
   const InventoryApp({
     super.key,
@@ -47,6 +67,7 @@ class InventoryApp extends StatefulWidget {
     required this.apiClient,
     required this.authStorage,
     required this.syncEngine,
+    this.updateService,
   });
 
   static InventoryAppState? of(BuildContext context) {
@@ -197,6 +218,7 @@ class InventoryAppState extends State<InventoryApp> {
         apiClient: widget.apiClient,
         authStorage: widget.authStorage,
         syncEngine: widget.syncEngine,
+        updateService: widget.updateService,
       );
     }
 

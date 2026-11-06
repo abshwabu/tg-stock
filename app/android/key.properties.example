@@ -1,0 +1,8 @@
+# Example key.properties configuration for Android release builds
+# Copy this file to app/android/key.properties (which is gitignored)
+# or set environment variables: KEY_ALIAS, KEY_PASSWORD, STORE_FILE, STORE_PASSWORD
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=/path/to/upload-keystore.jks

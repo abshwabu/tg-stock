@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="am" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>የኔ ሱቅ (Inventory) — Download APK / መተግበሪያውን ያውርዱ</title>
+  <meta name="description" content="Download the offline-first Inventory POS app for Ethiopian retail shops. Android APK direct download.">
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    :root {
+      --primary: #0F766E;
+      --primary-hover: #115E59;
+      --accent: #F59E0B;
+      --accent-hover: #D97706;
+      --bg: #F8FAFC;
+      --surface: #FFFFFF;
+      --text: #0F172A;
+      --muted: #475569;
+      --border: #E2E8F0;
+      --warning-bg: #FEF3C7;
+      --warning-text: #92400E;
+      --code-bg: #0F172A;
+      --code-text: #38BDF8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Ethiopic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0;
+    }
+    header {
+      background: var(--primary);
+      color: #FFFFFF;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      border-bottom: 4px solid var(--accent);
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .lang-switcher {
+      margin-top: 1rem;
+      display: inline-flex;
+      gap: 0.5rem;
+      background: rgba(255,255,255,0.15);
+      padding: 0.3rem 0.6rem;
+      border-radius: 9999px;
+    }
+    .lang-btn {
+      background: transparent;
+      border: none;
+      color: #FFFFFF;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .lang-btn.active {
+      background: #FFFFFF;
+      color: var(--primary);
+    }
+    main {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    .warning-banner {
+      background: var(--warning-bg);
+      border-left: 4px solid var(--accent);
+      color: var(--warning-text);
+      padding: 1rem 1.25rem;
+      border-radius: 0.5rem;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+    .warning-banner strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      font-size: 1rem;
+    }
+    .section-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .section-title {
+      font-size: 1.35rem;
+      color: var(--primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .download-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    @media (min-width: 640px) {
+      .download-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+    .download-card {
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .download-card.featured {
+      border-color: var(--primary);
+      background: #F0FDFA;
+      box-shadow: 0 4px 6px -1px rgba(15, 118, 110, 0.1);
+    }
+    .download-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+    .download-card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 0.25rem;
+    }
+    .download-card .subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+    .btn-download {
+      display: inline-block;
+      background: var(--primary);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .btn-download:hover {
+      background: var(--primary-hover);
+    }
+    .btn-download.accent {
+      background: var(--accent);
+    }
+    .btn-download.accent:hover {
+      background: var(--accent-hover);
+    }
+    .steps-list {
+      list-style-type: none;
+      counter-reset: step-counter;
+      margin-top: 1rem;
+    }
+    .steps-list li {
+      counter-increment: step-counter;
+      position: relative;
+      padding-left: 2.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .steps-list li::before {
+      content: counter(step-counter);
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: var(--primary);
+      color: #FFFFFF;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .checksum-block {
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 1rem;
+      border-radius: 0.5rem;
+      font-family: monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      margin-top: 0.75rem;
+      line-height: 1.5;
+    }
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+    .lang-section[hidden] {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📦 የኔ ሱቅ / Inventory</h1>
+  <p class="lang-section" data-lang="am">ለኢትዮጵያ ቸርቻሪ ሱቆች የተዘጋጀ ከመስመር ውጭ (Offline) የሚሰራ የዕቃ ዝርዝር እና የሽያጭ መቆጣጠሪያ መተግበሪያ።</p>
+  <p class="lang-section" data-lang="en" hidden>Fast, reliable offline-first inventory & POS application designed specifically for Ethiopian retail shops.</p>
+  <div class="lang-switcher">
+    <button class="lang-btn active" onclick="switchLang('am')">አማርኛ</button>
+    <button class="lang-btn" onclick="switchLang('en')">English</button>
+  </div>
+</header>
+
+<main>
+  <!-- Security Warning -->
+  <div class="warning-banner">
+    <div class="lang-section" data-lang="am">
+      <strong>⚠️ የደህንነት ማሳሰቢያ፦</strong>
+      ይህንን መተግበሪያ ከኦፊሴላዊው <strong>stock.yenesuq.com</strong> ድረ-ገጽ ብቻ ያውርዱ። ካልታወቁ ምንጮች፣ ከማኅበራዊ ሚዲያ ቡድኖች ወይም ከሶስተኛ ወገን ጣቢያዎች የሚላኩ የኤፒኬ (APK) ፋይሎችን አይጫኑ።
+    </div>
+    <div class="lang-section" data-lang="en" hidden>
+      <strong>⚠️ Security Warning:</strong>
+      Only download this application from the official <strong>stock.yenesuq.com</strong> website. Never install APK files shared via unknown groups, unverified links, or third-party websites.
+    </div>
+  </div>
+
+  <!-- Downloads Section -->
+  <div class="section-card">
+    <h2 class="section-title">
+      <span>📥</span>
+      <span class="lang-section" data-lang="am">መተግበሪያውን አውርድ (Direct APK Downloads)</span>
+      <span class="lang-section" data-lang="en" hidden>Download APK</span>
+    </h2>
+
+    <div class="download-grid">
+      <!-- arm64-v8a -->
+      <div class="download-card featured">
+        <div>
+          <span class="download-badge">ተመራጭ / Recommended</span>
+          <h3>Android 64-bit</h3>
+          <p class="subtitle">arm64-v8a (ዘመናዊ ስልኮች)</p>
+          <p class="lang-section" data-lang="am" style="font-size: 0.85rem; margin-bottom: 1rem;">ለአብዛኞቹ አዳዲስ ስልኮች (Tecno, Infinix, Samsung, Xiaomi) ተመራጭ። አነስተኛ መጠን እና ፈጣን።</p>
+          <p class="lang-section" data-lang="en" hidden style="font-size: 0.85rem; margin-bottom: 1rem;">Optimal for modern phones (Tecno, Infinix, Samsung, Xiaomi). Compact size and high performance.</p>
+        </div>
+        <a href="app-arm64-v8a-release.apk" class="btn-download">አውርድ (arm64)</a>
+      </div>
+
+      <!-- armeabi-v7a -->
+      <div class="download-card">
+        <div>
+          <span class="download-badge" style="background: #64748B;">32-bit</span>
+          <h3>Android 32-bit</h3>
+          <p class="subtitle">armeabi-v7a (አሮጌ ስልኮች)</p>
+          <p class="lang-section" data-lang="am" style="font-size: 0.85rem; margin-bottom: 1rem;">ለቀደሙ ወይም ዝቅተኛ አቅም ላላቸው Android ስልኮች (Android Go)።</p>
+          <p class="lang-section" data-lang="en" hidden style="font-size: 0.85rem; margin-bottom: 1rem;">For older smartphones or budget Android Go devices.</p>
+        </div>
+        <a href="app-armeabi-v7a-release.apk" class="btn-download">አውርድ (armv7)</a>
+      </div>
+
+      <!-- universal -->
+      <div class="download-card">
+        <div>
+          <span class="download-badge" style="background: #475569;">Universal</span>
+          <h3>ሁሉን አቀፍ</h3>
+          <p class="subtitle">Universal APK</p>
+          <p class="lang-section" data-lang="am" style="font-size: 0.85rem; margin-bottom: 1rem;">በየትኛውም ዓይነት የአንድሮይድ ስልክ ላይ የሚሰራ ሁለንተናዊ ፋይል (መጠኑ ከፍ ያለ)።</p>
+          <p class="lang-section" data-lang="en" hidden style="font-size: 0.85rem; margin-bottom: 1rem;">Compatible with all Android devices regardless of processor architecture.</p>
+        </div>
+        <a href="app-release.apk" class="btn-download">አውርድ (Universal)</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Installation Guide -->
+  <div class="section-card">
+    <h2 class="section-title">
+      <span>📱</span>
+      <span class="lang-section" data-lang="am">የአጫጫን ቅደም ተከተል (How to Install)</span>
+      <span class="lang-section" data-lang="en" hidden>How to Install on Android</span>
+    </h2>
+
+    <div class="lang-section" data-lang="am">
+      <ol class="steps-list">
+        <li><strong>ተስማሚውን ፋይል ያውርዱ፦</strong> ከላይ ከተዘረዘሩት ውስጥ ለስልክዎ የሚስማማውን የኤፒኬ (APK) ፋይል ይጫኑ።</li>
+        <li><strong>የወረደውን ፋይል ይክፈቱ፦</strong> ማውረዱ ሲጠናቀቅ ማሳወቂያውን በመንካት ወይም በስልክዎ "Files / Downloads" ውስጥ ፋይሉን ይክፈቱ።</li>
+        <li><strong>ያልታወቁ ምንጮችን ይፍቀዱ፦</strong> ስልክዎ "Install unknown apps" የሚል ማስጠንቀቂያ ካሳየዎት "Settings" የሚለውን በመንካት "Allow from this source" የሚለውን ያብሩ።</li>
+        <li><strong>ጫን (Install) የሚለውን ይጫኑ፦</strong> መጫኑን አረጋግጠው ይጠብቁ። ከተጠናቀቀ በኋላ መተግበሪያውን ከፍተው ወዲያውኑ መጠቀም መጀመር ይችላሉ! ምንም ኢንተርኔት ወይም መለያ አያስፈልግም።</li>
+      </ol>
+    </div>
+
+    <div class="lang-section" data-lang="en" hidden>
+      <ol class="steps-list">
+        <li><strong>Download the appropriate APK:</strong> Tap the recommended button above for your device architecture.</li>
+        <li><strong>Open the downloaded file:</strong> Tap the download completed notification, or locate the APK in your phone's "Files" or "Downloads" app.</li>
+        <li><strong>Allow Unknown Sources:</strong> If Android prompts "Install unknown apps", tap "Settings" and enable "Allow from this source".</li>
+        <li><strong>Complete Installation:</strong> Tap "Install" on the confirmation prompt. Once installed, tap "Open" to start using the app immediately with zero sign-up required.</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Checksums & Verification -->
+  <div class="section-card">
+    <h2 class="section-title">
+      <span>🔒</span>
+      <span class="lang-section" data-lang="am">የፋይል ትክክለኛነት ማረጋገጫ (SHA-256 Checksums)</span>
+      <span class="lang-section" data-lang="en" hidden>Integrity & SHA-256 Checksums</span>
+    </h2>
+    <p class="lang-section" data-lang="am" style="font-size: 0.9rem; color: var(--muted);">የወረደው ፋይል እንዳልተበረዘ እና ትክክለኛ መሆኑን በ SHA-256 hash ማረጋገጥ ይችላሉ፦</p>
+    <p class="lang-section" data-lang="en" hidden style="font-size: 0.9rem; color: var(--muted);">Verify that your downloaded file has not been tampered with using the SHA-256 cryptographic hashes below:</p>
+
+    <div class="checksum-block" id="checksums">Loading the current release checksums…</div>
+    <p><a href="SHA256SUMS.txt">Download SHA256SUMS.txt</a></p>
+  </div>
+</main>
+
+<footer>
+  <p>© 2026 የኔ ሱቅ (Inventory). All rights reserved.</p>
+  <p style="margin-top: 0.5rem;">
+    <a href="/privacy/">የግላዊነት ፖሊሲ (Privacy Policy)</a> · 
+    <a href="/terms/">የአጠቃቀም ደንቦች (Terms of Service)</a> · 
+    <a href="mailto:support@yenesuq.com">support@yenesuq.com</a>
+  </p>
+</footer>
+
+<script>
+  function switchLang(lang) {
+    document.querySelectorAll('.lang-section').forEach(function(el) {
+      if (el.getAttribute('data-lang') === lang) {
+        el.removeAttribute('hidden');
+      } else {
+        el.setAttribute('hidden', 'true');
+      }
+    });
+    document.querySelectorAll('.lang-btn').forEach(function(btn) {
+      btn.classList.remove('active');
+    });
+    if (lang === 'am') {
+      document.querySelector('.lang-btn:nth-child(1)').classList.add('active');
+    } else {
+      document.querySelector('.lang-btn:nth-child(2)').classList.add('active');
+    }
+  }
+
+  fetch('SHA256SUMS.txt', { cache: 'no-store' })
+    .then(function (response) { if (!response.ok) throw new Error('Checksum file unavailable'); return response.text(); })
+    .then(function (checksums) { document.getElementById('checksums').textContent = checksums; })
+    .catch(function () { document.getElementById('checksums').textContent = 'Current checksums are temporarily unavailable. Download SHA256SUMS.txt from the latest official release.'; });
+</script>
+
+</body>
+</html>

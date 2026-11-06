@@ -25,8 +25,10 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
   bool _enablePin = false;
   final _pinController = TextEditingController();
 
-  // Step 0: Shop Info & Language, Step 1: Locations Question
+  // Step 0: Shop Info & Language, Step 1: Locations Question, Step 2: 3-Card Intro
   int _currentStep = 0;
+  int _introCardIndex = 0;
+  final PageController _introPageController = PageController();
 
   // Locations choices
   bool _enableLocations = false; // Default: No, one place
@@ -37,6 +39,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
   void dispose() {
     _shopNameController.dispose();
     _pinController.dispose();
+    _introPageController.dispose();
     super.dispose();
   }
 
@@ -84,12 +87,14 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
 
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: _currentStep == 0 ? _buildStep0(isAm) : _buildStep1(isAm),
-          ),
-        ),
+        child: _currentStep == 2
+            ? _buildStep2(isAm)
+            : Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: _currentStep == 0 ? _buildStep0(isAm) : _buildStep1(isAm),
+                ),
+              ),
       ),
     );
   }
@@ -493,17 +498,11 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-                onPressed: _isSaving ? null : _submitAll,
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : Text(
-                        isAm ? 'መተግበሪያውን ጀምር / Start' : 'Get Started',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
+                onPressed: () => setState(() => _currentStep = 2),
+                child: Text(
+                  isAm ? 'ቀጥል / Next' : 'Next',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ],
@@ -511,4 +510,182 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
       ],
     );
   }
+
+  Widget _buildStep2(bool isAm) {
+    final cards = [
+      _IntroCardData(
+        icon: Icons.wifi_off_rounded,
+        title: isAm ? '100% ያለ ኢንተርኔት ይሰራል' : 'Works 100% Offline',
+        tagline: isAm ? 'ምንም አይነት ኔትወርክ አያስፈልግዎትም' : 'No internet or mobile data needed',
+        description: isAm
+            ? 'ሁሉም የዕቃ መዝገቦችዎ እና ሽያጮችዎ በስልክዎ ላይ በደህንነት ይቀመጣሉ። በማንኛውም ጊዜ እና ቦታ ፈጣን ሽያጭ ማካሄድ ይችላሉ።'
+            : 'All your stock records and sales stay safely on this device. Make sales instantly anywhere without network delays or server downtime.',
+      ),
+      _IntroCardData(
+        icon: Icons.flash_on_rounded,
+        title: isAm ? 'በጥቂት ንክኪዎች ሽያጭ ያካሂዱ' : 'Sell in a Few Taps',
+        tagline: isAm ? 'ፈጣን እና ምቹ የሽያጭ ስርዓት' : 'Fast and versatile point of sale',
+        description: isAm
+            ? 'በጥሬ ገንዘብ፣ በቴሌብር፣ በባንክ ወይም በዱቤ ይሽጡ። የደንበኞችን የዱቤ ክፍያ እና የቀሪ ሂሳብ በግልጽ ይከታተሉ።'
+            : 'Accept Cash, Telebirr, Bank Transfer, or Dube (credit). Track customer balances and payment due dates with zero hassle.',
+      ),
+      _IntroCardData(
+        icon: Icons.security_rounded,
+        title: isAm ? 'መረጃዎን በየጊዜው ኮፒ ያድርጉ' : 'Back Up Your Data',
+        tagline: isAm ? 'የስልክ መጥፋት ወይም መበላሸትን ይከላከሉ' : 'A lost phone means lost data!',
+        description: isAm
+            ? 'የመተግበሪያውን ዳታበዝ በቴሌግራም ወይም በክላውድ በቀላሉ ማጋራት ይችላሉ። ስልክዎ ቢጠፋ እንኳን ንግድዎ አይቆምም።'
+            : 'Export and share your database backup to Telegram Saved Messages or Google Drive anytime. Keep your business safe even if a phone is lost.',
+      ),
+    ];
+
+    return Column(
+      children: [
+        // Top Bar with Skip Button
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_introCardIndex + 1} / 3',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+              ),
+              TextButton(
+                onPressed: _isSaving ? null : _submitAll,
+                child: Text(
+                  isAm ? 'ዝለል / Skip' : 'Skip',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Expanded PageView
+        Expanded(
+          child: PageView.builder(
+            controller: _introPageController,
+            itemCount: cards.length,
+            onPageChanged: (idx) => setState(() => _introCardIndex = idx),
+            itemBuilder: (context, index) {
+              final item = cards[index];
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F766E).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(item.icon, size: 72, color: const Color(0xFF0F766E)),
+                    ),
+                    const SizedBox(height: 28),
+                    Text(
+                      item.title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.tagline,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      item.description,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black87),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        // Bottom controls
+        Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              // Dots indicator
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (idx) {
+                  final isCurrent = idx == _introCardIndex;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: isCurrent ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: isCurrent ? const Color(0xFF0F766E) : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: _isSaving
+                      ? null
+                      : () {
+                          if (_introCardIndex < 2) {
+                            _introPageController.nextPage(
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          } else {
+                            _submitAll();
+                          }
+                        },
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(
+                          _introCardIndex == 2
+                              ? (isAm ? 'መተግበሪያውን ጀምር / Start' : 'Get Started')
+                              : (isAm ? 'ቀጥል / Next' : 'Next'),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _IntroCardData {
+  final IconData icon;
+  final String title;
+  final String tagline;
+  final String description;
+
+  const _IntroCardData({
+    required this.icon,
+    required this.title,
+    required this.tagline,
+    required this.description,
+  });
 }

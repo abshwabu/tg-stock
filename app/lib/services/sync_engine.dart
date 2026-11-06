@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../database/app_database.dart';
 import '../utils/quantity_formatter.dart';
 import 'api_client.dart';
+import 'app_update_service.dart';
 import 'auth_storage.dart';
 
 enum SyncStatus {
@@ -58,6 +59,7 @@ class SyncEngine {
   final AppDatabase db;
   final ApiClient api;
   final AuthStorage storage;
+  final AppUpdateService? updateService;
 
   final ValueNotifier<SyncEngineState> stateNotifier;
 
@@ -74,6 +76,7 @@ class SyncEngine {
     required this.db,
     required this.api,
     required this.storage,
+    this.updateService,
   }) : stateNotifier = ValueNotifier(const SyncEngineState(status: SyncStatus.offline)) {
     _init();
   }
@@ -145,6 +148,19 @@ class SyncEngine {
     // Check exponential backoff timer
     if (_backoffUntil != null && DateTime.now().isBefore(_backoffUntil!)) {
       return;
+    }
+
+    // Check if an app update is required that blocks online sync
+    if (updateService != null) {
+      final updateInfo = await updateService!.checkForUpdate();
+      if (updateInfo != null && updateInfo.isSyncBlocked) {
+        stateNotifier.value = state.copyWith(
+          status: SyncStatus.error,
+          errorMessage: 'Online sync paused: Update required (min v${updateInfo.minSupported}). Local inventory and sales remain fully functional offline.',
+          progressText: null,
+        );
+        return;
+      }
     }
 
     _isSyncing = true;

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
@@ -311,6 +314,7 @@ class _SaleScreenState extends State<SaleScreen> {
     );
 
     if (added == true) {
+      HapticFeedback.lightImpact();
       setState(() {
         _cart.add(SaleLineItem(
           product: product,
@@ -334,6 +338,7 @@ class _SaleScreenState extends State<SaleScreen> {
           if (item.product.kind == 'stockable') {
             final currentStock = await widget.repository.stockOf(item.product.id, locationId: targetLocId);
             if (currentStock < item.qtyMilli) {
+              HapticFeedback.vibrate();
               if (mounted) {
                 showDialog(
                   context: context,
@@ -369,6 +374,7 @@ class _SaleScreenState extends State<SaleScreen> {
               final matStock = await widget.repository.stockOf(mat.materialProductId, locationId: targetLocId);
               final neededMilli = ((mat.qtyMilli * item.qtyMilli) + 500) ~/ 1000;
               if (matStock < neededMilli) {
+                HapticFeedback.vibrate();
                 if (mounted) {
                   showDialog(
                     context: context,
@@ -414,6 +420,7 @@ class _SaleScreenState extends State<SaleScreen> {
           items: itemsToNotify,
           locationId: _activeLocation?.id,
           onComplete: () async {
+            HapticFeedback.lightImpact();
             final notifService = NotificationService(repository: widget.repository);
             for (final item in itemsToNotify) {
               if (item.product.kind == 'stockable') {
@@ -649,6 +656,22 @@ class _ProductPickerSheet extends StatefulWidget {
 
 class _ProductPickerSheetState extends State<_ProductPickerSheet> {
   String _filter = '';
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String val) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 250), () {
+      if (mounted) {
+        setState(() => _filter = val.trim());
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -685,7 +708,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
               ),
-              onChanged: (val) => setState(() => _filter = val),
+              onChanged: _onSearchChanged,
             ),
             const SizedBox(height: 10),
             Expanded(

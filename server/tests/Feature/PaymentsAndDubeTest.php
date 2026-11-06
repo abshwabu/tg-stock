@@ -23,6 +23,7 @@ use App\Services\PermissionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Tests\TestCase;
@@ -44,6 +45,8 @@ class PaymentsAndDubeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        Http::fake(['*' => Http::response(['ok' => true], 200)]);
 
         $this->pairing = app(PairingService::class);
         $this->ledger = app(LedgerService::class);
