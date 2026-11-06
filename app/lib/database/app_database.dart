@@ -1360,6 +1360,19 @@ class AppDatabase extends _$AppDatabase {
     });
   }
 
+  /// Retries changes that failed during an earlier sync attempt.
+  /// A failed record may have been rejected because its related product or
+  /// location had not reached the server yet; initial history sync should be
+  /// able to replay it after pairing.
+  Future<void> requeueFailedOutbox() async {
+    await (update(outboxEntries)..where((o) => o.status.equals('failed'))).write(
+      const OutboxEntriesCompanion(
+        status: Value('pending'),
+        errorReason: Value.absent(),
+      ),
+    );
+  }
+
   /// Prepares offline history for initial sync upload if not already in outbox.
   Future<int> seedOutboxFromHistory() async {
     return transaction(() async {

@@ -241,6 +241,7 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Widget _buildStartPairingForm() {
+    final scheme = Theme.of(context).colorScheme;
     return Form(
       key: _formKey,
       child: Column(
@@ -249,22 +250,22 @@ class _PairingScreenState extends State<PairingScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: scheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.blue.shade200),
+              border: Border.all(color: scheme.primary.withValues(alpha: 0.35)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.blue.shade900),
+                    Icon(Icons.info_outline, color: scheme.onPrimaryContainer),
                     const SizedBox(width: 8),
                     Text(
                       'Why go online? / ለምን ኦንላይን ይገናኛሉ?',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade900,
+                        color: scheme.onPrimaryContainer,
                         fontSize: 15,
                       ),
                     ),
@@ -276,7 +277,7 @@ class _PairingScreenState extends State<PairingScreen> {
                   '• Multi-phone sync across all cashiers and staff.\n'
                   '• Telegram alerts when stock is low and daily 8:00 PM sales summaries.\n'
                   '• No passwords needed: Your Telegram account is your secure key.',
-                  style: TextStyle(fontSize: 13, color: Colors.blue.shade900, height: 1.4),
+                  style: TextStyle(fontSize: 13, color: scheme.onPrimaryContainer, height: 1.4),
                 ),
               ],
             ),
@@ -285,9 +286,9 @@ class _PairingScreenState extends State<PairingScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: scheme.outlineVariant),
             ),
             child: Row(
               children: [
@@ -371,6 +372,7 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Widget _buildWaitingView() {
+    final scheme = Theme.of(context).colorScheme;
     final mins = _secondsRemaining ~/ 60;
     final secs = (_secondsRemaining % 60).toString().padLeft(2, '0');
 
@@ -385,30 +387,31 @@ class _PairingScreenState extends State<PairingScreen> {
           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Open your shop Telegram bot and tap "Start" to link this device:',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 14, color: Colors.black87),
+          style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: scheme.outlineVariant),
           ),
           child: Column(
             children: [
-              const Text('Pairing Code / የማገናኛ ኮድ:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('Pairing Code / የማገናኛ ኮድ:', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
               const SizedBox(height: 6),
               Text(
                 _code ?? '---',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 4,
                   fontFamily: 'monospace',
+                  color: scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 4),

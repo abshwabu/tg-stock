@@ -304,7 +304,9 @@ class SyncEngine {
       progressText: 'Preparing offline data for cloud sync...',
     );
 
-    // 1. Seed existing offline products and movements to outbox
+    // 1. Retry any records left failed by an earlier attempt, then seed
+    // existing offline products and movements into the outbox.
+    await db.requeueFailedOutbox();
     await db.seedOutboxFromHistory();
     final total = await db.countPendingOutbox();
 
