@@ -1373,6 +1373,25 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
+  /// True when an older install has rejected history or legacy sales whose
+  /// headers were never queued for upload.
+  Future<bool> needsHistoricalSyncRepair() async {
+    final rows = await customSelect('''
+      SELECT (
+        EXISTS (SELECT 1 FROM outbox_entries WHERE status = 'failed')
+        OR EXISTS (
+          SELECT 1 FROM sales s
+          WHERE s.legacy = 1
+            AND NOT EXISTS (
+              SELECT 1 FROM outbox_entries o
+              WHERE o.entity = 'sale' AND o.entity_id = s.id
+            )
+        )
+      ) AS needs
+    ''').get();
+    return (rows.first.data['needs'] as num?)?.toInt() == 1;
+  }
+
   /// Prepares offline history for initial sync upload if not already in outbox.
   Future<int> seedOutboxFromHistory() async {
     return transaction(() async {

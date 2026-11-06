@@ -98,8 +98,21 @@ class SyncEngine {
     );
 
     if (isOnline && token != null) {
+      await _prepareHistoricalSyncRepair();
       startPeriodicSync();
     }
+  }
+
+  /// Repairs history created before sale headers were uploaded during pairing.
+  /// This runs once per install so existing paired users do not need to pair again.
+  Future<void> _prepareHistoricalSyncRepair() async {
+    const repairKey = 'historical_sync_repair_v2';
+    if (await db.getMeta(repairKey) == '1') return;
+    if (!await db.needsHistoricalSyncRepair()) return;
+
+    await db.requeueFailedOutbox();
+    await db.seedOutboxFromHistory();
+    await db.setMeta(repairKey, '1');
   }
 
   void startPeriodicSync() {
