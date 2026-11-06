@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:path/path.dart' as p;
@@ -14,6 +15,7 @@ import '../../services/api_client.dart';
 import '../../services/auth_storage.dart';
 import '../../services/backup_service.dart';
 import '../../services/export_service.dart';
+import '../../services/integrity_checker.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/quantity_formatter.dart';
@@ -198,6 +200,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _runDataCheck() async {
+    final report = await IntegrityChecker(widget.db).run();
+    if (!mounted) return;
+    final isAm = _language == 'am';
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Icon(report.isClean ? Icons.verified_outlined : Icons.warning_amber_rounded,
+              color: report.isClean ? Colors.green : Colors.orange),
+          const SizedBox(width: 8),
+          Text(isAm ? 'የውሂብ ምርመራ' : 'Data check'),
+        ]),
+        content: SingleChildScrollView(child: SelectableText(report.text)),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: report.text));
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data check copied.')));
+            },
+            child: Text(isAm ? 'ሪፖርት ቅዳ' : 'Copy report'),
+          ),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+        ],
+      ),
+    );
   }
 
   // --- Shop & Regional Dialogs ---
@@ -1604,6 +1635,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             MaterialPageRoute(builder: (ctx) => const ErrorLogScreen()),
                           );
                         },
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.fact_check_outlined, color: Color(0xFF0F766E)),
+                        title: Text(isAm ? 'የውሂብ ምርመራ' : 'Data check'),
+                        subtitle: Text(isAm ? 'የስቶክ፣ ክፍያ እና የመረጃ ግንኙነት ምርመራ' : 'Check stock, payments, references, and outbox integrity'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _runDataCheck,
                       ),
                       const Divider(height: 1),
                       ListTile(
