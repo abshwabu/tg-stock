@@ -1026,40 +1026,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const Divider(height: 1),
-                      ListTile(
-                        leading: const Icon(Icons.palette_outlined),
-                        title: Text(
-                          isAm ? 'የመተግበሪያ ገጽታ' : 'Theme / Appearance',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          _themeMode == 'light'
-                              ? (isAm ? 'ብርሃን (Light)' : 'Light')
-                              : _themeMode == 'dark'
-                                  ? (isAm ? 'ጨለማ (Dark)' : 'Dark')
-                                  : (isAm ? 'የስልክ ስርዓት (System)' : 'System'),
-                        ),
-                        trailing: SegmentedButton<String>(
-                          segments: [
-                            ButtonSegment(value: 'system', icon: const Icon(Icons.brightness_auto, size: 16), label: Text(isAm ? 'ስርዓት' : 'Auto')),
-                            ButtonSegment(value: 'light', icon: const Icon(Icons.light_mode, size: 16), label: Text(isAm ? 'ብርሃን' : 'Light')),
-                            ButtonSegment(value: 'dark', icon: const Icon(Icons.dark_mode, size: 16), label: Text(isAm ? 'ጨለማ' : 'Dark')),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.palette_outlined),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isAm ? 'የመተግበሪያ ገጽታ' : 'Theme / Appearance',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      Text(
+                                        _themeMode == 'light'
+                                            ? (isAm ? 'ብርሃን (Light)' : 'Light')
+                                            : _themeMode == 'dark'
+                                                ? (isAm ? 'ጨለማ (Dark)' : 'Dark')
+                                                : (isAm ? 'የስልክ ስርዓት (System)' : 'System'),
+                                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: SegmentedButton<String>(
+                                segments: [
+                                  ButtonSegment(value: 'system', icon: const Icon(Icons.brightness_auto, size: 16), label: Text(isAm ? 'ስርዓት' : 'Auto')),
+                                  ButtonSegment(value: 'light', icon: const Icon(Icons.light_mode, size: 16), label: Text(isAm ? 'ብርሃን' : 'Light')),
+                                  ButtonSegment(value: 'dark', icon: const Icon(Icons.dark_mode, size: 16), label: Text(isAm ? 'ጨለማ' : 'Dark')),
+                                ],
+                                selected: {_themeMode},
+                                onSelectionChanged: (set) async {
+                                  final val = set.first;
+                                  await widget.repository.setThemeMode(val);
+                                  final tm = switch (val) {
+                                    'light' => ThemeMode.light,
+                                    'dark' => ThemeMode.dark,
+                                    _ => ThemeMode.system,
+                                  };
+                                  if (context.mounted) {
+                                    InventoryApp.of(context)?.setThemeMode(tm);
+                                  }
+                                  await _loadAllSettings();
+                                },
+                              ),
+                            ),
                           ],
-                          selected: {_themeMode},
-                          onSelectionChanged: (set) async {
-                            final val = set.first;
-                            await widget.repository.setThemeMode(val);
-                            final tm = switch (val) {
-                              'light' => ThemeMode.light,
-                              'dark' => ThemeMode.dark,
-                              _ => ThemeMode.system,
-                            };
-                            if (context.mounted) {
-                              InventoryApp.of(context)?.setThemeMode(tm);
-                            }
-                            await _loadAllSettings();
-                          },
                         ),
                       ),
                       const Divider(height: 1),
