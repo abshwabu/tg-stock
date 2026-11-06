@@ -165,7 +165,7 @@ void main() {
       await db.close();
     });
 
-    testWidgets('Completes first run flow through language, shop name, locations, and 3-card intro', (tester) async {
+    testWidgets('Completes first run flow through language, shop name, locations, and intro cards', (tester) async {
       bool completed = false;
 
       await tester.pumpWidget(
@@ -218,7 +218,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
 
-      // Step 2: 3-Card Intro
+      // Step 2: Intro cards
       expect(find.textContaining('ያለ ኢንተርኔት ይሰራል'), findsWidgets);
       expect(find.text('ዝለል / Skip'), findsOneWidget);
 

@@ -529,14 +529,6 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
             ? 'በጥሬ ገንዘብ፣ በቴሌብር፣ በባንክ ወይም በዱቤ ይሽጡ። የደንበኞችን የዱቤ ክፍያ እና የቀሪ ሂሳብ በግልጽ ይከታተሉ።'
             : 'Accept Cash, Telebirr, Bank Transfer, or Dube (credit). Track customer balances and payment due dates with zero hassle.',
       ),
-      _IntroCardData(
-        icon: Icons.security_rounded,
-        title: isAm ? 'መረጃዎን በየጊዜው ኮፒ ያድርጉ' : 'Back Up Your Data',
-        tagline: isAm ? 'የስልክ መጥፋት ወይም መበላሸትን ይከላከሉ' : 'A lost phone means lost data!',
-        description: isAm
-            ? 'የመተግበሪያውን ዳታበዝ በቴሌግራም ወይም በክላውድ በቀላሉ ማጋራት ይችላሉ። ስልክዎ ቢጠፋ እንኳን ንግድዎ አይቆምም።'
-            : 'Export and share your database backup to Telegram Saved Messages or Google Drive anytime. Keep your business safe even if a phone is lost.',
-      ),
     ];
 
     return Column(
@@ -548,7 +540,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${_introCardIndex + 1} / 3',
+                '${_introCardIndex + 1} / ${cards.length}',
                 style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
               ),
               TextButton(
