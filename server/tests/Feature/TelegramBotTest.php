@@ -342,4 +342,75 @@ class TelegramBotTest extends TestCase
         $this->assertSame(1000000.0, TelegramUi::parseNumber('1,000,000'));
         $this->assertNull(TelegramUi::parseNumber('not-a-number'));
     }
+
+    public function test_profile_command_applies_localized_profile_and_commands(): void
+    {
+        Http::fake(['https://api.telegram.org/bot*/set*' => Http::response(['ok' => true, 'result' => true], 200)]);
+
+        $this->artisan('telegram:profile')
+            ->expectsOutputToContain('Telegram profile applied')
+            ->assertExitCode(0);
+
+        Http::assertSentCount(9);
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setMyCommands')
+            && $request['language_code'] === 'am'
+            && collect($request['commands'])->contains(fn ($command) => $command['command'] === 'help'));
+        Http::assertSent(fn ($request) => str_ends_with($request->url(), '/setChatMenuButton')
+            && $request['menu_button']['type'] === 'commands');
+    }
+
+    public function test_help_is_localized_and_unknown_text_offers_menu_and_search(): void
+    {
+        foreach (['en', 'am'] as $locale) {
+            $chatId = $locale === 'en' ? 981001 : 981002;
+            $shop = Shop::create(['id' => (string) Str::uuid7(), 'name' => "{$locale} shop", 'currency' => 'ETB', 'language' => $locale]);
+            User::withoutGlobalScope(ShopScope::class)->create([
+                'id' => (string) Str::uuid7(), 'telegram_id' => $chatId, 'name' => 'Tester',
+                'language' => $locale, 'shop_id' => $shop->id, 'role' => 'owner', 'is_active' => true,
+            ]);
+
+            $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+                'update_id' => $chatId, 'message' => ['chat' => ['id' => $chatId], 'from' => ['id' => $chatId], 'text' => '/help'],
+            ])->assertOk();
+            $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+                'update_id' => $chatId + 10, 'message' => ['chat' => ['id' => $chatId], 'from' => ['id' => $chatId], 'text' => 'something unknown'],
+            ])->assertOk();
+        }
+
+        Http::assertSent(fn ($request) => str_contains((string) $request['text'], 'support@yenesuq.com'));
+        Http::assertSent(fn ($request) => str_contains((string) $request['text'], '/menu') && str_contains((string) $request['text'], '/help'));
+    }
+
+    public function test_delete_account_is_owner_only_and_requires_two_confirmations(): void
+    {
+        $nonOwner = 982001;
+        $shop = Shop::create(['id' => (string) Str::uuid7(), 'name' => 'Delete Shop', 'currency' => 'ETB']);
+        User::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(), 'telegram_id' => $nonOwner, 'name' => 'Staff',
+            'language' => 'en', 'shop_id' => $shop->id, 'role' => 'salesperson', 'is_active' => true,
+        ]);
+
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 9821, 'message' => ['chat' => ['id' => $nonOwner], 'from' => ['id' => $nonOwner], 'text' => '/deleteaccount'],
+        ])->assertOk();
+        Http::assertSent(fn ($request) => str_contains((string) $request['text'], 'Only the shop owner'));
+
+        $owner = 982002;
+        $ownerUser = User::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(), 'telegram_id' => $owner, 'name' => 'Owner',
+            'language' => 'en', 'shop_id' => $shop->id, 'role' => 'owner', 'is_active' => true,
+        ]);
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 9822, 'message' => ['chat' => ['id' => $owner], 'from' => ['id' => $owner], 'text' => '/deleteaccount'],
+        ])->assertOk();
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 9823, 'callback_query' => ['id' => 'del-1', 'from' => ['id' => $owner], 'data' => 'deleteaccount:second:0', 'message' => ['chat' => ['id' => $owner], 'message_id' => 1]],
+        ])->assertOk();
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 9824, 'callback_query' => ['id' => 'del-2', 'from' => ['id' => $owner], 'data' => 'deleteaccount:final:0', 'message' => ['chat' => ['id' => $owner], 'message_id' => 1]],
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('shops', ['id' => $shop->id]);
+        $this->assertNotNull($ownerUser->id);
+    }
 }

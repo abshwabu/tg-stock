@@ -123,7 +123,7 @@ class MenuHandler
             $this->telegram->sendMessage(
                 $chatId,
                 __('help_text'),
-                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale)]
+                ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user)]
             );
             return;
         }
@@ -143,7 +143,12 @@ class MenuHandler
             return;
         }
 
-        // 9. Plain text search outside a flow
+        // 9. Unknown text remains searchable, with a clear route back to the menu.
+        $this->telegram->sendMessage(
+            $chatId,
+            __('unknown_command'),
+            ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user)]
+        );
         $this->productHandler->handleSearch($chatId, $clean, $user);
     }
 }

@@ -38,6 +38,8 @@ return [
     'telegram' => [
         'bot_username' => env('TELEGRAM_BOT_USERNAME', 'InventoryEtBot'),
         'bot_token' => env('TELEGRAM_BOT_TOKEN', ''),
+        'app_name' => env('APP_NAME', 'Inventory'),
+        'app_name_am' => env('APP_NAME_AM', 'ዕቃ ዝርዝር'),
         'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET', ''),
         'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
     ],

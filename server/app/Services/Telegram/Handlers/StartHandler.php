@@ -60,6 +60,7 @@ class StartHandler
                 $locale === 'en' ? '📋 <b>Main Menu:</b>' : '📋 <b>ዋና ማውጫ:</b>',
                 ['reply_markup' => TelegramUi::mainMenuInlineKeyboard($locale, $user)]
             );
+            $this->telegram->sendMessage($chatId, __('help_text'));
             return;
         }
 
@@ -140,6 +141,7 @@ class StartHandler
             $locale === 'en' ? '📋 <b>Main Menu:</b>' : '📋 <b>ዋና ማውጫ:</b>',
             ['reply_markup' => TelegramUi::mainMenuInlineKeyboard($locale, $ownerUser)]
         );
+        $this->telegram->sendMessage($chatId, __('help_text'));
     }
 
     /**

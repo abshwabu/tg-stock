@@ -5,6 +5,17 @@ declare(strict_types=1);
 namespace App\Services\Telegram;
 
 use App\Models\BotState;
+use App\Models\Change;
+use App\Models\Customer;
+use App\Models\Device;
+use App\Models\Location;
+use App\Models\Movement;
+use App\Models\PairingCode;
+use App\Models\Payment;
+use App\Models\PaymentProvider;
+use App\Models\Product;
+use App\Models\Sale;
+use App\Models\Shop;
 use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\PermissionService;
@@ -25,6 +36,7 @@ use App\Services\Telegram\Handlers\TransferHandler;
 use App\Services\Telegram\Handlers\UndoHandler;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use App\Support\ImmediateTransaction;
 
 class TelegramRouter
 {
@@ -104,6 +116,10 @@ class TelegramRouter
         $id = $parts[2] ?? '';
 
         // 0.5 Main Menu Navigation Callbacks
+        if ($module === 'deleteaccount') {
+            $this->handleDeleteAccountCallback($cqId, $chatId, $action, $user);
+            return;
+        }
         if ($module === 'menu') {
             $this->handleMenuCallback($cqId, $chatId, $messageId, $action, $id, $user);
             return;
@@ -1143,6 +1159,16 @@ class TelegramRouter
             return;
         }
 
+        if (in_array(strtolower($text), ['/language', 'language', 'ቋንቋ'], true)) {
+            $this->settingsHandler->handleSettings($chatId, $user);
+            return;
+        }
+
+        if (in_array(strtolower($text), ['/deleteaccount', '/delete_shop', 'deleteaccount'], true)) {
+            $this->startDeleteAccount($chatId, $user);
+            return;
+        }
+
         // Shortcut /devices command
         if (in_array($text, ['/devices', 'devices', 'ስልኮች', 'መሣሪያዎች'], true)) {
             $this->handleDevicesList($chatId, $user);
@@ -1197,6 +1223,65 @@ class TelegramRouter
 
         // Fall through to menu handler (checks menu buttons and falls back to product search)
         $this->menuHandler->handle($chatId, $text, $user);
+    }
+
+    private function startDeleteAccount(int $chatId, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+        if ($user === null || $user->role !== 'owner') {
+            $this->telegram->sendMessage($chatId, __('delete_account_owner_only'));
+            return;
+        }
+        $this->telegram->sendMessage($chatId, __('delete_account_first'), [
+            'reply_markup' => TelegramUi::inlineKeyboard([[
+                ['text' => $locale === 'en' ? 'Continue' : 'ቀጥል', 'callback_data' => 'deleteaccount:second:0'],
+                ['text' => $locale === 'en' ? 'Cancel' : 'ሰርዝ', 'callback_data' => 'deleteaccount:cancel:0'],
+            ]]),
+        ]);
+    }
+
+    private function handleDeleteAccountCallback(string $callbackId, int $chatId, string $action, ?User $user): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+        $this->telegram->answerCallbackQuery($callbackId);
+        if ($action === 'cancel') {
+            $this->telegram->sendMessage($chatId, __('delete_account_cancelled'));
+            return;
+        }
+        if ($user === null || $user->role !== 'owner') {
+            $this->telegram->sendMessage($chatId, __('delete_account_owner_only'));
+            return;
+        }
+        if ($action === 'second') {
+            $shop = Shop::find($user->shop_id);
+            $this->telegram->sendMessage($chatId, __('delete_account_second', ['shop' => $shop?->name ?? 'Shop']), [
+                'reply_markup' => TelegramUi::inlineKeyboard([[
+                    ['text' => $locale === 'en' ? 'Delete permanently' : 'በቋሚነት ሰርዝ', 'callback_data' => 'deleteaccount:final:0'],
+                    ['text' => $locale === 'en' ? 'Cancel' : 'ሰርዝ', 'callback_data' => 'deleteaccount:cancel:0'],
+                ]]),
+            ]);
+            return;
+        }
+        if ($action !== 'final') return;
+
+        $shopId = (string) $user->shop_id;
+        ImmediateTransaction::run(function () use ($shopId): void {
+            Payment::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            Sale::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            Movement::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            Product::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            Customer::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            Location::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            PaymentProvider::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            Change::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            PairingCode::where('shop_id', $shopId)->delete();
+            Device::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            User::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->delete();
+            Shop::where('id', $shopId)->delete();
+        });
+        $this->telegram->sendMessage($chatId, __('delete_account_done'));
     }
 
     /**

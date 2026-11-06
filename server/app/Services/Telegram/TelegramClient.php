@@ -154,6 +154,14 @@ class TelegramClient
         return $res !== null && !empty($res['ok']);
     }
 
+    /** Apply a public bot profile setting through the Bot API. */
+    public function setBotProfile(string $method, array $payload): bool
+    {
+        $response = $this->httpClient()->post("{$this->baseUrl}/{$method}", $payload);
+        $result = $this->handleResponse($response, $method);
+        return $result !== null && !empty($result['ok']);
+    }
+
     /**
      * Handle HTTP response, parse JSON, and handle 429 and 403 cases.
      */
