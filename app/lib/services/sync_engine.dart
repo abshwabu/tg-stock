@@ -77,7 +77,9 @@ class SyncEngine {
     required this.api,
     required this.storage,
     this.updateService,
-  }) : stateNotifier = ValueNotifier(const SyncEngineState(status: SyncStatus.offline)) {
+  }) : stateNotifier = ValueNotifier(
+         const SyncEngineState(status: SyncStatus.offline),
+       ) {
     _init();
   }
 
@@ -91,7 +93,9 @@ class SyncEngine {
     final negStock = await db.hasNegativeStock();
 
     stateNotifier.value = SyncEngineState(
-      status: (isOnline && token != null) ? SyncStatus.idle : SyncStatus.offline,
+      status: (isOnline && token != null)
+          ? SyncStatus.idle
+          : SyncStatus.offline,
       lastSyncedAt: lastSynced,
       pendingCount: pending,
       hasNegativeStock: negStock,
@@ -169,7 +173,8 @@ class SyncEngine {
       if (updateInfo != null && updateInfo.isSyncBlocked) {
         stateNotifier.value = state.copyWith(
           status: SyncStatus.error,
-          errorMessage: 'Online sync paused: Update required (min v${updateInfo.minSupported}). Local inventory and sales remain fully functional offline.',
+          errorMessage:
+              'Online sync paused: Update required (min v${updateInfo.minSupported}). Local inventory and sales remain fully functional offline.',
           progressText: null,
         );
         return;
@@ -187,6 +192,7 @@ class SyncEngine {
       final serverUrl = await storage.getServerUrl();
       bool hasMoreServerChanges = true;
       bool hasMoreLocalChanges = true;
+      final serverRejections = <String>[];
 
       while (hasMoreServerChanges || hasMoreLocalChanges) {
         // 1. Fetch next batch of uncommitted outbox changes (up to 200)
@@ -218,6 +224,11 @@ class SyncEngine {
           cursor: currentCursor,
           changes: wireChanges,
         );
+
+        for (final rejection in response.rejected) {
+          final reason = rejection['reason'] ?? 'Rejected by server';
+          serverRejections.add('${rejection['id']}: $reason');
+        }
 
         // 4. Ingest accepted / rejected in a single local transaction
         await db.transaction(() async {
@@ -273,6 +284,19 @@ class SyncEngine {
       final finalPending = await db.countPendingOutbox();
       final finalNegStock = await db.hasNegativeStock();
 
+      if (serverRejections.isNotEmpty) {
+        final preview = serverRejections.take(3).join('; ');
+        stateNotifier.value = state.copyWith(
+          status: SyncStatus.error,
+          pendingCount: finalPending,
+          hasNegativeStock: finalNegStock,
+          errorMessage:
+              'Server rejected ${serverRejections.length} change(s): $preview',
+          progressText: null,
+        );
+        return;
+      }
+
       stateNotifier.value = state.copyWith(
         status: SyncStatus.idle,
         pendingCount: finalPending,
@@ -286,11 +310,14 @@ class SyncEngine {
       stopPeriodicSync();
       stateNotifier.value = state.copyWith(
         status: SyncStatus.unauthorized,
-        errorMessage: 'Device token revoked or unauthorized. Please re-pair your device.',
+        errorMessage:
+            'Device token revoked or unauthorized. Please re-pair your device.',
         progressText: null,
       );
     } on RateLimitedException catch (e) {
-      _backoffUntil = DateTime.now().add(Duration(seconds: e.retryAfterSeconds));
+      _backoffUntil = DateTime.now().add(
+        Duration(seconds: e.retryAfterSeconds),
+      );
       stateNotifier.value = state.copyWith(
         status: SyncStatus.error,
         errorMessage: 'Rate limited. Pausing for ${e.retryAfterSeconds}s.',
@@ -311,7 +338,9 @@ class SyncEngine {
 
   /// First sync flow: seeds all existing offline history into the outbox
   /// and runs sync with interactive progress tracking.
-  Future<void> runInitialHistorySync({void Function(int current, int total)? onProgress}) async {
+  Future<void> runInitialHistorySync({
+    void Function(int current, int total)? onProgress,
+  }) async {
     stateNotifier.value = state.copyWith(
       status: SyncStatus.syncing,
       progressText: 'Preparing offline data for cloud sync...',
@@ -365,14 +394,17 @@ class SyncEngine {
       final note = data['note'] as String?;
       final createdAt = data['created_at'] is int
           ? data['created_at'] as int
-          : int.tryParse(data['created_at']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch;
+          : int.tryParse(data['created_at']?.toString() ?? '0') ??
+                DateTime.now().millisecondsSinceEpoch;
       final locId = data['location_id'] as String?;
       final transferId = data['transfer_id'] as String?;
       final saleId = data['sale_id'] as String?;
       final sourceMovementId = data['source_movement_id']?.toString();
       final tracksStock = data['tracks_stock'] == null
           ? true
-          : (data['tracks_stock'] == true || data['tracks_stock'] == 1 || data['tracks_stock'] == '1');
+          : (data['tracks_stock'] == true ||
+                data['tracks_stock'] == 1 ||
+                data['tracks_stock'] == '1');
 
       final movement = Movement(
         id: movId,
@@ -390,7 +422,9 @@ class SyncEngine {
       );
 
       // Append-only: insert or ignore duplicate IDs
-      await db.into(db.movements).insert(movement, mode: InsertMode.insertOrIgnore);
+      await db
+          .into(db.movements)
+          .insert(movement, mode: InsertMode.insertOrIgnore);
       return;
     }
 
@@ -401,16 +435,21 @@ class SyncEngine {
           : int.tryParse(data['total_cents']?.toString() ?? '0') ?? 0;
       final createdAt = data['created_at'] is int
           ? data['created_at'] as int
-          : int.tryParse(data['created_at']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch;
+          : int.tryParse(data['created_at']?.toString() ?? '0') ??
+                DateTime.now().millisecondsSinceEpoch;
       final voidedAt = data['voided_at'] is int
           ? data['voided_at'] as int
-          : (data['voided_at'] != null ? int.tryParse(data['voided_at'].toString()) : null);
+          : (data['voided_at'] != null
+                ? int.tryParse(data['voided_at'].toString())
+                : null);
       final dueDate = data['due_date']?.toString();
       final customerId = data['customer_id']?.toString();
       final locId = data['location_id']?.toString();
       final note = data['note']?.toString();
 
-      final existing = await (db.select(db.sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+      final existing = await (db.select(
+        db.sales,
+      )..where((s) => s.id.equals(saleId))).getSingleOrNull();
       final sale = Sale(
         id: saleId,
         locationId: locId,
@@ -418,7 +457,11 @@ class SyncEngine {
         totalCents: totalCents,
         dueDate: dueDate,
         note: note,
-        legacy: data['legacy'] == true || data['legacy'] == 1 || data['legacy'] == '1' || (existing?.legacy ?? false),
+        legacy:
+            data['legacy'] == true ||
+            data['legacy'] == 1 ||
+            data['legacy'] == '1' ||
+            (existing?.legacy ?? false),
         voidedAtMs: voidedAt,
         createdAtMs: existing?.createdAtMs ?? createdAt,
         updatedAtMs: DateTime.now().millisecondsSinceEpoch,
@@ -441,7 +484,8 @@ class SyncEngine {
       final reference = data['reference']?.toString();
       final receivedAt = data['received_at'] is int
           ? data['received_at'] as int
-          : int.tryParse(data['received_at']?.toString() ?? '0') ?? DateTime.now().millisecondsSinceEpoch;
+          : int.tryParse(data['received_at']?.toString() ?? '0') ??
+                DateTime.now().millisecondsSinceEpoch;
 
       final payment = Payment(
         id: payId,
@@ -456,7 +500,9 @@ class SyncEngine {
         createdAtMs: receivedAt,
       );
 
-      await db.into(db.payments).insert(payment, mode: InsertMode.insertOrIgnore);
+      await db
+          .into(db.payments)
+          .insert(payment, mode: InsertMode.insertOrIgnore);
       return;
     }
 
@@ -466,7 +512,9 @@ class SyncEngine {
           ? data['updated_at'] as int
           : int.tryParse(data['updated_at']?.toString() ?? '0') ?? 0;
 
-      final existing = await (db.select(db.customers)..where((c) => c.id.equals(custId))).getSingleOrNull();
+      final existing = await (db.select(
+        db.customers,
+      )..where((c) => c.id.equals(custId))).getSingleOrNull();
       if (existing != null && existing.updatedAtMs > incomingUpdatedAt) {
         return;
       }
@@ -486,7 +534,9 @@ class SyncEngine {
         deletedAtMs: isDelete ? incomingUpdatedAt : null,
       );
 
-      await db.into(db.customers).insert(customer, mode: InsertMode.insertOrReplace);
+      await db
+          .into(db.customers)
+          .insert(customer, mode: InsertMode.insertOrReplace);
       return;
     }
 
@@ -496,7 +546,9 @@ class SyncEngine {
           ? data['updated_at'] as int
           : int.tryParse(data['updated_at']?.toString() ?? '0') ?? 0;
 
-      final existing = await (db.select(db.paymentProviders)..where((p) => p.providerKey.equals(providerKey))).getSingleOrNull();
+      final existing = await (db.select(
+        db.paymentProviders,
+      )..where((p) => p.providerKey.equals(providerKey))).getSingleOrNull();
       if (existing != null && existing.updatedAtMs > incomingUpdatedAt) {
         return;
       }
@@ -515,7 +567,9 @@ class SyncEngine {
         updatedAtMs: incomingUpdatedAt,
       );
 
-      await db.into(db.paymentProviders).insert(provider, mode: InsertMode.insertOrReplace);
+      await db
+          .into(db.paymentProviders)
+          .insert(provider, mode: InsertMode.insertOrReplace);
       return;
     }
 
@@ -525,7 +579,9 @@ class SyncEngine {
           ? data['updated_at'] as int
           : int.tryParse(data['updated_at']?.toString() ?? '0') ?? 0;
 
-      final existing = await (db.select(db.locations)..where((l) => l.id.equals(locId))).getSingleOrNull();
+      final existing = await (db.select(
+        db.locations,
+      )..where((l) => l.id.equals(locId))).getSingleOrNull();
 
       if (existing != null && existing.updatedAtMs > incomingUpdatedAt) {
         return;
@@ -535,7 +591,9 @@ class SyncEngine {
       final name = data['name']?.toString() ?? (existing?.name ?? 'Location');
       final kind = data['kind']?.toString() ?? (existing?.kind ?? 'store');
       final isDefault = data['is_default'] == true || data['is_default'] == 1;
-      final isActive = isDelete ? false : (data['is_active'] == true || data['is_active'] == 1);
+      final isActive = isDelete
+          ? false
+          : (data['is_active'] == true || data['is_active'] == 1);
 
       final location = Location(
         id: locId,
@@ -546,7 +604,9 @@ class SyncEngine {
         updatedAtMs: incomingUpdatedAt,
       );
 
-      await db.into(db.locations).insert(location, mode: InsertMode.insertOrReplace);
+      await db
+          .into(db.locations)
+          .insert(location, mode: InsertMode.insertOrReplace);
       return;
     }
 
@@ -556,7 +616,9 @@ class SyncEngine {
           ? data['updated_at'] as int
           : int.tryParse(data['updated_at']?.toString() ?? '0') ?? 0;
 
-      final existing = await (db.select(db.products)..where((p) => p.id.equals(prodId))).getSingleOrNull();
+      final existing = await (db.select(
+        db.products,
+      )..where((p) => p.id.equals(prodId))).getSingleOrNull();
 
       // Last-Write-Wins: only overwrite if incoming updated_at is newer or equal
       if (existing != null && existing.updatedAtMs > incomingUpdatedAt) {
@@ -569,10 +631,15 @@ class SyncEngine {
       final sku = data['sku']?.toString();
       final unit = data['unit']?.toString() ?? 'pcs';
       final kind = data['kind']?.toString() ?? (existing?.kind ?? 'stockable');
-      final askPrice = data['ask_price'] == true || data['ask_price'] == 1 || data['ask_price'] == '1';
+      final askPrice =
+          data['ask_price'] == true ||
+          data['ask_price'] == 1 ||
+          data['ask_price'] == '1';
       final kindChangedAt = data['kind_changed_at'] is int
           ? data['kind_changed_at'] as int
-          : (data['kind_changed_at'] != null ? int.tryParse(data['kind_changed_at'].toString()) : null);
+          : (data['kind_changed_at'] != null
+                ? int.tryParse(data['kind_changed_at'].toString())
+                : null);
 
       final costPrice = data['cost_price_cents'] is int
           ? data['cost_price_cents'] as int
@@ -581,8 +648,12 @@ class SyncEngine {
           ? data['sell_price_cents'] as int
           : int.tryParse(data['sell_price_cents']?.toString() ?? '0') ?? 0;
       final lowStockStr = data['low_stock_at']?.toString();
-      final lowStockMilli = lowStockStr != null ? QuantityFormatter.parseQty(lowStockStr) : null;
-      final isActive = isDelete ? false : (data['is_active'] == true || data['is_active'] == 1);
+      final lowStockMilli = lowStockStr != null
+          ? QuantityFormatter.parseQty(lowStockStr)
+          : null;
+      final isActive = isDelete
+          ? false
+          : (data['is_active'] == true || data['is_active'] == 1);
 
       final product = Product(
         id: prodId,
@@ -600,25 +671,31 @@ class SyncEngine {
         deletedAtMs: isDelete ? incomingUpdatedAt : null,
       );
 
-      await db.into(db.products).insert(product, mode: InsertMode.insertOrReplace);
+      await db
+          .into(db.products)
+          .insert(product, mode: InsertMode.insertOrReplace);
 
       // Ingest materials if provided
       if (data['materials'] is List) {
-        await (db.delete(db.productMaterials)..where((pm) => pm.productId.equals(prodId))).go();
+        await (db.delete(
+          db.productMaterials,
+        )..where((pm) => pm.productId.equals(prodId))).go();
         for (final item in (data['materials'] as List)) {
           if (item is Map) {
             final matId = (item['product_id'] ?? item['id'])?.toString();
             final qtyStr = item['qty']?.toString() ?? '0.000';
             final qtyMilli = QuantityFormatter.parseQty(qtyStr);
             if (matId != null && matId.isNotEmpty) {
-              await db.into(db.productMaterials).insert(
-                ProductMaterialsCompanion.insert(
-                  productId: prodId,
-                  materialProductId: matId,
-                  qtyMilli: qtyMilli,
-                ),
-                mode: InsertMode.insertOrReplace,
-              );
+              await db
+                  .into(db.productMaterials)
+                  .insert(
+                    ProductMaterialsCompanion.insert(
+                      productId: prodId,
+                      materialProductId: matId,
+                      qtyMilli: qtyMilli,
+                    ),
+                    mode: InsertMode.insertOrReplace,
+                  );
             }
           }
         }
