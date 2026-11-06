@@ -405,7 +405,7 @@ class SyncEngine {
         totalCents: totalCents,
         dueDate: dueDate,
         note: note,
-        legacy: existing?.legacy ?? false,
+        legacy: data['legacy'] == true || data['legacy'] == 1 || data['legacy'] == '1' || (existing?.legacy ?? false),
         voidedAtMs: voidedAt,
         createdAtMs: existing?.createdAtMs ?? createdAt,
         updatedAtMs: DateTime.now().millisecondsSinceEpoch,

@@ -511,7 +511,7 @@ class TelegramRouter
         if ($action === 'cart_back') {
             $this->telegram->answerCallbackQuery($cqId);
             $state = $this->botState->get($chatId);
-            $this->saleHandler->showCartSummary($chatId, $state?->data['cart'] ?? [], $user?->language ?? 'am');
+            $this->saleHandler->showCartSummary($chatId, $state?->data['cart'] ?? [], $user?->language ?? 'am', $user);
             return;
         }
 

@@ -464,7 +464,7 @@ class SyncService
             return;
         }
 
-        $allowedFields = ['id', 'location_id', 'customer_id', 'total_cents', 'due_date', 'note', 'created_at', 'voided_at'];
+        $allowedFields = ['id', 'location_id', 'customer_id', 'total_cents', 'due_date', 'note', 'legacy', 'created_at', 'voided_at'];
         $unknown = array_diff(array_keys($data), $allowedFields);
         if (!empty($unknown)) {
             $rejected[] = ['id' => $id, 'reason' => 'Unknown field(s) in sale data: ' . implode(', ', $unknown)];
@@ -567,7 +567,8 @@ class SyncService
         }
 
         $totalExplicitPayments = $explicitPaymentsInDb + $explicitPaymentsInBatch;
-        $isDube = ($totalCents - $totalExplicitPayments) > 0;
+        $isLegacy = (bool) ($data['legacy'] ?? false);
+        $isDube = !$isLegacy && (($totalCents - $totalExplicitPayments) > 0);
 
         if ($isDube) {
             // Must have sale.dube permission
@@ -617,7 +618,7 @@ class SyncService
             'total_cents' => $totalCents,
             'due_date' => $data['due_date'] ?? null,
             'note' => $data['note'] ?? null,
-            'legacy' => false,
+            'legacy' => $isLegacy,
             'voided_at_ms' => $voidedAtMs,
             'created_at_ms' => $createdMs,
             'updated_at_ms' => $nowMs,
@@ -1752,6 +1753,7 @@ class SyncService
                     'total_cents' => (int) $s->total_cents,
                     'due_date' => $s->due_date,
                     'note' => $s->note,
+                    'legacy' => (bool) $s->legacy,
                     'created_at' => (int) $s->created_at_ms,
                     'voided_at' => $s->voided_at_ms !== null ? (int) $s->voided_at_ms : null,
                 ],

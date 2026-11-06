@@ -224,13 +224,13 @@ class SaleHandler
 
         $this->botState->next($chatId, 'cart', ['cart' => $cart]);
 
-        $this->showCartSummary($chatId, $cart, $locale);
+        $this->showCartSummary($chatId, $cart, $locale, $user);
     }
 
     /**
      * Display current cart and action buttons.
      */
-    public function showCartSummary(int|string $chatId, array $cart, string $locale): void
+    public function showCartSummary(int|string $chatId, array $cart, string $locale, ?User $user = null): void
     {
         $itemsText = '';
         $totalCents = 0;

@@ -1550,8 +1550,10 @@ class AppDatabase extends _$AppDatabase {
         }
       }
 
-      // 6. All sales (excluding legacy sales)
-      final allSales = await (select(sales)..where((s) => s.legacy.equals(false))).get();
+      // 6. All sales, including legacy sales backfilled from pre-sale-schema movements.
+      // Legacy headers must be uploaded before their movements so the server can
+      // preserve the historical ledger and include it in reports.
+      final allSales = await select(sales).get();
       for (final s in allSales) {
         final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(s.id))).getSingleOrNull();
         if (exists == null) {
@@ -1562,6 +1564,7 @@ class AppDatabase extends _$AppDatabase {
             'total_cents': s.totalCents,
             'due_date': s.dueDate,
             'note': s.note,
+            'legacy': s.legacy,
             'created_at': s.createdAtMs,
             'voided_at': s.voidedAtMs,
           };
