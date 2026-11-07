@@ -341,6 +341,10 @@ class SyncEngine {
   Future<void> runInitialHistorySync({
     void Function(int current, int total)? onProgress,
   }) async {
+    // Pairing is also the explicit recovery path after an online database reset.
+    // Replay all local entities, including entries previously marked synced.
+    await db.requeueAllOutboxForFullResync();
+    await db.setServerCursor(0);
     stateNotifier.value = state.copyWith(
       status: SyncStatus.syncing,
       progressText: 'Preparing offline data for cloud sync...',

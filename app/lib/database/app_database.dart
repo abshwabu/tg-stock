@@ -12,18 +12,42 @@ import '../utils/uuid_generator.dart';
 part 'app_database.g.dart';
 
 const defaultStarterCatalogBanks = [
-  {'key': 'bank.cbe', 'name': 'Commercial Bank of Ethiopia', 'name_am': 'የኢትዮጵያ ንግድ ባንክ'},
+  {
+    'key': 'bank.cbe',
+    'name': 'Commercial Bank of Ethiopia',
+    'name_am': 'የኢትዮጵያ ንግድ ባንክ',
+  },
   {'key': 'bank.awash', 'name': 'Awash Bank', 'name_am': 'አዋሽ ባንክ'},
   {'key': 'bank.dashen', 'name': 'Dashen Bank', 'name_am': 'ዳሸን ባንክ'},
-  {'key': 'bank.abyssinia', 'name': 'Bank of Abyssinia', 'name_am': 'አቢሲኒያ ባንክ'},
+  {
+    'key': 'bank.abyssinia',
+    'name': 'Bank of Abyssinia',
+    'name_am': 'አቢሲኒያ ባንክ',
+  },
   {'key': 'bank.wegagen', 'name': 'Wegagen Bank', 'name_am': 'ወጋገን ባንክ'},
   {'key': 'bank.hibret', 'name': 'Hibret Bank', 'name_am': 'ኅብረት ባንክ'},
-  {'key': 'bank.nib', 'name': 'Nib International Bank', 'name_am': 'ንብ ኢንተርናሽናል ባንክ'},
-  {'key': 'bank.coop', 'name': 'Cooperative Bank of Oromia', 'name_am': 'የኦሮሚያ ኅብረት ሥራ ባንክ'},
+  {
+    'key': 'bank.nib',
+    'name': 'Nib International Bank',
+    'name_am': 'ንብ ኢንተርናሽናል ባንክ',
+  },
+  {
+    'key': 'bank.coop',
+    'name': 'Cooperative Bank of Oromia',
+    'name_am': 'የኦሮሚያ ኅብረት ሥራ ባንክ',
+  },
   {'key': 'bank.oromia', 'name': 'Oromia Bank', 'name_am': 'ኦሮሚያ ባንክ'},
-  {'key': 'bank.lion', 'name': 'Lion International Bank', 'name_am': 'አንበሳ ኢንተርናሽናል ባንክ'},
+  {
+    'key': 'bank.lion',
+    'name': 'Lion International Bank',
+    'name_am': 'አንበሳ ኢንተርናሽናል ባንክ',
+  },
   {'key': 'bank.zemen', 'name': 'Zemen Bank', 'name_am': 'ዘመን ባንክ'},
-  {'key': 'bank.bunna', 'name': 'Bunna International Bank', 'name_am': 'ቡና ኢንተርናሽናል ባንክ'},
+  {
+    'key': 'bank.bunna',
+    'name': 'Bunna International Bank',
+    'name_am': 'ቡና ኢንተርናሽናል ባንክ',
+  },
   {'key': 'bank.berhan', 'name': 'Berhan Bank', 'name_am': 'ብርሃን ባንክ'},
   {'key': 'bank.abay', 'name': 'Abay Bank', 'name_am': 'ዓባይ ባንክ'},
   {'key': 'bank.enat', 'name': 'Enat Bank', 'name_am': 'እናት ባንክ'},
@@ -31,11 +55,19 @@ const defaultStarterCatalogBanks = [
   {'key': 'bank.ahadu', 'name': 'Ahadu Bank', 'name_am': 'አሃዱ ባንክ'},
   {'key': 'bank.siinqee', 'name': 'Siinqee Bank', 'name_am': 'ሲንቄ ባንክ'},
   {'key': 'bank.tsehay', 'name': 'Tsehay Bank', 'name_am': 'ፀሐይ ባንክ'},
-  {'key': 'bank.global', 'name': 'Global Bank Ethiopia', 'name_am': 'ግሎባል ባንክ ኢትዮጵያ'},
+  {
+    'key': 'bank.global',
+    'name': 'Global Bank Ethiopia',
+    'name_am': 'ግሎባል ባንክ ኢትዮጵያ',
+  },
   {'key': 'bank.gadaa', 'name': 'Gadaa Bank', 'name_am': 'ገዳ ባንክ'},
   {'key': 'bank.hijra', 'name': 'Hijra Bank', 'name_am': 'ሂጅራ ባንክ'},
   {'key': 'bank.zamzam', 'name': 'ZamZam Bank', 'name_am': 'ዘምዘም ባንክ'},
-  {'key': 'bank.addis', 'name': 'Addis International Bank', 'name_am': 'አዲስ ኢንተርናሽናል ባንክ'},
+  {
+    'key': 'bank.addis',
+    'name': 'Addis International Bank',
+    'name_am': 'አዲስ ኢንተርናሽናል ባንክ',
+  },
   {'key': 'bank.debub', 'name': 'Debub Global Bank', 'name_am': 'ደቡብ ግሎባል ባንክ'},
   {'key': 'bank.shabelle', 'name': 'Shabelle Bank', 'name_am': 'ሻበሌ ባንክ'},
 ];
@@ -55,7 +87,9 @@ class Products extends Table {
   TextColumn get name => text()();
   TextColumn get sku => text().nullable()();
   TextColumn get unit => text().withDefault(const Constant('pcs'))();
-  TextColumn get kind => text().withDefault(const Constant('stockable'))(); // 'stockable', 'service', 'consumable'
+  TextColumn get kind => text().withDefault(
+    const Constant('stockable'),
+  )(); // 'stockable', 'service', 'consumable'
   IntColumn get costPriceCents => integer().withDefault(const Constant(0))();
   IntColumn get sellPriceCents => integer().withDefault(const Constant(0))();
   BoolColumn get askPrice => boolean().withDefault(const Constant(false))();
@@ -72,7 +106,8 @@ class Products extends Table {
 class ProductMaterials extends Table {
   TextColumn get productId => text()();
   TextColumn get materialProductId => text()();
-  IntColumn get qtyMilli => integer()(); // quantity of raw material used per ONE unit sold
+  IntColumn get qtyMilli =>
+      integer()(); // quantity of raw material used per ONE unit sold
 
   @override
   Set<Column> get primaryKey => {productId, materialProductId};
@@ -85,8 +120,10 @@ class Movements extends Table {
   TextColumn get locationId => text().nullable()();
   TextColumn get transferId => text().nullable()();
   TextColumn get sourceMovementId => text().nullable()();
-  TextColumn get type => text()(); // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in', 'consume'
-  IntColumn get qtyMilli => integer()(); // signed integer thousandths (e.g. 5000 = 5.000, -2500 = -2.500)
+  TextColumn get type =>
+      text()(); // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in', 'consume'
+  IntColumn get qtyMilli =>
+      integer()(); // signed integer thousandths (e.g. 5000 = 5.000, -2500 = -2.500)
   IntColumn get unitPriceCents => integer().withDefault(const Constant(0))();
   BoolColumn get tracksStock => boolean().withDefault(const Constant(true))();
   TextColumn get note => text().nullable()();
@@ -99,7 +136,9 @@ class Movements extends Table {
 class Locations extends Table {
   TextColumn get id => text()(); // UUIDv7
   TextColumn get name => text()();
-  TextColumn get kind => text().withDefault(const Constant('store'))(); // 'store', 'warehouse', 'other'
+  TextColumn get kind => text().withDefault(
+    const Constant('store'),
+  )(); // 'store', 'warehouse', 'other'
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   IntColumn get updatedAtMs => integer()();
@@ -154,7 +193,8 @@ class Customers extends Table {
 }
 
 class PaymentProviders extends Table {
-  TextColumn get providerKey => text()(); // 'bank.cbe', 'wallet.telebirr', 'custom.<uuid>'
+  TextColumn get providerKey =>
+      text()(); // 'bank.cbe', 'wallet.telebirr', 'custom.<uuid>'
   TextColumn get kind => text()(); // 'bank', 'wallet'
   TextColumn get name => text().nullable()(); // Custom name
   BoolColumn get enabled => boolean().withDefault(const Constant(true))();
@@ -167,12 +207,15 @@ class PaymentProviders extends Table {
 
 class OutboxEntries extends Table {
   TextColumn get id => text()(); // Client UUIDv7
-  TextColumn get entity => text()(); // 'product', 'movement', 'sale', 'payment', 'customer', 'payment_provider'
+  TextColumn get entity =>
+      text()(); // 'product', 'movement', 'sale', 'payment', 'customer', 'payment_provider'
   TextColumn get entityId => text()();
   TextColumn get op => text()(); // 'upsert', 'delete'
   TextColumn get payloadJson => text()();
   IntColumn get clientTs => integer()();
-  TextColumn get status => text().withDefault(const Constant('pending'))(); // 'pending', 'synced', 'failed'
+  TextColumn get status => text().withDefault(
+    const Constant('pending'),
+  )(); // 'pending', 'synced', 'failed'
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   TextColumn get errorReason => text().nullable()();
   IntColumn get createdAt => integer()();
@@ -197,19 +240,21 @@ class AppSettings extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [
-  Products,
-  ProductMaterials,
-  Movements,
-  OutboxEntries,
-  SyncMetaEntries,
-  AppSettings,
-  Locations,
-  Sales,
-  Payments,
-  Customers,
-  PaymentProviders,
-])
+@DriftDatabase(
+  tables: [
+    Products,
+    ProductMaterials,
+    Movements,
+    OutboxEntries,
+    SyncMetaEntries,
+    AppSettings,
+    Locations,
+    Sales,
+    Payments,
+    Customers,
+    PaymentProviders,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 
@@ -402,7 +447,8 @@ class AppDatabase extends _$AppDatabase {
     }
 
     for (final w in defaultStarterCatalogWallets) {
-      final isFav = w['key'] == 'wallet.telebirr' || w['key'] == 'wallet.cbebirr';
+      final isFav =
+          w['key'] == 'wallet.telebirr' || w['key'] == 'wallet.cbebirr';
       await into(paymentProviders).insert(
         PaymentProvidersCompanion.insert(
           providerKey: w['key']!,
@@ -418,21 +464,31 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> _seedDefaultPaymentSettings() async {
-    final enabledMethods = await (select(appSettings)..where((s) => s.key.equals('payment_methods_enabled'))).getSingleOrNull();
+    final enabledMethods = await (select(
+      appSettings,
+    )..where((s) => s.key.equals('payment_methods_enabled'))).getSingleOrNull();
     if (enabledMethods == null) {
       await into(appSettings).insert(
-        const AppSetting(key: 'payment_methods_enabled', value: '["cash","bank","wallet","dube"]'),
+        const AppSetting(
+          key: 'payment_methods_enabled',
+          value: '["cash","bank","wallet","dube"]',
+        ),
         mode: InsertMode.insertOrIgnore,
       );
     }
-    final dubeDays = await (select(appSettings)..where((s) => s.key.equals('dube_default_days'))).getSingleOrNull();
+    final dubeDays = await (select(
+      appSettings,
+    )..where((s) => s.key.equals('dube_default_days'))).getSingleOrNull();
     if (dubeDays == null) {
       await into(appSettings).insert(
         const AppSetting(key: 'dube_default_days', value: '14'),
         mode: InsertMode.insertOrIgnore,
       );
     }
-    final reqRef = await (select(appSettings)..where((s) => s.key.equals('require_payment_reference'))).getSingleOrNull();
+    final reqRef =
+        await (select(appSettings)
+              ..where((s) => s.key.equals('require_payment_reference')))
+            .getSingleOrNull();
     if (reqRef == null) {
       await into(appSettings).insert(
         const AppSetting(key: 'require_payment_reference', value: 'false'),
@@ -442,10 +498,16 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<void> backfillLegacySales() async {
-    final legacyMovements = await (select(movements)
-          ..where((m) => m.type.equals('sale') & m.saleId.isNull())
-          ..orderBy([(m) => OrderingTerm(expression: m.createdAtMs, mode: OrderingMode.asc)]))
-        .get();
+    final legacyMovements =
+        await (select(movements)
+              ..where((m) => m.type.equals('sale') & m.saleId.isNull())
+              ..orderBy([
+                (m) => OrderingTerm(
+                  expression: m.createdAtMs,
+                  mode: OrderingMode.asc,
+                ),
+              ]))
+            .get();
 
     if (legacyMovements.isEmpty) return;
 
@@ -468,7 +530,8 @@ class AppDatabase extends _$AppDatabase {
 
       int groupTotalCents = 0;
       for (final m in groupMovs) {
-        groupTotalCents += ((m.qtyMilli.abs() * m.unitPriceCents) / 1000).round();
+        groupTotalCents += ((m.qtyMilli.abs() * m.unitPriceCents) / 1000)
+            .round();
       }
 
       final sale = Sale(
@@ -570,7 +633,9 @@ class AppDatabase extends _$AppDatabase {
         'ask_price': askPrice,
         'materials': wireMaterials,
         'kind_changed_at': kindChangedAtMs,
-        'low_stock_at': lowStockAtMilli != null ? QuantityFormatter.toWireQty(lowStockAtMilli) : null,
+        'low_stock_at': lowStockAtMilli != null
+            ? QuantityFormatter.toWireQty(lowStockAtMilli)
+            : null,
         'is_active': true,
         'updated_at': nowMs,
       };
@@ -593,7 +658,10 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Updates an existing product and appends to Outbox in the same transaction.
-  Future<void> updateProduct(Product product, {List<Map<String, dynamic>>? materials}) async {
+  Future<void> updateProduct(
+    Product product, {
+    List<Map<String, dynamic>>? materials,
+  }) async {
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     final updated = product.copyWith(updatedAtMs: nowMs);
 
@@ -602,7 +670,9 @@ class AppDatabase extends _$AppDatabase {
 
       List<Map<String, dynamic>>? wireMaterials;
       if (materials != null) {
-        await (delete(productMaterials)..where((pm) => pm.productId.equals(updated.id))).go();
+        await (delete(
+          productMaterials,
+        )..where((pm) => pm.productId.equals(updated.id))).go();
         wireMaterials = [];
         for (final mat in materials) {
           final matProdId = mat['product_id'] as String;
@@ -623,12 +693,18 @@ class AppDatabase extends _$AppDatabase {
           });
         }
       } else {
-        final existingMats = await (select(productMaterials)..where((pm) => pm.productId.equals(updated.id))).get();
+        final existingMats = await (select(
+          productMaterials,
+        )..where((pm) => pm.productId.equals(updated.id))).get();
         if (existingMats.isNotEmpty) {
-          wireMaterials = existingMats.map((m) => {
-            'product_id': m.materialProductId,
-            'qty': QuantityFormatter.toWireQty(m.qtyMilli),
-          }).toList();
+          wireMaterials = existingMats
+              .map(
+                (m) => {
+                  'product_id': m.materialProductId,
+                  'qty': QuantityFormatter.toWireQty(m.qtyMilli),
+                },
+              )
+              .toList();
         }
       }
 
@@ -643,7 +719,9 @@ class AppDatabase extends _$AppDatabase {
         'ask_price': updated.askPrice,
         'materials': wireMaterials,
         'kind_changed_at': updated.kindChangedAtMs,
-        'low_stock_at': updated.lowStockAtMilli != null ? QuantityFormatter.toWireQty(updated.lowStockAtMilli!) : null,
+        'low_stock_at': updated.lowStockAtMilli != null
+            ? QuantityFormatter.toWireQty(updated.lowStockAtMilli!)
+            : null,
         'is_active': updated.isActive,
         'updated_at': nowMs,
       };
@@ -668,7 +746,9 @@ class AppDatabase extends _$AppDatabase {
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     await transaction(() async {
-      final existing = await (select(products)..where((p) => p.id.equals(id))).getSingleOrNull();
+      final existing = await (select(
+        products,
+      )..where((p) => p.id.equals(id))).getSingleOrNull();
       if (existing == null) return;
 
       final updated = existing.copyWith(
@@ -679,12 +759,18 @@ class AppDatabase extends _$AppDatabase {
 
       await update(products).replace(updated);
 
-      final existingMats = await (select(productMaterials)..where((pm) => pm.productId.equals(id))).get();
+      final existingMats = await (select(
+        productMaterials,
+      )..where((pm) => pm.productId.equals(id))).get();
       final wireMaterials = existingMats.isNotEmpty
-          ? existingMats.map((m) => {
-              'product_id': m.materialProductId,
-              'qty': QuantityFormatter.toWireQty(m.qtyMilli),
-            }).toList()
+          ? existingMats
+                .map(
+                  (m) => {
+                    'product_id': m.materialProductId,
+                    'qty': QuantityFormatter.toWireQty(m.qtyMilli),
+                  },
+                )
+                .toList()
           : null;
 
       final payload = {
@@ -698,7 +784,9 @@ class AppDatabase extends _$AppDatabase {
         'ask_price': existing.askPrice,
         'materials': wireMaterials,
         'kind_changed_at': existing.kindChangedAtMs,
-        'low_stock_at': existing.lowStockAtMilli != null ? QuantityFormatter.toWireQty(existing.lowStockAtMilli!) : null,
+        'low_stock_at': existing.lowStockAtMilli != null
+            ? QuantityFormatter.toWireQty(existing.lowStockAtMilli!)
+            : null,
         'is_active': false,
         'updated_at': nowMs,
       };
@@ -722,8 +810,10 @@ class AppDatabase extends _$AppDatabase {
   Future<Movement> recordMovement({
     String? id,
     required String productId,
-    required String type, // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in', 'consume'
-    required int qtyMilli, // signed: positive for intake, negative for sale/consume
+    required String
+    type, // 'in', 'sale', 'adjust', 'transfer_out', 'transfer_in', 'consume'
+    required int
+    qtyMilli, // signed: positive for intake, negative for sale/consume
     int unitPriceCents = 0,
     bool tracksStock = true,
     String? note,
@@ -739,10 +829,13 @@ class AppDatabase extends _$AppDatabase {
     return transaction(() async {
       String? resolvedLocId = locationId;
       if (resolvedLocId == null) {
-        final defLoc = await (select(locations)
-              ..where((l) => l.isDefault.equals(true) & l.isActive.equals(true))
-              ..limit(1))
-            .getSingleOrNull();
+        final defLoc =
+            await (select(locations)
+                  ..where(
+                    (l) => l.isDefault.equals(true) & l.isActive.equals(true),
+                  )
+                  ..limit(1))
+                .getSingleOrNull();
         resolvedLocId = defLoc?.id;
       }
 
@@ -856,9 +949,10 @@ class AppDatabase extends _$AppDatabase {
 
     await transaction(() async {
       if (updated.isDefault) {
-        await (update(locations)..where((l) => l.id.isNotValue(updated.id) & l.isDefault.equals(true))).write(
-          const LocationsCompanion(isDefault: Value(false)),
-        );
+        await (update(locations)..where(
+              (l) => l.id.isNotValue(updated.id) & l.isDefault.equals(true),
+            ))
+            .write(const LocationsCompanion(isDefault: Value(false)));
       }
 
       await update(locations).replace(updated);
@@ -892,7 +986,9 @@ class AppDatabase extends _$AppDatabase {
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     await transaction(() async {
-      final existing = await (select(locations)..where((l) => l.id.equals(id))).getSingleOrNull();
+      final existing = await (select(
+        locations,
+      )..where((l) => l.id.equals(id))).getSingleOrNull();
       if (existing == null) return;
 
       final updated = existing.copyWith(
@@ -1053,7 +1149,9 @@ class AppDatabase extends _$AppDatabase {
     final custId = id ?? UuidGenerator.v7();
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
 
-    final existing = await (select(customers)..where((c) => c.id.equals(custId))).getSingleOrNull();
+    final existing = await (select(
+      customers,
+    )..where((c) => c.id.equals(custId))).getSingleOrNull();
 
     final customer = Customer(
       id: custId,
@@ -1095,7 +1193,9 @@ class AppDatabase extends _$AppDatabase {
   /// Soft deletes a customer and writes to Outbox.
   Future<void> deleteCustomer(String id) async {
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final existing = await (select(customers)..where((c) => c.id.equals(id))).getSingleOrNull();
+    final existing = await (select(
+      customers,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
     if (existing == null) return;
 
     final updated = existing.copyWith(
@@ -1146,7 +1246,9 @@ class AppDatabase extends _$AppDatabase {
       updatedAtMs: nowMs,
     );
 
-    await into(paymentProviders).insert(provider, mode: InsertMode.insertOrReplace);
+    await into(
+      paymentProviders,
+    ).insert(provider, mode: InsertMode.insertOrReplace);
 
     final payload = {
       'provider_key': providerKey,
@@ -1174,9 +1276,14 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Updates a sale's due date and writes to Outbox.
-  Future<void> updateSaleDueDate({required String saleId, required String dueDate}) async {
+  Future<void> updateSaleDueDate({
+    required String saleId,
+    required String dueDate,
+  }) async {
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final existing = await (select(sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+    final existing = await (select(
+      sales,
+    )..where((s) => s.id.equals(saleId))).getSingleOrNull();
     if (existing == null) return;
 
     final updated = existing.copyWith(
@@ -1211,9 +1318,14 @@ class AppDatabase extends _$AppDatabase {
   }
 
   /// Marks a sale voided and writes to Outbox.
-  Future<void> markSaleVoided({required String saleId, required int voidedAtMs}) async {
+  Future<void> markSaleVoided({
+    required String saleId,
+    required int voidedAtMs,
+  }) async {
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
-    final existing = await (select(sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
+    final existing = await (select(
+      sales,
+    )..where((s) => s.id.equals(saleId))).getSingleOrNull();
     if (existing == null) return;
 
     final updated = existing.copyWith(
@@ -1253,7 +1365,10 @@ class AppDatabase extends _$AppDatabase {
   Future<int> getStock(String productId, {String? locationId}) async {
     var query = selectOnly(movements)
       ..addColumns([movements.qtyMilli.sum()])
-      ..where(movements.productId.equals(productId) & movements.tracksStock.equals(true));
+      ..where(
+        movements.productId.equals(productId) &
+            movements.tracksStock.equals(true),
+      );
 
     if (locationId != null) {
       query = query..where(movements.locationId.equals(locationId));
@@ -1267,18 +1382,25 @@ class AppDatabase extends _$AppDatabase {
   Stream<int> watchStock(String productId, {String? locationId}) {
     var query = selectOnly(movements)
       ..addColumns([movements.qtyMilli.sum()])
-      ..where(movements.productId.equals(productId) & movements.tracksStock.equals(true));
+      ..where(
+        movements.productId.equals(productId) &
+            movements.tracksStock.equals(true),
+      );
 
     if (locationId != null) {
       query = query..where(movements.locationId.equals(locationId));
     }
 
-    return query.watchSingle().map((row) => row.read(movements.qtyMilli.sum()) ?? 0);
+    return query.watchSingle().map(
+      (row) => row.read(movements.qtyMilli.sum()) ?? 0,
+    );
   }
 
   /// Checks if any product currently has negative stock (only stockable products).
   Future<bool> hasNegativeStock() async {
-    final prods = await (select(products)..where((p) => p.deletedAtMs.isNull() & p.kind.equals('stockable'))).get();
+    final prods = await (select(
+      products,
+    )..where((p) => p.deletedAtMs.isNull() & p.kind.equals('stockable'))).get();
     for (final p in prods) {
       final stock = await getStock(p.id);
       if (stock < 0) return true;
@@ -1288,7 +1410,9 @@ class AppDatabase extends _$AppDatabase {
 
   /// Gets all active products with their current calculated stock.
   Future<List<ProductWithStock>> getAllProductsWithStock() async {
-    final prods = await (select(products)..where((p) => p.deletedAtMs.isNull())).get();
+    final prods = await (select(
+      products,
+    )..where((p) => p.deletedAtMs.isNull())).get();
     final list = <ProductWithStock>[];
     for (final p in prods) {
       final s = await getStock(p.id);
@@ -1308,7 +1432,10 @@ class AppDatabase extends _$AppDatabase {
   Future<List<OutboxEntry>> getPendingOutboxBatch({int limit = 200}) async {
     return (select(outboxEntries)
           ..where((o) => o.status.equals('pending'))
-          ..orderBy([(o) => OrderingTerm(expression: o.createdAt, mode: OrderingMode.asc)])
+          ..orderBy([
+            (o) =>
+                OrderingTerm(expression: o.createdAt, mode: OrderingMode.asc),
+          ])
           ..limit(limit))
         .get();
   }
@@ -1328,7 +1455,9 @@ class AppDatabase extends _$AppDatabase {
       ..addColumns([outboxEntries.id.count()])
       ..where(outboxEntries.status.equals('pending'));
 
-    return query.watchSingle().map((row) => row.read(outboxEntries.id.count()) ?? 0);
+    return query.watchSingle().map(
+      (row) => row.read(outboxEntries.id.count()) ?? 0,
+    );
   }
 
   /// Marks accepted outbox entries as synced (or deletes them to conserve space).
@@ -1365,7 +1494,21 @@ class AppDatabase extends _$AppDatabase {
   /// location had not reached the server yet; initial history sync should be
   /// able to replay it after pairing.
   Future<void> requeueFailedOutbox() async {
-    await (update(outboxEntries)..where((o) => o.status.equals('failed'))).write(
+    await (update(
+      outboxEntries,
+    )..where((o) => o.status.equals('failed'))).write(
+      const OutboxEntriesCompanion(
+        status: Value('pending'),
+        errorReason: Value.absent(),
+      ),
+    );
+  }
+
+  /// Requeues every local change for a deliberate full server rebuild.
+  /// Replays are idempotent on the server and preserve phone data after a
+  /// server database reset.
+  Future<void> requeueAllOutboxForFullResync() async {
+    await update(outboxEntries).write(
       const OutboxEntriesCompanion(
         status: Value('pending'),
         errorReason: Value.absent(),
@@ -1401,14 +1544,22 @@ class AppDatabase extends _$AppDatabase {
       // 1. All products
       final allProds = await select(products).get();
       for (final p in allProds) {
-        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(p.id))).getSingleOrNull();
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(p.id))).getSingleOrNull();
         if (exists == null) {
-          final mats = await (select(productMaterials)..where((pm) => pm.productId.equals(p.id))).get();
+          final mats = await (select(
+            productMaterials,
+          )..where((pm) => pm.productId.equals(p.id))).get();
           final materialsWire = mats.isNotEmpty
-              ? mats.map((m) => {
-                  'product_id': m.materialProductId,
-                  'qty': QuantityFormatter.toWireQty(m.qtyMilli),
-                }).toList()
+              ? mats
+                    .map(
+                      (m) => {
+                        'product_id': m.materialProductId,
+                        'qty': QuantityFormatter.toWireQty(m.qtyMilli),
+                      },
+                    )
+                    .toList()
               : null;
 
           final payload = {
@@ -1422,7 +1573,9 @@ class AppDatabase extends _$AppDatabase {
             'ask_price': p.askPrice,
             'materials': materialsWire,
             'kind_changed_at': p.kindChangedAtMs,
-            'low_stock_at': p.lowStockAtMilli != null ? QuantityFormatter.toWireQty(p.lowStockAtMilli!) : null,
+            'low_stock_at': p.lowStockAtMilli != null
+                ? QuantityFormatter.toWireQty(p.lowStockAtMilli!)
+                : null,
             'is_active': p.isActive,
             'updated_at': p.updatedAtMs,
           };
@@ -1446,7 +1599,9 @@ class AppDatabase extends _$AppDatabase {
       // 2. All movements
       final allMovs = await select(movements).get();
       for (final m in allMovs) {
-        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(m.id))).getSingleOrNull();
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(m.id))).getSingleOrNull();
         if (exists == null) {
           final payload = {
             'id': m.id,
@@ -1482,7 +1637,9 @@ class AppDatabase extends _$AppDatabase {
       // 3. All locations
       final allLocs = await select(locations).get();
       for (final l in allLocs) {
-        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(l.id))).getSingleOrNull();
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(l.id))).getSingleOrNull();
         if (exists == null) {
           final payload = {
             'id': l.id,
@@ -1512,7 +1669,9 @@ class AppDatabase extends _$AppDatabase {
       // 4. All customers
       final allCusts = await select(customers).get();
       for (final c in allCusts) {
-        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(c.id))).getSingleOrNull();
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(c.id))).getSingleOrNull();
         if (exists == null) {
           final payload = {
             'id': c.id,
@@ -1542,7 +1701,9 @@ class AppDatabase extends _$AppDatabase {
       // 5. All payment providers
       final allProvs = await select(paymentProviders).get();
       for (final p in allProvs) {
-        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(p.providerKey))).getSingleOrNull();
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(p.providerKey))).getSingleOrNull();
         if (exists == null) {
           final payload = {
             'provider_key': p.providerKey,
@@ -1574,7 +1735,9 @@ class AppDatabase extends _$AppDatabase {
       // preserve the historical ledger and include it in reports.
       final allSales = await select(sales).get();
       for (final s in allSales) {
-        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(s.id))).getSingleOrNull();
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(s.id))).getSingleOrNull();
         if (exists == null) {
           final payload = {
             'id': s.id,
@@ -1607,7 +1770,9 @@ class AppDatabase extends _$AppDatabase {
       // 7. All payments
       final allPayments = await select(payments).get();
       for (final pay in allPayments) {
-        final exists = await (select(outboxEntries)..where((o) => o.entityId.equals(pay.id))).getSingleOrNull();
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(pay.id))).getSingleOrNull();
         if (exists == null) {
           final payload = {
             'id': pay.id,
@@ -1644,7 +1809,9 @@ class AppDatabase extends _$AppDatabase {
   // --- Meta Key-Value Storage ---
 
   Future<String?> getMeta(String key) async {
-    final entry = await (select(syncMetaEntries)..where((s) => s.key.equals(key))).getSingleOrNull();
+    final entry = await (select(
+      syncMetaEntries,
+    )..where((s) => s.key.equals(key))).getSingleOrNull();
     return entry?.value;
   }
 
@@ -1668,11 +1835,16 @@ class AppDatabase extends _$AppDatabase {
     final val = await getMeta('last_synced_at_ms');
     if (val == null) return null;
     final ms = int.tryParse(val);
-    return ms != null ? DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true) : null;
+    return ms != null
+        ? DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)
+        : null;
   }
 
   Future<void> setLastSyncedAt(DateTime dt) async {
-    await setMeta('last_synced_at_ms', dt.toUtc().millisecondsSinceEpoch.toString());
+    await setMeta(
+      'last_synced_at_ms',
+      dt.toUtc().millisecondsSinceEpoch.toString(),
+    );
   }
 }
 
@@ -1693,7 +1865,10 @@ class ProductWithStock {
   bool get isService => product.kind == 'service';
   bool get isConsumable => product.kind == 'consumable';
   bool get isNegative => isStockable && stockMilli < 0;
-  bool get isLow => isStockable && product.lowStockAtMilli != null && stockMilli <= product.lowStockAtMilli!;
+  bool get isLow =>
+      isStockable &&
+      product.lowStockAtMilli != null &&
+      stockMilli <= product.lowStockAtMilli!;
 }
 
 LazyDatabase _openConnection() {
