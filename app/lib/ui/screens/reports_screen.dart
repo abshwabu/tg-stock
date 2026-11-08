@@ -330,9 +330,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             children: [
                               const Icon(Icons.analytics_outlined, size: 18, color: Color(0xFF0F766E)),
                               const SizedBox(width: 8),
-                              Text(
-                                'Viewing: ${_getRangeLabel()}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              Expanded(
+                                child: Text(
+                                  'Viewing: ${_getRangeLabel()}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                ),
                               ),
                             ],
                           ),
@@ -441,16 +443,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       children: [
                         Text(
                           'Total Revenue / ጠቅላላ ገቢ',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: tokens.fg),
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          MoneyFormatter.formatCents(revCents),
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: tokens.fg),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            MoneyFormatter.formatCents(revCents),
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: tokens.fg),
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '$count items sold',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             color: isDark ? tokens.fg.withValues(alpha: 0.85) : Colors.green.shade700,
@@ -483,6 +493,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       children: [
                         Text(
                           'Estimated Profit / ትርፍ',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -490,12 +502,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          profitCents != null ? MoneyFormatter.formatCents(profitCents) : 'N/A',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: tokens.fg,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            profitCents != null ? MoneyFormatter.formatCents(profitCents) : 'N/A',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: tokens.fg,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -503,6 +519,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           profitCents != null
                               ? '${report?.itemsWithCostCount ?? 0} items with cost'
                               : 'Set cost price to see',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 10.5,
                             color: isDark ? tokens.fg.withValues(alpha: 0.85) : (profitCents != null ? Colors.blue.shade700 : Colors.grey.shade600),
@@ -555,9 +573,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Icon(Icons.category_outlined, color: Color(0xFF0F766E), size: 20),
                 SizedBox(width: 8),
-                Text(
-                  'Sales by Type / ሽያጭ በዓይነት',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                Expanded(
+                  child: Text(
+                    'Sales by Type / ሽያጭ በዓይነት',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               ],
             ),
@@ -566,7 +586,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : Colors.green.shade50,
                       borderRadius: BorderRadius.circular(8),
@@ -575,18 +595,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('📦 Products', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('📦 Products', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(height: 4),
-                        Text(
-                          MoneyFormatter.formatCents(stockRev),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: isDark ? const Color(0xFF4ADE80) : Colors.green.shade900,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            MoneyFormatter.formatCents(stockRev),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isDark ? const Color(0xFF4ADE80) : Colors.green.shade900,
+                            ),
                           ),
                         ),
                         Text(
                           '$stockCount sold',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -599,7 +625,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
@@ -608,18 +634,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('🛠 Services', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('🛠 Services', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(height: 4),
-                        Text(
-                          MoneyFormatter.formatCents(servRev),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: isDark ? const Color(0xFF60A5FA) : Colors.blue.shade900,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            MoneyFormatter.formatCents(servRev),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isDark ? const Color(0xFF60A5FA) : Colors.blue.shade900,
+                            ),
                           ),
                         ),
                         Text(
                           '$servCount sold',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -632,7 +664,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                     decoration: BoxDecoration(
                       color: isDark ? const Color(0xFF581C87).withValues(alpha: 0.35) : Colors.purple.shade50,
                       borderRadius: BorderRadius.circular(8),
@@ -641,18 +673,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('🧪 Consumables', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        const Text('🧪 Consumables', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                         const SizedBox(height: 4),
-                        Text(
-                          MoneyFormatter.formatCents(consRev),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: isDark ? const Color(0xFFC084FC) : Colors.purple.shade900,
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            MoneyFormatter.formatCents(consRev),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: isDark ? const Color(0xFFC084FC) : Colors.purple.shade900,
+                            ),
                           ),
                         ),
                         Text(
                           '$consCount sold',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 11,
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -683,9 +721,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Icon(Icons.inventory_2_outlined, color: Color(0xFF0F766E), size: 20),
                 SizedBox(width: 8),
-                Text(
-                  'Materials Used / ጥቅም ላይ የዋሉ ጥሬ ዕቃዎች',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                Expanded(
+                  child: Text(
+                    'Materials Used / ጥቅም ላይ የዋሉ ጥሬ ዕቃዎች',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               ],
             ),
@@ -715,9 +755,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       Expanded(
                         child: Text(
                           mat.productName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '${QuantityFormatter.formatDisplay(mat.totalConsumedMilli)} ${mat.unit}',
                         style: TextStyle(
@@ -761,9 +804,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Icon(Icons.payments_outlined, color: Color(0xFF0F766E), size: 20),
                 SizedBox(width: 8),
-                Text(
-                  'Payments & Cash Drawer / ክፍያዎች እና ካዝና',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                Expanded(
+                  child: Text(
+                    'Payments & Cash Drawer / ክፍያዎች እና ካዝና',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               ],
             ),
@@ -789,12 +834,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         children: [
                           Text(
                             'Cash in Drawer (Net)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: cashTokens.fg),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            MoneyFormatter.formatCents(_cashInDrawer),
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cashTokens.fg),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              MoneyFormatter.formatCents(_cashInDrawer),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cashTokens.fg),
+                            ),
                           ),
                         ],
                       ),
@@ -814,16 +865,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         children: [
                           Text(
                             'Outstanding Dube',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dubeTokens.fg),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            MoneyFormatter.formatCents(_outstandingDubeTotal),
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: dubeTokens.fg),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              MoneyFormatter.formatCents(_outstandingDubeTotal),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: dubeTokens.fg),
+                            ),
                           ),
                           if (_overdueDubeCount > 0)
                             Text(
                               '$_overdueDubeCount overdue',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 10.5,
                                 color: isDark ? const Color(0xFFF87171) : Colors.red,
@@ -842,12 +901,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
             // Methods Breakdown
             const Text('Received Today by Method:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
               children: [
-                Text('💵 Cash: ${MoneyFormatter.formatCents(cashRec)}'),
-                Text('🏦 Bank: ${MoneyFormatter.formatCents(bankRec)}'),
-                Text('📱 Wallet: ${MoneyFormatter.formatCents(walletRec)}'),
+                Text('💵 Cash: ${MoneyFormatter.formatCents(cashRec)}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+                Text('🏦 Bank: ${MoneyFormatter.formatCents(bankRec)}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+                Text('📱 Wallet: ${MoneyFormatter.formatCents(walletRec)}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
               ],
             ),
 
@@ -871,14 +931,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
             // Comparison: Revenue vs Received vs New Dube
             const Text('Today: Revenue vs Received vs New Dube:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Builder(builder: (ctx) {
               final isDark = Theme.of(ctx).brightness == Brightness.dark;
               return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildSummaryCol('Sales Revenue', rev, Theme.of(ctx).colorScheme.onSurface),
+                  const SizedBox(width: 6),
                   _buildSummaryCol('Money Received', received, isDark ? const Color(0xFF4ADE80) : Colors.green.shade800),
+                  const SizedBox(width: 6),
                   _buildSummaryCol('New Dube', newDube, isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade800),
                 ],
               );
@@ -890,12 +951,26 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildSummaryCol(String label, int cents, Color color) {
-    return Column(
-      children: [
-        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 2),
-        Text(MoneyFormatter.formatCents(cents), style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: color)),
-      ],
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 2),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              MoneyFormatter.formatCents(cents),
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: color),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -965,6 +1040,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
@@ -1008,9 +1084,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Icon(Icons.inventory_2_outlined, size: 20, color: Color(0xFF0F766E)),
                 SizedBox(width: 8),
-                Text(
-                  'Inventory Stock Valuation / የስቶክ ዋጋ',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                Expanded(
+                  child: Text(
+                    'Inventory Stock Valuation / የስቶክ ዋጋ',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               ],
             ),
@@ -1034,12 +1112,18 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         children: [
                           Text(
                             'Total Value (Cost) / በመግዣ',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 11, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            MoneyFormatter.formatCents(totalCost),
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              MoneyFormatter.formatCents(totalCost),
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
                           ),
                         ],
                       ),
@@ -1059,18 +1143,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         children: [
                           Text(
                             'Total Value (Retail) / በመሸጫ',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 11,
                               color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade900,
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            MoneyFormatter.formatCents(totalSell),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade900,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              MoneyFormatter.formatCents(totalSell),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade900,
+                              ),
                             ),
                           ),
                         ],
@@ -1085,8 +1175,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             // Breakdown
             Builder(builder: (ctx) {
               final isDark = Theme.of(ctx).brightness == Brightness.dark;
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              return Wrap(
+                spacing: 12,
+                runSpacing: 6,
                 children: [
                   Text(
                     'Total Products: $totalCount',
@@ -1146,9 +1237,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 Icon(Icons.warehouse_rounded, size: 20, color: Color(0xFF0F766E)),
                 SizedBox(width: 8),
-                Text(
-                  'Stock by Location / የስቶክ ክፍፍል በቦታ',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                Expanded(
+                  child: Text(
+                    'Stock by Location / የስቶክ ክፍፍል በቦታ',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               ],
             ),
@@ -1176,6 +1269,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '${QuantityFormatter.formatDisplay(e.value.unitsMilli)} units',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F766E)),
@@ -1207,12 +1301,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 const Icon(Icons.local_shipping_outlined, size: 20, color: Color(0xFF0F766E)),
                 const SizedBox(width: 8),
-                const Text(
-                  'In Transit / በመንገድ ላይ ያሉ ዝውውሮች',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                const Expanded(
+                  child: Text(
+                    'In Transit / በመንገድ ላይ ያሉ ዝውውሮች',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
-                const Spacer(),
-                if (inTransit.isNotEmpty)
+                if (inTransit.isNotEmpty) ...[
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
@@ -1225,6 +1321,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: warningTokens.fg),
                     ),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -1262,6 +1359,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '${QuantityFormatter.formatDisplay(t.qtyMilli)} ${t.unit}',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5, color: Color(0xFF0F766E)),
@@ -1298,12 +1396,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
-                const Text(
-                  'Transfer Discrepancies / የዝውውር ልዩነቶች',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                const Expanded(
+                  child: Text(
+                    'Transfer Discrepancies / የዝውውር ልዩነቶች',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
-                const Spacer(),
-                if (disc.isNotEmpty)
+                if (disc.isNotEmpty) ...[
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
@@ -1319,6 +1419,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
             const SizedBox(height: 12),
@@ -1362,6 +1463,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ],
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Text(
                         '${diff > 0 ? "+" : ""}${QuantityFormatter.formatDisplay(diff)} ${d.unit}',
                         style: TextStyle(
