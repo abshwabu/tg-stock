@@ -210,6 +210,18 @@ class SyncEngine {
 
         for (final item in outboxBatch) {
           final data = jsonDecode(item.payloadJson) as Map<String, dynamic>;
+          // Ensure legacy or offline bank/wallet payments provide a valid provider_key
+          if (item.entity == 'payment') {
+            final method = data['method'] as String?;
+            final pKey = data['provider_key'] as String?;
+            if (pKey == null || pKey.isEmpty) {
+              if (method == 'bank') {
+                data['provider_key'] = 'bank.cbe';
+              } else if (method == 'wallet') {
+                data['provider_key'] = 'wallet.telebirr';
+              }
+            }
+          }
           wireChanges.add({
             'id': item.entityId,
             'entity': item.entity,
@@ -233,7 +245,11 @@ class SyncEngine {
 
         for (final rejection in response.rejected) {
           final reason = rejection['reason'] ?? 'Rejected by server';
-          serverRejections.add('${rejection['id']}: $reason');
+          // Stale conflicts and tie-breaker losses mean the server record is newer/winner.
+          // These are expected LWW resolutions, not fatal errors that pause sync.
+          if (!reason.contains('stale_conflict') && !reason.contains('tie_breaker_lost')) {
+            serverRejections.add('${rejection['id']}: $reason');
+          }
         }
 
         // 4. Ingest accepted / rejected in a single local transaction
@@ -246,18 +262,24 @@ class SyncEngine {
               acceptedOutboxIds.add(outboxId);
             }
           }
-          await db.markOutboxAccepted(acceptedOutboxIds);
 
-          // B. Record rejected entries with server error
+          // B. Record rejected entries; treat stale_conflict & tie_breaker_lost as resolved under LWW
           final rejectedOutboxList = <Map<String, String>>[];
           for (final r in response.rejected) {
             final entityId = r['id'];
             final reason = r['reason'] ?? 'Rejected';
             final outboxId = outboxIdMap[entityId];
             if (outboxId != null) {
-              rejectedOutboxList.add({'id': outboxId, 'reason': reason});
+              if (reason.contains('stale_conflict') || reason.contains('tie_breaker_lost')) {
+                // LWW resolution: server has newer/winning version.
+                // Our change is superseded, so mark it accepted locally and clear from outbox.
+                acceptedOutboxIds.add(outboxId);
+              } else {
+                rejectedOutboxList.add({'id': outboxId, 'reason': reason});
+              }
             }
           }
+          await db.markOutboxAccepted(acceptedOutboxIds);
           await db.markOutboxRejected(rejectedOutboxList);
 
           // C. Apply incoming server changes from other devices/bot

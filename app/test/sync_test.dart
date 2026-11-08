@@ -19,6 +19,7 @@ class FakeServerClient extends http.BaseClient {
   bool dropNextConnection = false;
   bool isRevoked = false;
   int? return429WithSeconds;
+  Map<String, String>? simulatedRejections;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -62,6 +63,14 @@ class FakeServerClient extends http.BaseClient {
         final entity = item['entity'] as String;
         final op = item['op'] as String? ?? 'upsert';
         final data = Map<String, dynamic>.from(item['data'] as Map);
+
+        if (simulatedRejections != null && simulatedRejections!.containsKey(id)) {
+          rejected.add({
+            'id': id,
+            'reason': simulatedRejections![id]!,
+          });
+          continue;
+        }
 
         if (entity == 'movement') {
           // Insert or ignore
@@ -401,5 +410,62 @@ void main() {
     // All 10 products and 10 movements uploaded to server
     expect(fakeHttp.serverProducts.length, 10);
     expect(fakeHttp.serverMovements.length, 10);
+  });
+
+  test('stale_conflict and tie_breaker_lost are treated as accepted LWW resolutions without error', () async {
+    // 1. Create a local product in outbox
+    final prod = await db.createProduct(
+      name: 'Stale Conflict Item',
+      unit: 'pcs',
+      costPriceCents: 1000,
+      sellPriceCents: 2000,
+    );
+    expect(await db.countPendingOutbox(), 1);
+
+    // 2. Configure fake server to return stale_conflict for this product
+    fakeHttp.simulatedRejections = {
+      prod.id: 'stale_conflict: incoming updated_at is older than server product updated_at',
+    };
+
+    // 3. Trigger sync
+    await engine.triggerSync();
+
+    // 4. Verify outbox is cleared and sync engine is idle (not in error!)
+    expect(await db.countPendingOutbox(), 0);
+    expect(engine.state.status, SyncStatus.idle);
+    expect(engine.state.errorMessage == null, isTrue);
+  });
+
+  test('legacy offline bank and wallet payments default provider_key to bank.cbe / wallet.telebirr', () async {
+    // 1. Record bank payment without explicit providerKey
+    final bankPay = await db.recordPayment(
+      method: 'bank',
+      providerKey: null,
+      amountCents: 500000,
+    );
+    expect(bankPay.providerKey, 'bank.cbe');
+
+    // 2. Record wallet payment with empty providerKey
+    final walletPay = await db.recordPayment(
+      method: 'wallet',
+      providerKey: '',
+      amountCents: 250000,
+    );
+    expect(walletPay.providerKey, 'wallet.telebirr');
+
+    // 3. Verify outbox payload has resolved provider keys
+    final outbox = await db.getPendingOutboxBatch();
+    final bankOutbox = outbox.firstWhere((o) => o.entityId == bankPay.id);
+    final bankPayload = jsonDecode(bankOutbox.payloadJson) as Map<String, dynamic>;
+    expect(bankPayload['provider_key'], 'bank.cbe');
+
+    final walletOutbox = outbox.firstWhere((o) => o.entityId == walletPay.id);
+    final walletPayload = jsonDecode(walletOutbox.payloadJson) as Map<String, dynamic>;
+    expect(walletPayload['provider_key'], 'wallet.telebirr');
+
+    // 4. Trigger sync and verify successful acceptance
+    await engine.triggerSync();
+    expect(await db.countPendingOutbox(), 0);
+    expect(engine.state.status, SyncStatus.idle);
   });
 }

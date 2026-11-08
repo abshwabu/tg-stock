@@ -127,6 +127,24 @@ class SyncStatusHeader extends StatelessWidget {
                   ),
                 ),
               ],
+              if (state.status == SyncStatus.error &&
+                  state.errorMessage != null &&
+                  state.errorMessage!.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Padding(
+                  padding: const EdgeInsets.only(left: 28),
+                  child: Text(
+                    state.errorMessage!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: fg,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
               if (state.hasNegativeStock) ...[
                 const SizedBox(height: 6),
                 Container(

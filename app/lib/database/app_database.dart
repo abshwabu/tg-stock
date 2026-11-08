@@ -1095,6 +1095,11 @@ class AppDatabase extends _$AppDatabase {
   }) async {
     final payId = id ?? UuidGenerator.v7();
     final nowMs = receivedAtMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+    final resolvedProviderKey = (providerKey != null && providerKey.isNotEmpty)
+        ? providerKey
+        : (method == 'bank'
+            ? 'bank.cbe'
+            : (method == 'wallet' ? 'wallet.telebirr' : null));
 
     final payment = Payment(
       id: payId,
@@ -1102,7 +1107,7 @@ class AppDatabase extends _$AppDatabase {
       customerId: customerId,
       locationId: locationId,
       method: method,
-      providerKey: providerKey,
+      providerKey: resolvedProviderKey,
       amountCents: amountCents,
       reference: reference,
       receivedAtMs: nowMs,
@@ -1117,7 +1122,7 @@ class AppDatabase extends _$AppDatabase {
       'customer_id': customerId,
       'location_id': locationId,
       'method': method,
-      'provider_key': providerKey,
+      'provider_key': resolvedProviderKey,
       'amount_cents': amountCents,
       'reference': reference,
       'received_at': nowMs,
@@ -1510,6 +1515,31 @@ class AppDatabase extends _$AppDatabase {
   /// location had not reached the server yet; initial history sync should be
   /// able to replay it after pairing.
   Future<void> requeueFailedOutbox() async {
+    // Sanitize any existing payment outbox entries with null/empty provider_key
+    final paymentEntries = await (select(outboxEntries)
+          ..where((o) => o.entity.equals('payment') & (o.status.equals('failed') | o.status.equals('pending'))))
+        .get();
+    for (final entry in paymentEntries) {
+      try {
+        final map = jsonDecode(entry.payloadJson) as Map<String, dynamic>;
+        final method = map['method'] as String?;
+        final pKey = map['provider_key'] as String?;
+        if (pKey == null || pKey.isEmpty) {
+          if (method == 'bank') {
+            map['provider_key'] = 'bank.cbe';
+            await (update(outboxEntries)..where((o) => o.id.equals(entry.id))).write(
+              OutboxEntriesCompanion(payloadJson: Value(jsonEncode(map))),
+            );
+          } else if (method == 'wallet') {
+            map['provider_key'] = 'wallet.telebirr';
+            await (update(outboxEntries)..where((o) => o.id.equals(entry.id))).write(
+              OutboxEntriesCompanion(payloadJson: Value(jsonEncode(map))),
+            );
+          }
+        }
+      } catch (_) {}
+    }
+
     await (update(
       outboxEntries,
     )..where((o) => o.status.equals('failed'))).write(
@@ -1790,13 +1820,18 @@ class AppDatabase extends _$AppDatabase {
           outboxEntries,
         )..where((o) => o.entityId.equals(pay.id))).getSingleOrNull();
         if (exists == null) {
+          final resolvedProviderKey = (pay.providerKey != null && pay.providerKey!.isNotEmpty)
+              ? pay.providerKey
+              : (pay.method == 'bank'
+                  ? 'bank.cbe'
+                  : (pay.method == 'wallet' ? 'wallet.telebirr' : null));
           final payload = {
             'id': pay.id,
             'sale_id': pay.saleId,
             'customer_id': pay.customerId,
             'location_id': pay.locationId,
             'method': pay.method,
-            'provider_key': pay.providerKey,
+            'provider_key': resolvedProviderKey,
             'amount_cents': pay.amountCents,
             'reference': pay.reference,
             'received_at': pay.receivedAtMs,
