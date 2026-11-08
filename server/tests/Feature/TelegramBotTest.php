@@ -413,4 +413,62 @@ class TelegramBotTest extends TestCase
         $this->assertDatabaseMissing('shops', ['id' => $shop->id]);
         $this->assertNotNull($ownerUser->id);
     }
+
+    public function test_dube_button_and_command_renders_debtors_menu(): void
+    {
+        $ownerId = 887766;
+        $shop = Shop::create(['id' => (string) Str::uuid7(), 'name' => 'Dube Test Shop', 'currency' => 'ETB']);
+        User::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'telegram_id' => $ownerId,
+            'name' => 'Owner',
+            'language' => 'en',
+            'shop_id' => $shop->id,
+            'role' => 'owner',
+            'is_active' => true,
+        ]);
+
+        // 1. Test clicking the inline menu button 'menu:dube:0'
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77101,
+            'callback_query' => [
+                'id' => 'cq-dube-1',
+                'from' => ['id' => $ownerId],
+                'data' => 'menu:dube:0',
+                'message' => ['chat' => ['id' => $ownerId], 'message_id' => 10],
+            ],
+        ])->assertOk();
+
+        // 2. Test sending text message '/dube'
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77102,
+            'message' => [
+                'chat' => ['id' => $ownerId],
+                'from' => ['id' => $ownerId],
+                'text' => '/dube',
+            ],
+        ])->assertOk();
+
+        // 3. Test sending reply keyboard button '📒 Dube'
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77103,
+            'message' => [
+                'chat' => ['id' => $ownerId],
+                'from' => ['id' => $ownerId],
+                'text' => '📒 Dube',
+            ],
+        ])->assertOk();
+
+        // 4. Test sending Amharic reply keyboard button '📒 ዱቤ'
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77104,
+            'message' => [
+                'chat' => ['id' => $ownerId],
+                'from' => ['id' => $ownerId],
+                'text' => '📒 ዱቤ',
+            ],
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => isset($request['text']) && str_contains((string) $request['text'], 'Dube & Debtors Management'));
+    }
 }

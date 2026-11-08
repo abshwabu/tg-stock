@@ -55,7 +55,8 @@ class DubeHandler
             return;
         }
 
-        $debtors = $this->reportService->outstandingDube($shop);
+        $dubeReport = $this->reportService->outstandingDube($shop);
+        $debtors = $dubeReport['customers'];
 
         $perPage = 5;
         $totalItems = $debtors->count();
@@ -63,7 +64,7 @@ class DubeHandler
         $page = max(1, min($page, $totalPages));
         $pagedItems = $debtors->slice(($page - 1) * $perPage, $perPage);
 
-        $totalDebtCents = $debtors->sum('net_balance_cents');
+        $totalDebtCents = (int) ($dubeReport['total_outstanding_cents'] ?? 0);
         $overdueCount = $debtors->filter(fn($d) => $d['overdue_cents'] > 0)->count();
 
         $totalDebtF = number_format($totalDebtCents / 100, 2) . ' ETB';
