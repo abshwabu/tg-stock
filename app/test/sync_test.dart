@@ -95,7 +95,15 @@ class FakeServerClient extends http.BaseClient {
           }
           accepted.add(id);
         } else {
-          rejected.add({'id': id, 'reason': 'Unknown entity'});
+          serverSeq++;
+          serverChanges.add({
+            'id': id,
+            'entity': entity,
+            'op': op,
+            'data': data,
+            'cursor': serverSeq,
+          });
+          accepted.add(id);
         }
       }
 

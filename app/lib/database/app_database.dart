@@ -1428,11 +1428,27 @@ class AppDatabase extends _$AppDatabase {
 
   // --- Outbox Management ---
 
-  /// Reads pending outbox entries up to [limit].
-  Future<List<OutboxEntry>> getPendingOutboxBatch({int limit = 200}) async {
+  /// Reads pending outbox entries up to [limit], ordered by relational dependency priority
+  /// (locations -> providers -> customers -> products -> sales -> movements -> payments),
+  /// then by client creation order (createdAt ASC).
+  Future<List<OutboxEntry>> getPendingOutboxBatch({int limit = 100}) async {
+    const entityPriority = CustomExpression<int>(
+      "CASE entity "
+      "WHEN 'location' THEN 1 "
+      "WHEN 'payment_provider' THEN 2 "
+      "WHEN 'customer' THEN 3 "
+      "WHEN 'product' THEN 4 "
+      "WHEN 'sale' THEN 5 "
+      "WHEN 'movement' THEN 6 "
+      "WHEN 'payment' THEN 7 "
+      "ELSE 8 END",
+    );
+
     return (select(outboxEntries)
           ..where((o) => o.status.equals('pending'))
           ..orderBy([
+            (o) =>
+                OrderingTerm(expression: entityPriority, mode: OrderingMode.asc),
             (o) =>
                 OrderingTerm(expression: o.createdAt, mode: OrderingMode.asc),
           ])
@@ -1541,7 +1557,103 @@ class AppDatabase extends _$AppDatabase {
       int queued = 0;
       final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
 
-      // 1. All products
+      // 1. All locations (prerequisite for sales, movements, payments)
+      final allLocs = await select(locations).get();
+      for (final l in allLocs) {
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(l.id))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'id': l.id,
+            'name': l.name,
+            'kind': l.kind,
+            'is_default': l.isDefault,
+            'is_active': l.isActive,
+            'updated_at': l.updatedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'location',
+              entityId: l.id,
+              op: l.isActive ? 'upsert' : 'delete',
+              payloadJson: jsonEncode(payload),
+              clientTs: l.updatedAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 2. All payment providers
+      final allProvs = await select(paymentProviders).get();
+      for (final p in allProvs) {
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(p.providerKey))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'provider_key': p.providerKey,
+            'kind': p.kind,
+            'name': p.name,
+            'enabled': p.enabled,
+            'favorite': p.favorite,
+            'updated_at': p.updatedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'payment_provider',
+              entityId: p.providerKey,
+              op: 'upsert',
+              payloadJson: jsonEncode(payload),
+              clientTs: p.updatedAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 3. All customers
+      final allCusts = await select(customers).get();
+      for (final c in allCusts) {
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(c.id))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'id': c.id,
+            'name': c.name,
+            'phone': c.phone,
+            'note': c.note,
+            'updated_at': c.updatedAtMs,
+            'deleted_at': c.deletedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'customer',
+              entityId: c.id,
+              op: c.deletedAtMs != null ? 'delete' : 'upsert',
+              payloadJson: jsonEncode(payload),
+              clientTs: c.updatedAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 4. All products
       final allProds = await select(products).get();
       for (final p in allProds) {
         final exists = await (select(
@@ -1596,7 +1708,44 @@ class AppDatabase extends _$AppDatabase {
         }
       }
 
-      // 2. All movements
+      // 5. All sales, including legacy sales backfilled from pre-sale-schema movements.
+      // Sales headers must be uploaded before their movements and payments so the server can
+      // link items and preserve the historical ledger.
+      final allSales = await select(sales).get();
+      for (final s in allSales) {
+        final exists = await (select(
+          outboxEntries,
+        )..where((o) => o.entityId.equals(s.id))).getSingleOrNull();
+        if (exists == null) {
+          final payload = {
+            'id': s.id,
+            'location_id': s.locationId,
+            'customer_id': s.customerId,
+            'total_cents': s.totalCents,
+            'due_date': s.dueDate,
+            'note': s.note,
+            'legacy': s.legacy,
+            'created_at': s.createdAtMs,
+            'voided_at': s.voidedAtMs,
+          };
+
+          await into(outboxEntries).insert(
+            OutboxEntriesCompanion.insert(
+              id: UuidGenerator.v7(),
+              entity: 'sale',
+              entityId: s.id,
+              op: 'upsert',
+              payloadJson: jsonEncode(payload),
+              clientTs: s.createdAtMs,
+              status: const Value('pending'),
+              createdAt: nowMs,
+            ),
+          );
+          queued++;
+        }
+      }
+
+      // 6. All movements
       final allMovs = await select(movements).get();
       for (final m in allMovs) {
         final exists = await (select(
@@ -1626,139 +1775,6 @@ class AppDatabase extends _$AppDatabase {
               op: 'upsert',
               payloadJson: jsonEncode(payload),
               clientTs: m.createdAtMs,
-              status: const Value('pending'),
-              createdAt: nowMs,
-            ),
-          );
-          queued++;
-        }
-      }
-
-      // 3. All locations
-      final allLocs = await select(locations).get();
-      for (final l in allLocs) {
-        final exists = await (select(
-          outboxEntries,
-        )..where((o) => o.entityId.equals(l.id))).getSingleOrNull();
-        if (exists == null) {
-          final payload = {
-            'id': l.id,
-            'name': l.name,
-            'kind': l.kind,
-            'is_default': l.isDefault,
-            'is_active': l.isActive,
-            'updated_at': l.updatedAtMs,
-          };
-
-          await into(outboxEntries).insert(
-            OutboxEntriesCompanion.insert(
-              id: UuidGenerator.v7(),
-              entity: 'location',
-              entityId: l.id,
-              op: l.isActive ? 'upsert' : 'delete',
-              payloadJson: jsonEncode(payload),
-              clientTs: l.updatedAtMs,
-              status: const Value('pending'),
-              createdAt: nowMs,
-            ),
-          );
-          queued++;
-        }
-      }
-
-      // 4. All customers
-      final allCusts = await select(customers).get();
-      for (final c in allCusts) {
-        final exists = await (select(
-          outboxEntries,
-        )..where((o) => o.entityId.equals(c.id))).getSingleOrNull();
-        if (exists == null) {
-          final payload = {
-            'id': c.id,
-            'name': c.name,
-            'phone': c.phone,
-            'note': c.note,
-            'updated_at': c.updatedAtMs,
-            'deleted_at': c.deletedAtMs,
-          };
-
-          await into(outboxEntries).insert(
-            OutboxEntriesCompanion.insert(
-              id: UuidGenerator.v7(),
-              entity: 'customer',
-              entityId: c.id,
-              op: c.deletedAtMs != null ? 'delete' : 'upsert',
-              payloadJson: jsonEncode(payload),
-              clientTs: c.updatedAtMs,
-              status: const Value('pending'),
-              createdAt: nowMs,
-            ),
-          );
-          queued++;
-        }
-      }
-
-      // 5. All payment providers
-      final allProvs = await select(paymentProviders).get();
-      for (final p in allProvs) {
-        final exists = await (select(
-          outboxEntries,
-        )..where((o) => o.entityId.equals(p.providerKey))).getSingleOrNull();
-        if (exists == null) {
-          final payload = {
-            'provider_key': p.providerKey,
-            'kind': p.kind,
-            'name': p.name,
-            'enabled': p.enabled,
-            'favorite': p.favorite,
-            'updated_at': p.updatedAtMs,
-          };
-
-          await into(outboxEntries).insert(
-            OutboxEntriesCompanion.insert(
-              id: UuidGenerator.v7(),
-              entity: 'payment_provider',
-              entityId: p.providerKey,
-              op: 'upsert',
-              payloadJson: jsonEncode(payload),
-              clientTs: p.updatedAtMs,
-              status: const Value('pending'),
-              createdAt: nowMs,
-            ),
-          );
-          queued++;
-        }
-      }
-
-      // 6. All sales, including legacy sales backfilled from pre-sale-schema movements.
-      // Legacy headers must be uploaded before their movements so the server can
-      // preserve the historical ledger and include it in reports.
-      final allSales = await select(sales).get();
-      for (final s in allSales) {
-        final exists = await (select(
-          outboxEntries,
-        )..where((o) => o.entityId.equals(s.id))).getSingleOrNull();
-        if (exists == null) {
-          final payload = {
-            'id': s.id,
-            'location_id': s.locationId,
-            'customer_id': s.customerId,
-            'total_cents': s.totalCents,
-            'due_date': s.dueDate,
-            'note': s.note,
-            'legacy': s.legacy,
-            'created_at': s.createdAtMs,
-            'voided_at': s.voidedAtMs,
-          };
-
-          await into(outboxEntries).insert(
-            OutboxEntriesCompanion.insert(
-              id: UuidGenerator.v7(),
-              entity: 'sale',
-              entityId: s.id,
-              op: 'upsert',
-              payloadJson: jsonEncode(payload),
-              clientTs: s.createdAtMs,
               status: const Value('pending'),
               createdAt: nowMs,
             ),

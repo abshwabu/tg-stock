@@ -85,7 +85,7 @@ class LedgerService
                 );
             }
 
-            // Verify and assign location (assign to default location if omitted)
+            // Verify and assign location (assign to default location if omitted or not found)
             $shop = Shop::find($shopId);
             if (empty($movement->location_id)) {
                 $defaultLoc = $shop?->getDefaultLocation();
@@ -96,12 +96,15 @@ class LedgerService
                     ->first();
 
                 if ($location === null) {
-                    throw new InvalidArgumentException(
-                        sprintf('Location [%s] does not exist.', $movement->location_id)
-                    );
-                }
-
-                if ((string) $location->shop_id !== (string) $shopId) {
+                    $defaultLoc = $shop?->getDefaultLocation();
+                    if ($defaultLoc !== null) {
+                        $movement->location_id = (string) $defaultLoc->id;
+                    } else {
+                        throw new InvalidArgumentException(
+                            sprintf('Location [%s] does not exist.', $movement->location_id)
+                        );
+                    }
+                } elseif ((string) $location->shop_id !== (string) $shopId) {
                     throw new CrossShopViolationException(
                         sprintf('Location [%s] belongs to shop [%s], not [%s].', $location->id, $location->shop_id, $shopId)
                     );

@@ -103,6 +103,7 @@ class StartHandler
             'language' => $locale,
             'low_stock_default_milli' => 5000,
         ]);
+        $shop->getDefaultLocation();
 
         $from = $stateData['from'] ?? [];
         $userName = trim(($from['first_name'] ?? '') . ' ' . ($from['last_name'] ?? ''));

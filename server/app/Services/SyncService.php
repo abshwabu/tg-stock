@@ -521,12 +521,26 @@ class SyncService
 
         // 2. Location validation
         $locationId = !empty($data['location_id']) ? (string) $data['location_id'] : null;
-        if (empty($locationId)) {
-            $defaultLoc = Location::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->where('is_default', true)->first();
-            $locationId = $defaultLoc?->id ? (string) $defaultLoc->id : null;
+        $loc = null;
+        if (!empty($locationId)) {
+            $loc = Location::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $locationId)
+                ->first();
         }
 
-        $loc = Location::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->where('id', $locationId)->first();
+        if ($loc === null) {
+            $loc = Location::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('is_default', true)
+                ->first();
+            if ($loc === null) {
+                $shop = Shop::find($shopId);
+                $loc = $shop?->getDefaultLocation();
+            }
+            $locationId = $loc?->id ? (string) $loc->id : null;
+        }
+
         if ($loc === null) {
             $rejected[] = ['id' => $id, 'reason' => 'unknown_reference'];
             return;
@@ -681,12 +695,26 @@ class SyncService
 
         // Location resolution
         $locationId = !empty($data['location_id']) ? (string) $data['location_id'] : null;
-        if (empty($locationId)) {
-            $defaultLoc = Location::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->where('is_default', true)->first();
-            $locationId = $defaultLoc?->id ? (string) $defaultLoc->id : null;
+        $loc = null;
+        if (!empty($locationId)) {
+            $loc = Location::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $locationId)
+                ->first();
         }
 
-        $loc = Location::withoutGlobalScope(ShopScope::class)->where('shop_id', $shopId)->where('id', $locationId)->first();
+        if ($loc === null) {
+            $loc = Location::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('is_default', true)
+                ->first();
+            if ($loc === null) {
+                $shop = Shop::find($shopId);
+                $loc = $shop?->getDefaultLocation();
+            }
+            $locationId = $loc?->id ? (string) $loc->id : null;
+        }
+
         if ($loc === null) {
             $rejected[] = ['id' => $id, 'reason' => 'unknown_reference'];
             return;
@@ -978,12 +1006,24 @@ class SyncService
 
         // 2. Location check effective at createdMs
         $locationId = !empty($data['location_id']) ? (string) $data['location_id'] : null;
-        if ($locationId === null) {
-            $defaultLoc = Location::withoutGlobalScope(ShopScope::class)
+        $loc = null;
+        if (!empty($locationId)) {
+            $loc = Location::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $locationId)
+                ->first();
+        }
+
+        if ($loc === null) {
+            $loc = Location::withoutGlobalScope(ShopScope::class)
                 ->where('shop_id', $shopId)
                 ->where('is_default', true)
                 ->first();
-            $locationId = $defaultLoc?->id ? (string) $defaultLoc->id : null;
+            if ($loc === null) {
+                $shop = Shop::find($shopId);
+                $loc = $shop?->getDefaultLocation();
+            }
+            $locationId = $loc?->id ? (string) $loc->id : null;
         }
 
         if ($locationId !== null && !$this->permissionService->can($user, $requiredPerm, $locationId, $createdMs)) {

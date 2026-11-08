@@ -131,6 +131,7 @@ class PairingService
                     'language' => $language ?: 'am',
                     'low_stock_default_milli' => 5000,
                 ]);
+                $shop->getDefaultLocation();
 
                 return \App\Context\CurrentShopContext::runWith($shop, function () use ($shop, $pairing, $telegramId, $telegramName, $language): array {
                     $user = User::withoutGlobalScope(ShopScope::class)->create([
@@ -184,6 +185,7 @@ class PairingService
                 $user->shop_id = $shop->id;
                 $user->save();
             }
+            $shop->getDefaultLocation();
 
             return \App\Context\CurrentShopContext::runWith($shop, function () use ($shop, $user, $pairing): array {
                 // Generate cryptographically secure device bearer token (64 hex characters)

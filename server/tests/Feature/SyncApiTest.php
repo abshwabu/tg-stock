@@ -627,4 +627,86 @@ class SyncApiTest extends TestCase
         $this->assertNotNull($product);
         $this->assertSame(100000, $this->ledger->stockOf($product));
     }
+
+    public function test_sync_recovers_gracefully_when_incoming_payload_references_unknown_location(): void
+    {
+        $productId = (string) Str::uuid7();
+        $saleId = (string) Str::uuid7();
+        $paymentId = (string) Str::uuid7();
+        $movementId = (string) Str::uuid7();
+        $nonExistentLocationId = (string) Str::uuid7();
+
+        $res = $this->withToken($this->shopA['token1'])->postJson('/v1/sync', [
+            'cursor' => 0,
+            'changes' => [
+                [
+                    'id' => $productId,
+                    'entity' => 'product',
+                    'op' => 'upsert',
+                    'client_ts' => 1730000000000,
+                    'data' => [
+                        'id' => $productId,
+                        'name' => 'Coffee Beans 1kg',
+                        'unit' => 'kg',
+                        'updated_at' => 1730000000000,
+                    ],
+                ],
+                [
+                    'id' => $saleId,
+                    'entity' => 'sale',
+                    'op' => 'upsert',
+                    'client_ts' => 1730000001000,
+                    'data' => [
+                        'id' => $saleId,
+                        'location_id' => $nonExistentLocationId,
+                        'total_cents' => 50000,
+                        'created_at' => 1730000001000,
+                    ],
+                ],
+                [
+                    'id' => $paymentId,
+                    'entity' => 'payment',
+                    'op' => 'upsert',
+                    'client_ts' => 1730000001500,
+                    'data' => [
+                        'id' => $paymentId,
+                        'sale_id' => $saleId,
+                        'location_id' => $nonExistentLocationId,
+                        'method' => 'cash',
+                        'amount_cents' => 50000,
+                        'received_at' => 1730000001500,
+                    ],
+                ],
+                [
+                    'id' => $movementId,
+                    'entity' => 'movement',
+                    'op' => 'upsert',
+                    'client_ts' => 1730000002000,
+                    'data' => [
+                        'id' => $movementId,
+                        'product_id' => $productId,
+                        'sale_id' => $saleId,
+                        'location_id' => $nonExistentLocationId,
+                        'type' => 'sale',
+                        'qty' => '-2.000',
+                        'unit_price_cents' => 25000,
+                        'created_at' => 1730000002000,
+                    ],
+                ],
+            ],
+        ]);
+
+        $res->assertStatus(200);
+        $this->assertContains($productId, $res->json('accepted'));
+        $this->assertContains($saleId, $res->json('accepted'));
+        $this->assertContains($paymentId, $res->json('accepted'));
+        $this->assertContains($movementId, $res->json('accepted'));
+        $this->assertEmpty($res->json('rejected'));
+
+        // Verify the movement was recorded and associated with the shop's default location
+        $movement = Movement::withoutGlobalScope(ShopScope::class)->find($movementId);
+        $this->assertNotNull($movement);
+        $defaultLoc = $this->shopA['shop']->getDefaultLocation();
+        $this->assertSame($defaultLoc->id, $movement->location_id);
+    }
 }

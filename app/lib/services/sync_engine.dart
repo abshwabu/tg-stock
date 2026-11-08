@@ -69,7 +69,7 @@ class SyncEngine {
   int _consecutiveFailures = 0;
   DateTime? _backoffUntil;
 
-  static const int maxBatchSize = 200;
+  static const int maxBatchSize = 100;
   static const int serverPageSize = 300;
 
   SyncEngine({
@@ -102,6 +102,7 @@ class SyncEngine {
     );
 
     if (isOnline && token != null) {
+      await db.requeueFailedOutbox();
       await _prepareHistoricalSyncRepair();
       startPeriodicSync();
     }
@@ -148,11 +149,15 @@ class SyncEngine {
   /// Manual "Sync now" button trigger.
   Future<void> syncNow() async {
     _backoffUntil = null; // Clear backoff for manual user request
+    await db.requeueFailedOutbox();
     await triggerSync(reason: 'manual_user');
   }
 
   /// Core sync execution loop with full idempotency, batching, and error handling.
-  Future<void> triggerSync({String reason = 'unknown'}) async {
+  Future<void> triggerSync({
+    String reason = 'unknown',
+    void Function(int current, int total)? onProgress,
+  }) async {
     if (_isSyncing) return;
 
     final isOnline = await storage.isOnlineEnabled();
@@ -193,9 +198,10 @@ class SyncEngine {
       bool hasMoreServerChanges = true;
       bool hasMoreLocalChanges = true;
       final serverRejections = <String>[];
+      final initialPending = await db.countPendingOutbox();
 
       while (hasMoreServerChanges || hasMoreLocalChanges) {
-        // 1. Fetch next batch of uncommitted outbox changes (up to 200)
+        // 1. Fetch next batch of uncommitted outbox changes (up to 100)
         final outboxBatch = await db.getPendingOutboxBatch(limit: maxBatchSize);
         hasMoreLocalChanges = outboxBatch.length >= maxBatchSize;
 
@@ -270,11 +276,22 @@ class SyncEngine {
         final pendingCount = await db.countPendingOutbox();
         final negStock = await db.hasNegativeStock();
 
-        stateNotifier.value = state.copyWith(
-          pendingCount: pendingCount,
-          hasNegativeStock: negStock,
-          lastSyncedAt: DateTime.now(),
-        );
+        if (initialPending > 0) {
+          final completed = (initialPending - pendingCount).clamp(0, initialPending);
+          onProgress?.call(completed, initialPending);
+          stateNotifier.value = state.copyWith(
+            pendingCount: pendingCount,
+            hasNegativeStock: negStock,
+            lastSyncedAt: DateTime.now(),
+            progressText: 'Syncing: $completed of $initialPending records...',
+          );
+        } else {
+          stateNotifier.value = state.copyWith(
+            pendingCount: pendingCount,
+            hasNegativeStock: negStock,
+            lastSyncedAt: DateTime.now(),
+          );
+        }
       }
 
       // Sync successful: reset backoff
@@ -364,10 +381,23 @@ class SyncEngine {
     );
 
     // 2. Run sync loop until outbox is empty
-    await triggerSync(reason: 'initial_history_sync');
+    await triggerSync(
+      reason: 'initial_history_sync',
+      onProgress: onProgress,
+    );
 
     final remaining = await db.countPendingOutbox();
     onProgress?.call(total - remaining, total);
+
+    if (state.status == SyncStatus.error || state.status == SyncStatus.unauthorized) {
+      throw ApiException(state.errorMessage ?? 'Initial history sync failed.');
+    }
+
+    if (remaining > 0) {
+      throw ApiException(
+        'Initial sync could not complete: $remaining record(s) remaining.',
+      );
+    }
 
     stateNotifier.value = state.copyWith(
       status: SyncStatus.idle,
