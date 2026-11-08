@@ -469,6 +469,91 @@ class TelegramBotTest extends TestCase
             ],
         ])->assertOk();
 
+        $customerId = (string) Str::uuid7();
+        $customer = \App\Models\Customer::withoutGlobalScope(ShopScope::class)->create([
+            'id' => $customerId,
+            'shop_id' => $shop->id,
+            'name' => 'Abebe Debtor',
+            'phone' => '+251911223344',
+            'created_at_ms' => 1730000000000,
+            'updated_at_ms' => 1730000000000,
+        ]);
+        $location = $shop->getDefaultLocation();
+        \App\Models\Sale::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $shop->id,
+            'customer_id' => $customerId,
+            'location_id' => $location->id,
+            'total_cents' => 50000,
+            'due_date' => '2026-11-20',
+            'created_at_ms' => 1730000000000,
+            'updated_at_ms' => 1730000000000,
+        ]);
+
+        // 5. Test clicking on the debtor customer card: dube:cust:{customerId}
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77105,
+            'callback_query' => [
+                'id' => 'cq-cust-1',
+                'from' => ['id' => $ownerId],
+                'data' => "dube:cust:{$customerId}",
+                'message' => ['chat' => ['id' => $ownerId], 'message_id' => 10],
+            ],
+        ])->assertOk();
+
+        // 6. Test clicking Receive Payment: dube:pay_start:{customerId}
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77106,
+            'callback_query' => [
+                'id' => 'cq-pay-1',
+                'from' => ['id' => $ownerId],
+                'data' => "dube:pay_start:{$customerId}",
+                'message' => ['chat' => ['id' => $ownerId], 'message_id' => 10],
+            ],
+        ])->assertOk();
+
+        // 7. Test selecting Full Balance: dube:pay_amt:{customerId}:full
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77107,
+            'callback_query' => [
+                'id' => 'cq-pay-2',
+                'from' => ['id' => $ownerId],
+                'data' => "dube:pay_amt:{$customerId}:full",
+                'message' => ['chat' => ['id' => $ownerId], 'message_id' => 10],
+            ],
+        ])->assertOk();
+
+        // 8. Test selecting Cash: dube:pay_m:{customerId}:cash:50000
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77108,
+            'callback_query' => [
+                'id' => 'cq-pay-3',
+                'from' => ['id' => $ownerId],
+                'data' => "dube:pay_m:{$customerId}:cash:50000",
+                'message' => ['chat' => ['id' => $ownerId], 'message_id' => 10],
+            ],
+        ])->assertOk();
+
+        // 9. Test reminder text: dube:remind:{customerId}
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)->postJson('/api/telegram/webhook', [
+            'update_id' => 77109,
+            'callback_query' => [
+                'id' => 'cq-remind-1',
+                'from' => ['id' => $ownerId],
+                'data' => "dube:remind:{$customerId}",
+                'message' => ['chat' => ['id' => $ownerId], 'message_id' => 10],
+            ],
+        ])->assertOk();
+
+        Http::assertSent(fn ($request) => isset($request['text']) && str_contains((string) $request['text'], 'Abebe Debtor'));
+        Http::assertSent(fn ($request) => isset($request['text']) && str_contains((string) $request['text'], 'Receive Repayment'));
+        Http::assertSent(fn ($request) => isset($request['text']) && str_contains((string) $request['text'], 'Repayment Received'));
         Http::assertSent(fn ($request) => isset($request['text']) && str_contains((string) $request['text'], 'Dube & Debtors Management'));
+
+        $this->assertDatabaseHas('payments', [
+            'customer_id' => $customerId,
+            'amount_cents' => 50000,
+            'method' => 'cash',
+        ]);
     }
 }

@@ -173,10 +173,11 @@ class DubeHandler
             . ($credit['oldest_due_date'] ? "Oldest Due Date: <b>{$credit['oldest_due_date']}</b>\n" : "")
             . "\n🧾 <b>Open Sales / Transactions:</b>\n";
 
-        if ($statement['open_sales']->isEmpty()) {
+        $openSales = $statement['open_sales'] ?? collect();
+        if ($openSales->isEmpty()) {
             $text .= $locale === 'en' ? "  (No unpaid sales)\n" : "  (ምንም ያልተከፈለ ሽያጭ የለም)\n";
         } else {
-            foreach ($statement['open_sales']->take(5) as $idx => $s) {
+            foreach ($openSales->take(5) as $idx => $s) {
                 $num = $idx + 1;
                 $rem = number_format($s['remaining_cents'] / 100, 2) . ' ETB';
                 $due = $s['sale']->due_date ?? 'No date';
@@ -185,9 +186,10 @@ class DubeHandler
             }
         }
 
-        if ($statement['recent_payments']->isNotEmpty()) {
+        $recentPayments = $statement['recent_payments'] ?? collect();
+        if ($recentPayments->isNotEmpty()) {
             $text .= "\n💳 <b>Recent Payments:</b>\n";
-            foreach ($statement['recent_payments']->take(3) as $p) {
+            foreach ($recentPayments->take(3) as $p) {
                 $pAmt = number_format($p->amount_cents / 100, 2) . ' ETB';
                 $pDate = Carbon::createFromTimestampMs($p->received_at_ms)->format('M j, Y');
                 $methodStr = ucfirst($p->method);
@@ -774,7 +776,7 @@ class DubeHandler
         }
 
         $statement = $this->reportService->customerStatement($customer);
-        $openSales = $statement['open_sales'];
+        $openSales = $statement['open_sales'] ?? collect();
 
         if ($openSales->isEmpty()) {
             $this->telegram->sendMessage($chatId, $locale === 'en' ? 'No open sales found for this customer.' : 'ምንም ያልተከፈለ ሽያጭ አልተገኘም።');

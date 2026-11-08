@@ -329,6 +329,31 @@ class PaymentReportService
         }
 
         $credit = $this->balanceService->customerCredit($custModel);
+        $allocations = $this->balanceService->computeCustomerAllocations($custModel);
+
+        $shop = Shop::find($shopId);
+        $tz = $shop?->timezone ?: 'Africa/Addis_Ababa';
+        $today = Carbon::now($tz)->toDateString();
+
+        $openSales = collect();
+        foreach ($allocations['sales_breakdown'] as $item) {
+            if ($item['remaining_balance_cents'] > 0) {
+                $dueDate = $item['sale']->due_date;
+                $isOverdue = (!empty($dueDate) && $dueDate < $today);
+                $openSales->push([
+                    'sale' => $item['sale'],
+                    'remaining_cents' => $item['remaining_balance_cents'],
+                    'is_overdue' => $isOverdue,
+                ]);
+            }
+        }
+
+        $recentPayments = Payment::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('customer_id', $custModel->id)
+            ->orderBy('received_at_ms', 'desc')
+            ->take(10)
+            ->get();
 
         return [
             'customer' => $custModel,
@@ -338,6 +363,8 @@ class PaymentReportService
             'net_balance_cents' => $runningBalance,
             'open_sales_count' => $credit['open_sales_count'],
             'overdue_cents' => $credit['overdue_cents'],
+            'open_sales' => $openSales,
+            'recent_payments' => $recentPayments,
         ];
     }
 
