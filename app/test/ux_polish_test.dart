@@ -12,7 +12,9 @@ import 'package:app/services/demo_data_service.dart';
 import 'package:app/services/error_logger.dart';
 import 'package:app/services/sync_engine.dart';
 import 'package:app/ui/screens/first_run_screen.dart';
+import 'package:app/ui/screens/home_screen.dart';
 import 'package:app/ui/screens/settings_screen.dart';
+import 'package:app/ui/theme.dart';
 import 'package:app/ui/widgets/empty_state_widget.dart';
 
 void main() {
@@ -316,7 +318,8 @@ void main() {
       expect(aboutSection, findsOneWidget);
       expect(tester.takeException(), isNull);
 
-      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 5));
       syncEngine.dispose();
       await db.close();
       if (tempDir.existsSync()) {
@@ -325,6 +328,57 @@ void main() {
         } catch (_) {}
       }
       tester.view.resetPhysicalSize();
+    });
+
+    testWidgets('HomeScreen theme toggle switches between light and dark modes', (tester) async {
+      final db = AppDatabase.inMemory();
+      final repository = LedgerRepository(db);
+      final authStorage = InMemoryAuthStorage();
+      final syncEngine = SyncEngine(
+        db: db,
+        api: ApiClient(),
+        storage: authStorage,
+      );
+
+      await repository.setShopName('Test Shop');
+      await repository.setLanguage('am');
+      await repository.setThemeMode('light');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.light,
+          home: HomeScreen(
+            db: db,
+            repository: repository,
+            apiClient: ApiClient(),
+            authStorage: authStorage,
+            syncEngine: syncEngine,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      // Theme toggle icon in light mode should be dark_mode_rounded
+      expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
+      expect(find.text('አማ'), findsOneWidget);
+
+      // Tap theme toggle button
+      await tester.tap(find.byIcon(Icons.dark_mode_rounded));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      // Verify repository updated to 'dark'
+      final savedTheme = await repository.getThemeMode();
+      expect(savedTheme, equals('dark'));
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 5));
+      syncEngine.dispose();
+      await db.close();
     });
   });
 }

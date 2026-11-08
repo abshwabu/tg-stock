@@ -151,9 +151,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             Row(
               children: [
-                Text(
-                  _shopName,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                Flexible(
+                  child: Text(
+                    _shopName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
                 ),
                 if (_locationsEnabled) ...[
                   const SizedBox(width: 8),
@@ -223,28 +227,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
         actions: [
-          IconButton(
-            tooltip: 'Language / ቋንቋ',
-            icon: CircleAvatar(
-              radius: 13,
-              backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.15),
-              child: Text(
-                isAm ? 'አማ' : 'EN',
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF0F766E)),
-              ),
-            ),
-            onPressed: () async {
-              final newLang = isAm ? 'en' : 'am';
-              await widget.repository.setLanguage(newLang);
-              if (context.mounted) {
-                InventoryApp.of(context)?.setLocale(newLang);
-              }
-              await _loadShopInfo();
+          Builder(
+            builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              final Color langColor = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
+              return IconButton(
+                tooltip: 'Language / ቋንቋ',
+                visualDensity: VisualDensity.compact,
+                icon: CircleAvatar(
+                  radius: 13,
+                  backgroundColor: langColor.withValues(alpha: 0.15),
+                  child: Text(
+                    isAm ? 'አማ' : 'EN',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: langColor),
+                  ),
+                ),
+                onPressed: () async {
+                  final newLang = isAm ? 'en' : 'am';
+                  await widget.repository.setLanguage(newLang);
+                  if (context.mounted) {
+                    InventoryApp.of(context)?.setLocale(newLang);
+                  }
+                  await _loadShopInfo();
+                },
+              );
+            },
+          ),
+          Builder(
+            builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              final Color themeColor = isDark ? const Color(0xFFFBBF24) : const Color(0xFF0F766E);
+              return IconButton(
+                tooltip: isDark
+                    ? (isAm ? 'ወደ ብርሃን ገጽታ ቀይር / Switch to Light Mode' : 'Switch to Light Mode / ወደ ብርሃን ገጽታ ቀይር')
+                    : (isAm ? 'ወደ ጨለማ ገጽታ ቀይር / Switch to Dark Mode' : 'Switch to Dark Mode / ወደ ጨለማ ገጽታ ቀይር'),
+                visualDensity: VisualDensity.compact,
+                icon: CircleAvatar(
+                  radius: 13,
+                  backgroundColor: themeColor.withValues(alpha: 0.15),
+                  child: Icon(
+                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    size: 15,
+                    color: themeColor,
+                  ),
+                ),
+                onPressed: () async {
+                  final nextMode = isDark ? 'light' : 'dark';
+                  await widget.repository.setThemeMode(nextMode);
+                  if (ctx.mounted) {
+                    InventoryApp.of(ctx)?.setThemeMode(
+                      isDark ? ThemeMode.light : ThemeMode.dark,
+                    );
+                  }
+                },
+              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
             tooltip: 'Reports / ሪፖርቶች',
+            visualDensity: VisualDensity.compact,
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -256,6 +298,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings / ቅንብሮች',
+            visualDensity: VisualDensity.compact,
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(
