@@ -7,6 +7,7 @@ import '../../services/demo_data_service.dart';
 import '../../services/export_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../theme.dart';
 import '../widgets/empty_state_widget.dart';
 
 enum ReportRange {
@@ -212,6 +213,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reports & Analytics / ሪፖርቶች'),
@@ -321,7 +323,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: isDark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -422,78 +424,95 @@ class _ReportsScreenState extends State<ReportsScreen> {
           children: [
             // Revenue Card
             Expanded(
-              child: Card(
-                elevation: 1,
-                color: Colors.green.shade50,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Total Revenue / ጠቅላላ ገቢ',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        MoneyFormatter.formatCents(revCents),
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green.shade900),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$count items sold',
-                        style: TextStyle(fontSize: 11, color: Colors.green.shade700),
-                      ),
-                    ],
+              child: Builder(builder: (ctx) {
+                final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                final tokens = AppColors.successTokens(isDark);
+                return Card(
+                  elevation: isDark ? 0 : 1,
+                  color: tokens.bg,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
                   ),
-                ),
-              ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Revenue / ጠቅላላ ገቢ',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: tokens.fg),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          MoneyFormatter.formatCents(revCents),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: tokens.fg),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '$count items sold',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? tokens.fg.withValues(alpha: 0.85) : Colors.green.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
             const SizedBox(width: 10),
 
             // Estimated Profit Card
             Expanded(
-              child: Card(
-                elevation: 1,
-                color: profitCents != null ? Colors.blue.shade50 : Colors.grey.shade100,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Estimated Profit / ትርፍ',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: profitCents != null ? Colors.blue.shade900 : Colors.grey.shade800,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        profitCents != null ? MoneyFormatter.formatCents(profitCents) : 'N/A',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: profitCents != null ? Colors.blue.shade900 : Colors.grey.shade600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        profitCents != null
-                            ? '${report?.itemsWithCostCount ?? 0} items with cost'
-                            : 'Set cost price to see',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          color: profitCents != null ? Colors.blue.shade700 : Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
+              child: Builder(builder: (ctx) {
+                final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                final tokens = profitCents != null ? AppColors.infoTokens(isDark) : AppColors.neutralTokens(isDark);
+                return Card(
+                  elevation: isDark ? 0 : 1,
+                  color: tokens.bg,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
                   ),
-                ),
-              ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Estimated Profit / ትርፍ',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: tokens.fg,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          profitCents != null ? MoneyFormatter.formatCents(profitCents) : 'N/A',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: tokens.fg,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          profitCents != null
+                              ? '${report?.itemsWithCostCount ?? 0} items with cost'
+                              : 'Set cost price to see',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: isDark ? tokens.fg.withValues(alpha: 0.85) : (profitCents != null ? Colors.blue.shade700 : Colors.grey.shade600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
           ],
         ),
@@ -503,7 +522,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
               '* Profit based on current raw material costs, not a historical cost snapshot / * ትርፉ አሁን ባለው የጥሬ ዕቃዎች መግዣ ዋጋ ላይ የተመሠረተ ነው።',
-              style: TextStyle(fontSize: 10.5, fontStyle: FontStyle.italic, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 10.5,
+                fontStyle: FontStyle.italic,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -518,6 +541,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final stockCount = _salesByKind['stockable']?.salesCount ?? 0;
     final servCount = _salesByKind['service']?.salesCount ?? 0;
     final consCount = _salesByKind['consumable']?.salesCount ?? 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       elevation: 1,
@@ -544,8 +568,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade50,
+                      color: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : Colors.green.shade50,
                       borderRadius: BorderRadius.circular(8),
+                      border: isDark ? Border.all(color: const Color(0xFF047857)) : null,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -554,9 +579,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           MoneyFormatter.formatCents(stockRev),
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.green.shade900),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isDark ? const Color(0xFF4ADE80) : Colors.green.shade900,
+                          ),
                         ),
-                        Text('$stockCount sold', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                        Text(
+                          '$stockCount sold',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -566,8 +601,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
+                      color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : Colors.blue.shade50,
                       borderRadius: BorderRadius.circular(8),
+                      border: isDark ? Border.all(color: const Color(0xFF1D4ED8)) : null,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,9 +612,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           MoneyFormatter.formatCents(servRev),
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blue.shade900),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isDark ? const Color(0xFF60A5FA) : Colors.blue.shade900,
+                          ),
                         ),
-                        Text('$servCount sold', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                        Text(
+                          '$servCount sold',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -588,8 +634,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.purple.shade50,
+                      color: isDark ? const Color(0xFF581C87).withValues(alpha: 0.35) : Colors.purple.shade50,
                       borderRadius: BorderRadius.circular(8),
+                      border: isDark ? Border.all(color: const Color(0xFF7E22CE)) : null,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,9 +645,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           MoneyFormatter.formatCents(consRev),
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.purple.shade900),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: isDark ? const Color(0xFFC084FC) : Colors.purple.shade900,
+                          ),
                         ),
-                        Text('$consCount sold', style: TextStyle(fontSize: 11, color: Colors.grey.shade700)),
+                        Text(
+                          '$consCount sold',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -638,7 +695,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
                   'No raw materials consumed in this period / በዚህ ወቅት ጥቅም ላይ የዋለ ጥሬ ዕቃ የለም',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                  ),
                 ),
               )
             else
@@ -660,7 +720,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                       Text(
                         '${QuantityFormatter.formatDisplay(mat.totalConsumedMilli)} ${mat.unit}',
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Text(
@@ -707,62 +770,73 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 14),
 
             // Cash Drawer & Outstanding Dube
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Cash in Drawer (Net)',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.blue),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          MoneyFormatter.formatCents(_cashInDrawer),
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Outstanding Dube',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.brown),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          MoneyFormatter.formatCents(_outstandingDubeTotal),
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
-                        ),
-                        if (_overdueDubeCount > 0)
+            Builder(builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              final cashTokens = AppColors.infoTokens(isDark);
+              final dubeTokens = AppColors.warningTokens(isDark);
+              return Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cashTokens.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: cashTokens.border, width: 0.8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            '$_overdueDubeCount overdue',
-                            style: const TextStyle(fontSize: 10.5, color: Colors.red, fontWeight: FontWeight.bold),
+                            'Cash in Drawer (Net)',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: cashTokens.fg),
                           ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            MoneyFormatter.formatCents(_cashInDrawer),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cashTokens.fg),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: dubeTokens.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: dubeTokens.border, width: 0.8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Outstanding Dube',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: dubeTokens.fg),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            MoneyFormatter.formatCents(_outstandingDubeTotal),
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: dubeTokens.fg),
+                          ),
+                          if (_overdueDubeCount > 0)
+                            Text(
+                              '$_overdueDubeCount overdue',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                color: isDark ? const Color(0xFFF87171) : Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
             const SizedBox(height: 14),
 
             // Methods Breakdown
@@ -798,14 +872,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
             // Comparison: Revenue vs Received vs New Dube
             const Text('Today: Revenue vs Received vs New Dube:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildSummaryCol('Sales Revenue', rev, Colors.black87),
-                _buildSummaryCol('Money Received', received, Colors.green.shade800),
-                _buildSummaryCol('New Dube', newDube, Colors.deepOrange.shade800),
-              ],
-            ),
+            Builder(builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildSummaryCol('Sales Revenue', rev, Theme.of(ctx).colorScheme.onSurface),
+                  _buildSummaryCol('Money Received', received, isDark ? const Color(0xFF4ADE80) : Colors.green.shade800),
+                  _buildSummaryCol('New Dube', newDube, isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade800),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -815,7 +892,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildSummaryCol(String label, int cents, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
         const SizedBox(height: 2),
         Text(MoneyFormatter.formatCents(cents), style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: color)),
       ],
@@ -841,9 +918,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             const SizedBox(height: 12),
             if (items.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text('No sales recorded in this period.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text('No sales recorded in this period.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13)),
               )
             else
               ListView.separated(
@@ -857,16 +934,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   final qtyFormatted = QuantityFormatter.formatDisplay(item.totalQtyMilli);
                   final revFormatted = MoneyFormatter.formatCents(item.totalRevenueCents);
 
+                  final isDark = Theme.of(context).brightness == Brightness.dark;
+                  final Color rankBg;
+                  final Color rankFg;
+                  if (rank == 1) {
+                    rankBg = isDark ? const Color(0xFF78350F) : Colors.amber.shade200;
+                    rankFg = isDark ? const Color(0xFFFBBF24) : Colors.brown.shade900;
+                  } else if (rank == 2) {
+                    rankBg = isDark ? const Color(0xFF334155) : Colors.grey.shade300;
+                    rankFg = isDark ? const Color(0xFFF1F5F9) : Colors.grey.shade900;
+                  } else {
+                    rankBg = Theme.of(context).colorScheme.primary.withValues(alpha: 0.15);
+                    rankFg = Theme.of(context).colorScheme.primary;
+                  }
+
                   return Row(
                     children: [
                       CircleAvatar(
                         radius: 12,
-                        backgroundColor: rank == 1
-                            ? Colors.amber.shade200
-                            : (rank == 2 ? Colors.grey.shade300 : const Color(0xFF0F766E).withValues(alpha: 0.15)),
+                        backgroundColor: rankBg,
                         child: Text(
                           '$rank',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black87),
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: rankFg),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -885,7 +974,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           ),
                           Text(
                             isRevenue ? '$qtyFormatted ${item.unit}' : revFormatted,
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -928,85 +1017,102 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 14),
 
             // Values
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Total Value (Cost) / በመግዣ',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          MoneyFormatter.formatCents(totalCost),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.deepOrange.shade50,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.deepOrange.shade100),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total Value (Retail) / በመሸጫ',
-                          style: TextStyle(fontSize: 11, color: Colors.deepOrange.shade900),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          MoneyFormatter.formatCents(totalSell),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Colors.deepOrange.shade900,
+            Builder(builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              return Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? Theme.of(ctx).colorScheme.surfaceContainerHighest : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Theme.of(ctx).colorScheme.outline),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Value (Cost) / በመግዣ',
+                            style: TextStyle(fontSize: 11, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            MoneyFormatter.formatCents(totalCost),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.deepOrange.withValues(alpha: 0.2) : Colors.deepOrange.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: isDark ? Colors.deepOrange.shade700 : Colors.deepOrange.shade100),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Total Value (Retail) / በመሸጫ',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            MoneyFormatter.formatCents(totalSell),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
             const SizedBox(height: 12),
 
             // Breakdown
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total Products: $totalCount',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                if (lowCount > 0)
+            Builder(builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   Text(
-                    '⚠️ $lowCount low stock',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                    'Total Products: $totalCount',
+                    style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                   ),
-                if (outCount > 0)
-                  Text(
-                    '🔴 $outCount out of stock',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.red),
-                  ),
-              ],
-            ),
+                  if (lowCount > 0)
+                    Text(
+                      '⚠️ $lowCount low stock',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? const Color(0xFFFBBF24) : Colors.amber.shade900,
+                      ),
+                    ),
+                  if (outCount > 0)
+                    Text(
+                      '🔴 $outCount out of stock',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? const Color(0xFFF87171) : Colors.red,
+                      ),
+                    ),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -1048,7 +1154,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
             const SizedBox(height: 12),
             if (locTotals.isEmpty)
-              const Text('No location stock data available.', style: TextStyle(color: Colors.grey, fontSize: 13))
+              Text(
+                'No location stock data available.',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+              )
             else
               ...locTotals.entries.map((e) {
                 final isWarehouse = e.value.kind == 'warehouse';
@@ -1082,6 +1191,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildInTransitCard() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final warningTokens = AppColors.warningTokens(isDark);
     final inTransit = _inTransitTransfers;
 
     return Card(
@@ -1105,21 +1216,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
+                      color: warningTokens.bg,
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: warningTokens.border),
                     ),
                     child: Text(
                       '${inTransit.length}',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: warningTokens.fg),
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 12),
             if (inTransit.isEmpty)
-              const Text(
+              Text(
                 'No shipments currently in transit / ምንም በመንገድ ላይ ያለ ዝውውር የለም',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               )
             else
               ListView.separated(
@@ -1145,7 +1257,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ),
                             Text(
                               '${t.fromLocationName} ➔ ${t.toLocationName} • $timeStr',
-                              style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                              style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                           ],
                         ),
@@ -1166,6 +1278,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   Widget _buildDiscrepanciesCard() {
     final disc = _discrepancies;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       elevation: 1,
@@ -1177,7 +1290,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded, size: 20, color: disc.isNotEmpty ? Colors.amber.shade900 : Colors.grey),
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: 20,
+                  color: disc.isNotEmpty
+                      ? (isDark ? const Color(0xFFFBBF24) : Colors.amber.shade900)
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Transfer Discrepancies / የዝውውር ልዩነቶች',
@@ -1188,21 +1307,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
+                      color: isDark ? const Color(0xFF78350F) : Colors.amber.shade100,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       '${disc.length}',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? const Color(0xFFFBBF24) : Colors.amber.shade900,
+                      ),
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 12),
             if (disc.isEmpty)
-              const Text(
+              Text(
                 'No discrepancies reported / ምንም የዝውውር ልዩነት አልተመዘገበም',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               )
             else
               ListView.separated(
@@ -1225,12 +1348,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ),
                             Text(
                               'Sent: ${QuantityFormatter.formatDisplay(d.sentQtyMilli)} • Recv: ${QuantityFormatter.formatDisplay(d.receivedQtyMilli)}',
-                              style: const TextStyle(fontSize: 11.5, color: Colors.grey),
+                              style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                             if (d.reason != null && d.reason!.isNotEmpty)
                               Text(
                                 'Reason: ${d.reason}',
-                                style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.grey.shade700),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontStyle: FontStyle.italic,
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
                               ),
                           ],
                         ),
@@ -1240,7 +1367,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: diff < 0 ? Colors.red.shade800 : Colors.orange.shade800,
+                          color: diff < 0
+                              ? (isDark ? const Color(0xFFF87171) : Colors.red.shade800)
+                              : (isDark ? const Color(0xFFFB923C) : Colors.orange.shade800),
                         ),
                       ),
                     ],

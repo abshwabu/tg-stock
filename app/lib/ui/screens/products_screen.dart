@@ -8,6 +8,7 @@ import '../../repositories/ledger_repository.dart';
 import '../../services/demo_data_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../theme.dart';
 import '../widgets/empty_state_widget.dart';
 import 'adjust_screen.dart';
 import 'stock_in_screen.dart';
@@ -116,7 +117,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Select Material / ጥሬ ዕቃ ይምረጡ:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('Select Material / ጥሬ ዕቃ ይምረጡ:', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(height: 6),
               DropdownButtonFormField<Product>(
                 initialValue: selectedProduct,
@@ -230,9 +231,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
+                    Text(
                       'What are you adding? / ምን ዓይነት ዕቃ ነው የሚመዘግቡት?',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     SegmentedButton<String>(
@@ -370,24 +375,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
+                          child: Text(
                             'No raw materials selected. (Optional recipe)',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                         )
                       else ...[
                         ...materials.map((m) {
                           final costCents = ((m.qtyMilli * m.materialProduct.costPriceCents) + 500) ~/ 1000;
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
                           return Container(
                             margin: const EdgeInsets.only(bottom: 6),
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
-                              color: Colors.purple.shade50,
+                              color: isDark ? const Color(0xFF581C87).withValues(alpha: 0.35) : Colors.purple.shade50,
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.purple.shade200),
+                              border: Border.all(color: isDark ? const Color(0xFF7E22CE) : Colors.purple.shade200),
                             ),
                             child: Row(
                               children: [
@@ -402,7 +408,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                       Text(
                                         '${QuantityFormatter.formatDisplay(m.qtyMilli)} ${m.materialProduct.unit} '
                                         '(${MoneyFormatter.formatCents(costCents)})',
-                                        style: TextStyle(fontSize: 11, color: Colors.grey.shade800),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -423,7 +432,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Row(
@@ -432,7 +441,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Est. Material Cost:', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                  Text('Est. Material Cost:', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                                   Text(
                                     MoneyFormatter.formatCents(estimatedMatCostCents),
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
@@ -442,13 +451,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  const Text('Margin / Unit:', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                  Text('Margin / Unit:', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                                   Text(
                                     '${MoneyFormatter.formatCents(marginCents)} ($marginPct%)',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 13,
-                                      color: marginCents >= 0 ? Colors.green.shade800 : Colors.red,
+                                      color: marginCents >= 0
+                                          ? (Theme.of(context).brightness == Brightness.dark ? const Color(0xFF4ADE80) : Colors.green.shade800)
+                                          : Colors.red,
                                     ),
                                   ),
                                 ],
@@ -608,17 +619,29 @@ class _ProductsScreenState extends State<ProductsScreen> {
             if (isStockable)
               Text(
                 'Stock: $stockFormatted ${p.unit} • Cost: ${MoneyFormatter.formatCents(p.costPriceCents)}',
-                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               )
             else if (item.isService)
               Text(
                 '🛠 Service • No stock tracking',
-                style: TextStyle(color: Colors.blue.shade700, fontSize: 13, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFF60A5FA)
+                      : Colors.blue.shade700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               )
             else
               Text(
                 '🧪 Consumable • Stock tracked via raw materials',
-                style: TextStyle(color: Colors.purple.shade700, fontSize: 13, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xFFC084FC)
+                      : Colors.purple.shade700,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             if (isStockable && item.stockByLocation.isNotEmpty) ...[
               const SizedBox(height: 8),
@@ -719,6 +742,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final warningTokens = AppColors.warningTokens(isDark);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Products / የዕቃዎች ዝርዝር'),
@@ -755,23 +780,23 @@ class _ProductsScreenState extends State<ProductsScreen> {
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEF3C7),
+                color: warningTokens.bg,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFF59E0B)),
+                border: Border.all(color: warningTokens.border),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, size: 20, color: Color(0xFFB45309)),
+                  Icon(Icons.info_outline, size: 20, color: warningTokens.fg),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'የሙከራ ዕቃዎች እየታዩ ነው (Demo Products)',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: warningTokens.fg),
                     ),
                   ),
                   TextButton.icon(
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.red.shade900,
+                      foregroundColor: isDark ? const Color(0xFFF87171) : Colors.red.shade900,
                       visualDensity: VisualDensity.compact,
                     ),
                     onPressed: _removeDemoProducts,
@@ -840,7 +865,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.search_off_rounded, size: 48, color: Colors.grey),
+                          Icon(Icons.search_off_rounded, size: 48, color: Theme.of(context).colorScheme.outlineVariant),
                           const SizedBox(height: 12),
                           Text(
                             'No matching products for "$_searchQuery"',
@@ -883,34 +908,39 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     final p = item.product;
                     final stock = item.stockMilli;
 
-                    Color badgeBg;
-                    Color badgeFg;
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    SemanticColors badgeTokens;
                     String badgeText;
                     String subtitleText;
 
                     if (item.isService) {
-                      badgeBg = Colors.blue.shade50;
-                      badgeFg = Colors.blue.shade900;
+                      badgeTokens = AppColors.infoTokens(isDark);
                       badgeText = '🛠 Service';
                       subtitleText = 'Price: ${p.askPrice ? 'Ask Price' : MoneyFormatter.formatCents(p.sellPriceCents)} • Service';
                     } else if (item.isConsumable) {
-                      badgeBg = Colors.purple.shade50;
-                      badgeFg = Colors.purple.shade900;
+                      badgeTokens = isDark
+                          ? const SemanticColors(
+                              bg: Color(0xFF581C87),
+                              fg: Color(0xFFC084FC),
+                              border: Color(0xFF7E22CE),
+                            )
+                          : SemanticColors(
+                              bg: Colors.purple.shade50,
+                              fg: Colors.purple.shade900,
+                              border: Colors.purple.shade200,
+                            );
                       badgeText = '🧪 Consumable';
                       subtitleText = 'Price: ${MoneyFormatter.formatCents(p.sellPriceCents)} • Consumable';
                     } else {
                       subtitleText = 'Price: ${MoneyFormatter.formatCents(p.sellPriceCents)} • Stock: ${QuantityFormatter.formatDisplay(stock)} ${p.unit}';
                       if (item.isNegative) {
-                        badgeBg = Colors.amber.shade100;
-                        badgeFg = Colors.amber.shade900;
+                        badgeTokens = AppColors.warningTokens(isDark);
                         badgeText = '⚠️ Negative (${QuantityFormatter.formatDisplay(stock)})';
                       } else if (item.isLow) {
-                        badgeBg = Colors.red.shade50;
-                        badgeFg = Colors.red.shade900;
+                        badgeTokens = AppColors.dangerTokens(isDark);
                         badgeText = '🔴 Low (${QuantityFormatter.formatDisplay(stock)})';
                       } else {
-                        badgeBg = Colors.green.shade50;
-                        badgeFg = Colors.green.shade900;
+                        badgeTokens = AppColors.successTokens(isDark);
                         badgeText = '🟢 In Stock';
                       }
                     }
@@ -935,7 +965,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       subtitleText,
-                                      style: TextStyle(fontSize: 13, color: Colors.grey.shade800),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
                                     ),
                                     if (item.isStockable && item.stockByLocation.isNotEmpty) ...[
                                       const SizedBox(height: 6),
@@ -947,29 +980,45 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                             return Container(
                                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                               decoration: BoxDecoration(
-                                                color: Colors.grey.shade100,
+                                                color: isDark
+                                                    ? Theme.of(context).colorScheme.surfaceContainerHighest
+                                                    : Colors.grey.shade100,
                                                 borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(color: Colors.grey.shade300, width: 0.8),
+                                                border: Border.all(
+                                                  color: Theme.of(context).colorScheme.outline,
+                                                  width: 0.8,
+                                                ),
                                               ),
                                               child: Text(
                                                 '${e.key}: ${QuantityFormatter.formatDisplay(e.value)}',
-                                                style: TextStyle(fontSize: 11, color: Colors.grey.shade800, fontWeight: FontWeight.w500),
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
                                             );
                                           }),
                                           if (item.inTransitMilli > 0)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: Colors.amber.shade50,
-                                                borderRadius: BorderRadius.circular(4),
-                                                border: Border.all(color: Colors.amber.shade300, width: 0.8),
-                                              ),
-                                              child: Text(
-                                                '🚚 In transit: ${QuantityFormatter.formatDisplay(item.inTransitMilli)}',
-                                                style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.bold),
-                                              ),
-                                            ),
+                                            Builder(builder: (ctx) {
+                                              final transitTokens = AppColors.warningTokens(isDark);
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: transitTokens.bg,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(color: transitTokens.border, width: 0.8),
+                                                ),
+                                                child: Text(
+                                                  '🚚 In transit: ${QuantityFormatter.formatDisplay(item.inTransitMilli)}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color: transitTokens.fg,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              );
+                                            }),
                                         ],
                                       ),
                                     ],
@@ -979,13 +1028,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: badgeBg,
+                                  color: badgeTokens.bg,
                                   borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: badgeTokens.border, width: 0.8),
                                 ),
                                 child: Text(
                                   badgeText,
                                   style: TextStyle(
-                                    color: badgeFg,
+                                    color: badgeTokens.fg,
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
                                   ),

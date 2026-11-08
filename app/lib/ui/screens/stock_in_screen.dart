@@ -181,14 +181,14 @@ class _StockInScreenState extends State<StockInScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 'Current Stock: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}',
-                                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                               ),
                             ] else
-                              const Text('Tap to choose product from catalog', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('Tap to choose product from catalog', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                      Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ],
                   ),
                 ),
@@ -198,7 +198,7 @@ class _StockInScreenState extends State<StockInScreen> {
 
             if (_selectedProduct != null) ...[
               // Quick Quantity Buttons
-              const Text('Quick Quantity / ፈጣን መጠን:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Text('Quick Quantity / ፈጣን መጠን:', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               const SizedBox(height: 8),
               Row(
                 children: [5, 10, 25, 50, 100].map((n) {
@@ -311,7 +311,7 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(ctx).colorScheme.outline, borderRadius: BorderRadius.circular(2))),
             const SizedBox(height: 12),
             TextField(
               autofocus: true,

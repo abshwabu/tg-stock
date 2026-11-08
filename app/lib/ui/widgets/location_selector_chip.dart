@@ -74,17 +74,17 @@ class _LocationSelectorChipState extends State<LocationSelectorChip> {
                 return ListTile(
                   leading: Icon(
                     loc.kind == 'warehouse' ? Icons.warehouse_rounded : Icons.storefront_rounded,
-                    color: isSelected ? const Color(0xFF0F766E) : Colors.grey,
+                    color: isSelected ? Theme.of(ctx).colorScheme.primary : Theme.of(ctx).colorScheme.onSurfaceVariant,
                   ),
                   title: Text(
                     loc.name,
                     style: TextStyle(
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? const Color(0xFF0F766E) : Colors.black87,
+                      color: isSelected ? Theme.of(ctx).colorScheme.primary : Theme.of(ctx).colorScheme.onSurface,
                     ),
                   ),
                   trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: Color(0xFF0F766E))
+                      ? Icon(Icons.check_circle, color: Theme.of(ctx).colorScheme.primary)
                       : null,
                   onTap: () => Navigator.of(ctx).pop(loc),
                 );
@@ -111,22 +111,23 @@ class _LocationSelectorChipState extends State<LocationSelectorChip> {
       return const SizedBox.shrink();
     }
 
+    final primary = Theme.of(context).colorScheme.primary;
     return ActionChip(
-      avatar: const Icon(
+      avatar: Icon(
         Icons.location_on,
         size: 16,
-        color: Color(0xFF0F766E),
+        color: primary,
       ),
       label: Text(
         '${_activeLocation!.name} ▾',
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 12.5,
-          color: Color(0xFF0F766E),
+          color: primary,
         ),
       ),
-      backgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.1),
-      side: const BorderSide(color: Color(0xFF0F766E), width: 0.8),
+      backgroundColor: primary.withValues(alpha: 0.12),
+      side: BorderSide(color: primary, width: 0.8),
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
       onPressed: _showLocationPicker,
     );

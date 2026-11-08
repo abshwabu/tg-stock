@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 
 import '../../repositories/ledger_repository.dart';
+import '../theme.dart';
 
 /// Shows a bottom sheet to set up Warehouse & Store, asking where current stock lives.
 Future<bool?> showWarehouseSetupSheet(
@@ -93,17 +94,17 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          const Row(
+          Row(
             children: [
-              Icon(Icons.warehouse_rounded, color: Color(0xFF0F766E), size: 28),
-              SizedBox(width: 10),
-              Expanded(
+              Icon(Icons.warehouse_rounded, color: Theme.of(context).colorScheme.primary, size: 28),
+              const SizedBox(width: 10),
+              const Expanded(
                 child: Text(
                   'መጋዘን እና ሱቅ ማዘጋጀት\nSet Up Warehouse & Store',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
@@ -112,9 +113,13 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'አሁን ያለው ዕቃ የት ነው የሚገኘው?\nWhere does your current stock live?',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -125,7 +130,7 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             onChanged: _isLoading ? null : (v) => setState(() => _stockPlacement = v!),
             title: const Text('ሁሉም በሱቅ ውስጥ / All in Store', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             subtitle: const Text('አሁን ያሉት ዕቃዎች በሙሉ ወደ "Store" ይመደባሉ', style: TextStyle(fontSize: 12)),
-            activeColor: const Color(0xFF0F766E),
+            activeColor: Theme.of(context).colorScheme.primary,
             contentPadding: EdgeInsets.zero,
           ),
           RadioListTile<String>(
@@ -134,7 +139,7 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             onChanged: _isLoading ? null : (v) => setState(() => _stockPlacement = v!),
             title: const Text('ሁሉም በመጋዘን ውስጥ / All in Warehouse', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             subtitle: const Text('አሁን ያሉት ዕቃዎች በሙሉ ወደ "Warehouse" ይመደባሉ', style: TextStyle(fontSize: 12)),
-            activeColor: const Color(0xFF0F766E),
+            activeColor: Theme.of(context).colorScheme.primary,
             contentPadding: EdgeInsets.zero,
           ),
           RadioListTile<String>(
@@ -143,32 +148,39 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             onChanged: _isLoading ? null : (v) => setState(() => _stockPlacement = v!),
             title: const Text('ቆይቼ እከፍላለሁ / I\'ll split it later', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             subtitle: const Text('ሁሉም ለጊዜው በሱቅ ይቀመጣሉ። በኋላ በዝውውር (Transfer) መክፈል ይችላሉ።', style: TextStyle(fontSize: 12)),
-            activeColor: const Color(0xFF0F766E),
+            activeColor: Theme.of(context).colorScheme.primary,
             contentPadding: EdgeInsets.zero,
           ),
 
           if (_stockPlacement == 'split_later') ...[
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.amber.shade300),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.amber, size: 20),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Hint: Everything will stay in Store. Use Transfer or Adjust later to move stock to Warehouse.',
-                      style: TextStyle(fontSize: 12, color: Colors.black87),
+            Builder(builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              final tokens = AppColors.warningTokens(isDark);
+              return Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: tokens.bg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: tokens.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: tokens.fg, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Hint: Everything will stay in Store. Use Transfer or Adjust later to move stock to Warehouse.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(ctx).colorScheme.onSurface,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            }),
           ],
 
           const SizedBox(height: 20),

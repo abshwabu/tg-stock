@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_storage.dart';
 import '../../services/sync_engine.dart';
+import '../theme.dart';
 
 class PairingScreen extends StatefulWidget {
   final ApiClient apiClient;
@@ -241,7 +242,9 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Widget _buildStartPairingForm() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
+    final dangerTokens = AppColors.dangerTokens(isDark);
     return Form(
       key: _formKey,
       child: Column(
@@ -300,7 +303,7 @@ class _PairingScreenState extends State<PairingScreen> {
                     children: [
                       Text(
                         'Cloud Server / የደመና ሰርቨር',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 2),
                       const Text(
@@ -344,12 +347,13 @@ class _PairingScreenState extends State<PairingScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: dangerTokens.bg,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: dangerTokens.border),
               ),
               child: Text(
                 _errorMessage!,
-                style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+                style: TextStyle(color: dangerTokens.fg, fontSize: 13),
               ),
             ),
           ],
@@ -372,6 +376,7 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Widget _buildWaitingView() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     final mins = _secondsRemaining ~/ 60;
     final secs = (_secondsRemaining % 60).toString().padLeft(2, '0');
@@ -417,7 +422,11 @@ class _PairingScreenState extends State<PairingScreen> {
               const SizedBox(height: 4),
               Text(
                 'Expires in $mins:$secs',
-                style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? const Color(0xFFF87171) : Colors.red.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -451,7 +460,7 @@ class _PairingScreenState extends State<PairingScreen> {
             const SizedBox(width: 10),
             Text(
               'Waiting for confirmation...',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontStyle: FontStyle.italic),
             ),
           ],
         ),
@@ -473,6 +482,7 @@ class _PairingScreenState extends State<PairingScreen> {
 
   Widget _buildUploadProgressView() {
     final progress = _historyTotal > 0 ? (_historyCurrent / _historyTotal).clamp(0.0, 1.0) : null;
+    final scheme = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -488,7 +498,7 @@ class _PairingScreenState extends State<PairingScreen> {
         Text(
           _historyStatusText ?? 'Uploading...',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
+          style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
         ),
         const SizedBox(height: 24),
         LinearProgressIndicator(value: progress, minHeight: 8),
@@ -496,10 +506,10 @@ class _PairingScreenState extends State<PairingScreen> {
         if (_historyTotal > 0)
           Text('$_historyCurrent of $_historyTotal records uploaded', style: const TextStyle(fontSize: 12)),
         const SizedBox(height: 30),
-        const Text(
+        Text(
           'Please keep the app open while records are uploaded to your online shop.',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
         ),
       ],
     );

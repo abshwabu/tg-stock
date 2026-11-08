@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../utils/quantity_formatter.dart';
+import '../theme.dart';
 
 class TransferScreen extends StatefulWidget {
   final LedgerRepository repository;
@@ -261,19 +262,23 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                     ),
                     if (hasDiscrepancy) ...[
                       const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.shade50,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.amber.shade400),
-                        ),
-                        child: Text(
-                          '⚠️ Discrepancy: ${QuantityFormatter.formatDisplay(diffMilli)} ${t.unit}\n'
-                          'This discrepancy will be flagged in reports. Stock will not be auto-adjusted.',
-                          style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
-                        ),
-                      ),
+                      Builder(builder: (ctx) {
+                        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                        final tokens = AppColors.warningTokens(isDark);
+                        return Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: tokens.bg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: tokens.border),
+                          ),
+                          child: Text(
+                            '⚠️ Discrepancy: ${QuantityFormatter.formatDisplay(diffMilli)} ${t.unit}\n'
+                            'This discrepancy will be flagged in reports. Stock will not be auto-adjusted.',
+                            style: TextStyle(fontSize: 12, color: tokens.fg),
+                          ),
+                        );
+                      }),
                       const SizedBox(height: 10),
                       TextField(
                         controller: reasonCtrl,
@@ -390,24 +395,30 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
   }
 
   Widget _buildOfflineNoticeBanner() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = AppColors.infoTokens(isDark);
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.shade50,
+        color: tokens.bg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.blue.shade200),
+        border: Border.all(color: tokens.border),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, color: Colors.blue, size: 20),
-          SizedBox(width: 8),
+          Icon(Icons.info_outline, color: tokens.fg, size: 20),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               'ማስታወሻ፡ በሁለት የተለያዩ ስልኮች መካከል የሚደረግ ባለሁለት ደረጃ ዝውውር ወደ ተቀባዩ ስልክ የሚደርሰው ሁለቱም ስልኮች ሲመሳከሩ (sync ሲያደርጉ) ብቻ ነው።\n'
               'Note: A two-step transfer between two different phones appears on the receiving phone only after both devices have synced.',
-              style: TextStyle(fontSize: 12, color: Colors.blueGrey, height: 1.3),
+              style: TextStyle(
+                fontSize: 12,
+                color: isDark ? Theme.of(context).colorScheme.onSurface : Colors.blueGrey,
+                height: 1.3,
+              ),
             ),
           ),
         ],
@@ -416,6 +427,11 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
   }
 
   Widget _buildNewTransferTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final modeTokens = _requiresReceipt
+        ? AppColors.warningTokens(isDark)
+        : AppColors.successTokens(isDark);
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -427,17 +443,15 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _requiresReceipt ? Colors.amber.shade50 : Colors.teal.shade50,
+              color: modeTokens.bg,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _requiresReceipt ? Colors.amber.shade300 : Colors.teal.shade300,
-              ),
+              border: Border.all(color: modeTokens.border),
             ),
             child: Row(
               children: [
                 Icon(
                   _requiresReceipt ? Icons.receipt_long_rounded : Icons.flash_on_rounded,
-                  color: _requiresReceipt ? Colors.amber.shade900 : Colors.teal.shade900,
+                  color: modeTokens.fg,
                   size: 24,
                 ),
                 const SizedBox(width: 10),
@@ -452,7 +466,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
-                          color: _requiresReceipt ? Colors.amber.shade900 : Colors.teal.shade900,
+                          color: modeTokens.fg,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -460,7 +474,10 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                         _requiresReceipt
                             ? 'Sender records transfer-out; receiver verifies and confirms received stock.'
                             : 'Stock moves immediately from source to destination without secondary confirmation.',
-                        style: const TextStyle(fontSize: 11.5, color: Colors.black87),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -497,9 +514,9 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                   },
                 ),
               ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Icon(Icons.arrow_forward_rounded, color: Colors.grey),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Icon(Icons.arrow_forward_rounded, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               Expanded(
                 child: DropdownButtonFormField<Location>(
@@ -536,7 +553,9 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                   : null,
               helperStyle: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: _availableStockMilli > 0 ? Colors.green.shade800 : Colors.red.shade800,
+                color: _availableStockMilli > 0
+                    ? (isDark ? const Color(0xFF4ADE80) : Colors.green.shade800)
+                    : (isDark ? const Color(0xFFF87171) : Colors.red.shade800),
               ),
             ),
             items: _products.map((p) {
@@ -617,12 +636,12 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+                      Icon(Icons.inbox_outlined, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
                       const SizedBox(height: 12),
-                      const Text(
+                      Text(
                         'ምንም በመንገድ ላይ ያለ ዝውውር የለም\nNo incoming transfers pending',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       ),
                     ],
                   ),
@@ -657,17 +676,26 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade100,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  'In Transit',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
-                                ),
-                              ),
+                              Builder(builder: (ctx) {
+                                final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                                final tokens = AppColors.warningTokens(isDark);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: tokens.bg,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: tokens.border, width: 0.8),
+                                  ),
+                                  child: Text(
+                                    'In Transit',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: tokens.fg,
+                                    ),
+                                  ),
+                                );
+                              }),
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -688,13 +716,16 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                             const SizedBox(height: 4),
                             Text(
                               'Note: ${t.note}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ],
                           const SizedBox(height: 4),
                           Text(
                             'Sent: $timeStr',
-                            style: const TextStyle(fontSize: 11, color: Colors.grey),
+                            style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           const Divider(height: 20),
                           Row(
@@ -735,10 +766,10 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
           children: [
             Icon(Icons.check_circle_outline, size: 64, color: Colors.green.shade400),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'ምንም የዝውውር ልዩነት የለም\nNo transfer discrepancies',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey, fontSize: 14),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
             ),
           ],
         ),
@@ -758,10 +789,16 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
         final diff = d.diffMilli;
         final isShortage = diff < 0;
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final tokens = isShortage ? AppColors.dangerTokens(isDark) : AppColors.warningTokens(isDark);
+
         return Card(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          color: Colors.amber.shade50,
+          elevation: isDark ? 0 : 1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
+          ),
+          color: tokens.bg,
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -771,7 +808,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                   children: [
                     Icon(
                       isShortage ? Icons.trending_down_rounded : Icons.trending_up_rounded,
-                      color: isShortage ? Colors.red.shade900 : Colors.orange.shade900,
+                      color: tokens.fg,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -785,7 +822,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
-                        color: isShortage ? Colors.red.shade900 : Colors.orange.shade900,
+                        color: tokens.fg,
                       ),
                     ),
                   ],
@@ -797,19 +834,23 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                 ),
                 Text(
                   'Sent: ${QuantityFormatter.formatDisplay(d.sentQtyMilli)} • Received: ${QuantityFormatter.formatDisplay(d.receivedQtyMilli)}',
-                  style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
                 ),
                 if (d.reason != null && d.reason!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     'Reason: ${d.reason}',
-                    style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey.shade800),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 4),
                 Text(
                   timeStr,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ),

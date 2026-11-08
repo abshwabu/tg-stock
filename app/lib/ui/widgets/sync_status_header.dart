@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../services/sync_engine.dart';
+import '../theme.dart';
 
 class SyncStatusHeader extends StatelessWidget {
   final SyncEngine syncEngine;
@@ -14,6 +15,7 @@ class SyncStatusHeader extends StatelessWidget {
       valueListenable: syncEngine.stateNotifier,
       builder: (context, state, _) {
         final colorScheme = Theme.of(context).colorScheme;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
 
         Color bg;
         Color fg;
@@ -22,32 +24,37 @@ class SyncStatusHeader extends StatelessWidget {
 
         switch (state.status) {
           case SyncStatus.offline:
-            bg = Colors.grey.shade200;
-            fg = Colors.grey.shade800;
+            final tokens = AppColors.neutralTokens(isDark);
+            bg = tokens.bg;
+            fg = tokens.fg;
             icon = Icons.cloud_off_rounded;
             statusTitle = 'Offline / ኦፍላይን';
             break;
           case SyncStatus.syncing:
-            bg = Colors.blue.shade50;
-            fg = Colors.blue.shade900;
+            final tokens = AppColors.infoTokens(isDark);
+            bg = tokens.bg;
+            fg = tokens.fg;
             icon = Icons.sync_rounded;
             statusTitle = 'Syncing... / እየተመሳሰለ ነው...';
             break;
           case SyncStatus.idle:
-            bg = Colors.green.shade50;
-            fg = Colors.green.shade900;
+            final tokens = AppColors.successTokens(isDark);
+            bg = tokens.bg;
+            fg = tokens.fg;
             icon = Icons.cloud_done_rounded;
             statusTitle = 'Up to date / የተመሳሰለ';
             break;
           case SyncStatus.error:
-            bg = Colors.orange.shade50;
-            fg = Colors.orange.shade900;
+            final tokens = AppColors.warningTokens(isDark);
+            bg = tokens.bg;
+            fg = tokens.fg;
             icon = Icons.sync_problem_rounded;
             statusTitle = 'Sync paused (retrying) / ጊዜያዊ ስህተት';
             break;
           case SyncStatus.unauthorized:
-            bg = Colors.red.shade50;
-            fg = Colors.red.shade900;
+            final tokens = AppColors.dangerTokens(isDark);
+            bg = tokens.bg;
+            fg = tokens.fg;
             icon = Icons.lock_clock_rounded;
             statusTitle = 'Re-pairing needed / እንደገና ያገናኙ';
             break;
@@ -70,7 +77,7 @@ class SyncStatusHeader extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             color: bg,
-            border: Border(bottom: BorderSide(color: Colors.grey.shade300, width: 0.8)),
+            border: Border(bottom: BorderSide(color: colorScheme.outline, width: 0.8)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,30 +154,33 @@ class SyncStatusHeader extends StatelessWidget {
               ],
               if (state.hasNegativeStock) ...[
                 const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.amber.shade100,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.amber.shade700, width: 0.8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.warning_amber_rounded, size: 16, color: Colors.amber.shade900),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '⚠️ Check stock / የስቶክ መጠን ያረጋግጡ (Negative count detected)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.amber.shade900,
+                Builder(builder: (ctx) {
+                  final tokens = AppColors.warningTokens(isDark);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: tokens.bg,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: tokens.border, width: 0.8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber_rounded, size: 16, color: tokens.fg),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '⚠️ Check stock / የስቶክ መጠን ያረጋግጡ (Negative count detected)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: tokens.fg,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                }),
               ],
               if (state.progressText != null && state.status == SyncStatus.syncing) ...[
                 const SizedBox(height: 4),

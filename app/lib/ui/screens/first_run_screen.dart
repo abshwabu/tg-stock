@@ -122,10 +122,10 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Offline-first inventory for Ethiopian retail shops.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: Colors.grey),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 28),
 
@@ -146,7 +146,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                     side: BorderSide(
                       color: _selectedLang == 'am'
                           ? const Color(0xFF0F766E)
-                          : Colors.grey.shade300,
+                          : Theme.of(context).colorScheme.outline,
                       width: _selectedLang == 'am' ? 2 : 1,
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -168,7 +168,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                     side: BorderSide(
                       color: _selectedLang == 'en'
                           ? const Color(0xFF0F766E)
-                          : Colors.grey.shade300,
+                          : Theme.of(context).colorScheme.outline,
                       width: _selectedLang == 'en' ? 2 : 1,
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -301,7 +301,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
               ? 'ለሱቅ እና ለመጋዘን የተለያዩ ስቶኮችን መያዝ እና ማዘዋወር ይችላሉ።'
               : 'Track separate stock for warehouse and shop front with transfers.',
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 13, color: Colors.grey),
+          style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: 24),
 
@@ -312,9 +312,13 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: !_enableLocations ? const Color(0xFF0F766E).withValues(alpha: 0.1) : Colors.white,
+              color: !_enableLocations
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+                  : Theme.of(context).colorScheme.surface,
               border: Border.all(
-                color: !_enableLocations ? const Color(0xFF0F766E) : Colors.grey.shade300,
+                color: !_enableLocations
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outline,
                 width: !_enableLocations ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(12),
@@ -324,7 +328,9 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                 Icon(
                   Icons.storefront_rounded,
                   size: 32,
-                  color: !_enableLocations ? const Color(0xFF0F766E) : Colors.grey,
+                  color: !_enableLocations
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -336,7 +342,9 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: !_enableLocations ? const Color(0xFF0F766E) : Colors.black87,
+                          color: !_enableLocations
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -344,7 +352,10 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                         isAm
                             ? 'ሁሉም ዕቃ በአንድ ሱቅ ውስጥ ብቻ ይቀመጣል። (ነባሪ)'
                             : 'All stock is kept in one place. (Default)',
-                        style: const TextStyle(fontSize: 12.5, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -353,7 +364,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                   value: false,
                   groupValue: _enableLocations,
                   onChanged: (v) => setState(() => _enableLocations = v!),
-                  activeColor: const Color(0xFF0F766E),
+                  activeColor: Theme.of(context).colorScheme.primary,
                 ),
               ],
             ),
@@ -368,9 +379,13 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _enableLocations ? const Color(0xFF0F766E).withValues(alpha: 0.1) : Colors.white,
+              color: _enableLocations
+                  ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.12)
+                  : Theme.of(context).colorScheme.surface,
               border: Border.all(
-                color: _enableLocations ? const Color(0xFF0F766E) : Colors.grey.shade300,
+                color: _enableLocations
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outline,
                 width: _enableLocations ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(12),
@@ -380,7 +395,9 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                 Icon(
                   Icons.warehouse_rounded,
                   size: 32,
-                  color: _enableLocations ? const Color(0xFF0F766E) : Colors.grey,
+                  color: _enableLocations
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -392,7 +409,9 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: _enableLocations ? const Color(0xFF0F766E) : Colors.black87,
+                          color: _enableLocations
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -400,7 +419,10 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                         isAm
                             ? 'የሱቅ እና የመጋዘን ዕቃዎችን ለይተው ይያዙ፣ ዝውውርም ያድርጉ።'
                             : 'Separate stock for Store and Warehouse, with transfers.',
-                        style: const TextStyle(fontSize: 12.5, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -409,7 +431,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                   value: true,
                   groupValue: _enableLocations,
                   onChanged: (v) => setState(() => _enableLocations = v!),
-                  activeColor: const Color(0xFF0F766E),
+                  activeColor: Theme.of(context).colorScheme.primary,
                 ),
               ],
             ),
@@ -422,9 +444,9 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -541,7 +563,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
             children: [
               Text(
                 '${_introCardIndex + 1} / ${cards.length}',
-                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey),
+                style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               TextButton(
                 onPressed: _isSaving ? null : _submitAll,
@@ -595,7 +617,11 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                     Text(
                       item.description,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black87),
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.5,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -619,7 +645,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                     width: isCurrent ? 24 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: isCurrent ? const Color(0xFF0F766E) : Colors.grey.shade300,
+                      color: isCurrent ? const Color(0xFF0F766E) : Theme.of(context).colorScheme.outlineVariant,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );

@@ -127,12 +127,13 @@ class _AdjustScreenState extends State<AdjustScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final diffFormatted = (_diffMilli > 0 ? '+' : '') + QuantityFormatter.formatDisplay(_diffMilli);
-    Color diffColor = Colors.grey.shade700;
+    Color diffColor = Theme.of(context).colorScheme.onSurfaceVariant;
     if (_diffMilli > 0) {
-      diffColor = Colors.green.shade800;
+      diffColor = isDark ? const Color(0xFF4ADE80) : Colors.green.shade800;
     } else if (_diffMilli < 0) {
-      diffColor = Colors.red.shade800;
+      diffColor = isDark ? const Color(0xFFF87171) : Colors.red.shade800;
     }
 
     return Scaffold(
@@ -179,14 +180,17 @@ class _AdjustScreenState extends State<AdjustScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 'System Stock: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}',
-                                style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  fontSize: 13,
+                                ),
                               ),
                             ] else
-                              const Text('Tap to choose product', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('Tap to choose product', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                           ],
                         ),
                       ),
-                      const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+                      Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ],
                   ),
                 ),
@@ -212,9 +216,9 @@ class _AdjustScreenState extends State<AdjustScreen> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: Theme.of(context).colorScheme.outline),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -312,7 +316,14 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           children: [
-            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.outline,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               autofocus: true,

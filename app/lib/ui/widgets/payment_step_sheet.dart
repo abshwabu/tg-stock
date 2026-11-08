@@ -6,6 +6,7 @@ import '../../repositories/ledger_repository.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/phone_validator.dart';
 import '../../utils/uuid_generator.dart';
+import '../theme.dart';
 
 class PaymentStepSheet extends StatefulWidget {
   final LedgerRepository repository;
@@ -348,9 +349,9 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.9,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
         left: 20,
@@ -438,12 +439,12 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
-        avatar: Icon(icon, size: 18, color: isSelected ? Colors.white : Colors.black87),
+        avatar: Icon(icon, size: 18, color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface),
         label: Text(label),
         selected: isSelected,
         selectedColor: Colors.deepOrange,
         labelStyle: TextStyle(
-          color: isSelected ? Colors.white : Colors.black87,
+          color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
         onSelected: (val) {
@@ -528,27 +529,31 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         ),
         if (_changeDueCents > 0) ...[
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.green.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.green.shade300),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Change Due / መልስ:',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green),
-                ),
-                Text(
-                  MoneyFormatter.formatCents(_changeDueCents),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green),
-                ),
-              ],
-            ),
-          ),
+          Builder(builder: (ctx) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final tokens = AppColors.successTokens(isDark);
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: tokens.bg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: tokens.border),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Change Due / መልስ:',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: tokens.fg),
+                  ),
+                  Text(
+                    MoneyFormatter.formatCents(_changeDueCents),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: tokens.fg),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ],
     );
@@ -592,7 +597,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Container(
           constraints: const BoxConstraints(maxHeight: 180),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
             borderRadius: BorderRadius.circular(8),
           ),
           child: ListView.builder(
@@ -601,13 +606,14 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
             itemBuilder: (ctx, idx) {
               final bank = filtered[idx];
               final isSel = _selectedBank?.providerKey == bank.providerKey;
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
               return ListTile(
                 dense: true,
                 selected: isSel,
-                selectedTileColor: Colors.deepOrange.shade50,
+                selectedTileColor: isDark ? Colors.deepOrange.withValues(alpha: 0.25) : Colors.deepOrange.shade50,
                 leading: Icon(
                   bank.favorite ? Icons.star : Icons.account_balance,
-                  color: bank.favorite ? Colors.amber : Colors.grey,
+                  color: bank.favorite ? Colors.amber : Theme.of(ctx).colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
                 title: Text(bank.name ?? bank.providerKey),
@@ -669,7 +675,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Container(
           constraints: const BoxConstraints(maxHeight: 180),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
             borderRadius: BorderRadius.circular(8),
           ),
           child: ListView.builder(
@@ -678,13 +684,14 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
             itemBuilder: (ctx, idx) {
               final wallet = filtered[idx];
               final isSel = _selectedWallet?.providerKey == wallet.providerKey;
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
               return ListTile(
                 dense: true,
                 selected: isSel,
-                selectedTileColor: Colors.deepOrange.shade50,
+                selectedTileColor: isDark ? Colors.deepOrange.withValues(alpha: 0.25) : Colors.deepOrange.shade50,
                 leading: Icon(
                   wallet.favorite ? Icons.star : Icons.phone_android,
-                  color: wallet.favorite ? Colors.amber : Colors.grey,
+                  color: wallet.favorite ? Colors.amber : Theme.of(ctx).colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
                 title: Text(wallet.name ?? wallet.providerKey),
@@ -734,7 +741,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           Container(
             constraints: const BoxConstraints(maxHeight: 140),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
               borderRadius: BorderRadius.circular(8),
             ),
             child: ListView.builder(
@@ -753,40 +760,52 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
             ),
           ),
         ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.teal.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.teal.shade200),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.person, color: Color(0xFF0F766E)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _selectedCustomer!.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      if (_selectedCustomer!.phone != null)
+          Builder(builder: (ctx) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Theme.of(ctx).colorScheme.surfaceContainerHighest
+                    : Colors.teal.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark
+                      ? Theme.of(ctx).colorScheme.outline
+                      : Colors.teal.shade200,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.person, color: Theme.of(ctx).colorScheme.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          _selectedCustomer!.phone!,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          _selectedCustomer!.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
-                    ],
+                        if (_selectedCustomer!.phone != null)
+                          Text(
+                            _selectedCustomer!.phone!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                TextButton(
-                  onPressed: () => setState(() => _selectedCustomer = null),
-                  child: const Text('Change'),
-                ),
-              ],
-            ),
-          ),
+                  TextButton(
+                    onPressed: () => setState(() => _selectedCustomer = null),
+                    child: const Text('Change'),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
 
         const SizedBox(height: 16),
@@ -884,28 +903,35 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         const SizedBox(height: 16),
 
         // Summary Banner
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.amber.shade300),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pays now: ${MoneyFormatter.formatCents(_dubePaidNowCents)}, Dube: ${MoneyFormatter.formatCents(remainingDubeCents)}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Due: $dueDateFormatted',
-                style: TextStyle(fontSize: 13, color: Colors.brown.shade800),
-              ),
-            ],
-          ),
-        ),
+        Builder(builder: (ctx) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final tokens = AppColors.warningTokens(isDark);
+          return Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: tokens.bg,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: tokens.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Pays now: ${MoneyFormatter.formatCents(_dubePaidNowCents)}, Dube: ${MoneyFormatter.formatCents(remainingDubeCents)}',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: tokens.fg),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Due: $dueDateFormatted',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? tokens.fg.withValues(alpha: 0.85) : Colors.brown.shade800,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
       ],
     );
   }
@@ -917,7 +943,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
       selected: isSelected,
       selectedColor: Colors.deepOrange,
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.black87,
+        color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface,
         fontSize: 12,
       ),
       onSelected: (v) {
@@ -936,7 +962,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
       selected: isCustom,
       selectedColor: Colors.deepOrange,
       labelStyle: TextStyle(
-        color: isCustom ? Colors.white : Colors.black87,
+        color: isCustom ? Colors.white : Theme.of(context).colorScheme.onSurface,
         fontSize: 12,
       ),
       onSelected: (v) async {

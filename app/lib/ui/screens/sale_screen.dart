@@ -8,6 +8,7 @@ import '../../repositories/ledger_repository.dart';
 import '../../services/notification_service.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../theme.dart';
 import '../widgets/location_selector_chip.dart';
 import '../widgets/payment_step_sheet.dart';
 
@@ -105,6 +106,8 @@ class _SaleScreenState extends State<SaleScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final warningTokens = AppColors.warningTokens(isDark);
           final stockWarning = !isService && !isConsumable && (currentStock < qtyMilli);
 
           final materialShortages = <String>[];
@@ -144,19 +147,35 @@ class _SaleScreenState extends State<SaleScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
+                          color: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : Colors.blue.shade50,
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? const Color(0xFF1D4ED8) : Colors.blue.shade200),
                         ),
-                        child: const Text('🛠 Service', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 11)),
+                        child: Text(
+                          '🛠 Service',
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFF93C5FD) : Colors.blue.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
                       )
                     else if (isConsumable)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.purple.shade50,
+                          color: isDark ? const Color(0xFF581C87).withValues(alpha: 0.35) : Colors.purple.shade50,
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isDark ? const Color(0xFF7E22CE) : Colors.purple.shade200),
                         ),
-                        child: const Text('🧪 Consumable', style: TextStyle(color: Colors.purple, fontWeight: FontWeight.bold, fontSize: 11)),
+                        child: Text(
+                          '🧪 Consumable',
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFFC084FC) : Colors.purple.shade900,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -164,12 +183,20 @@ class _SaleScreenState extends State<SaleScreen> {
                 if (isService)
                   Text(
                     'Service • No stock tracking',
-                    style: TextStyle(fontSize: 13, color: Colors.blue.shade700, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? const Color(0xFF60A5FA) : Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
                   )
                 else if (isConsumable)
                   Text(
                     'Consumable • ${recipeMaterials.isEmpty ? 'No raw materials' : '${recipeMaterials.length} raw material(s)'}',
-                    style: TextStyle(fontSize: 13, color: Colors.purple.shade700, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? const Color(0xFFC084FC) : Colors.purple.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
                   )
                 else
                   Text(
@@ -177,7 +204,9 @@ class _SaleScreenState extends State<SaleScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: currentStock <= 0 ? Colors.red : Colors.green.shade800,
+                      color: currentStock <= 0
+                          ? (isDark ? const Color(0xFFF87171) : Colors.red)
+                          : (isDark ? const Color(0xFF4ADE80) : Colors.green.shade800),
                     ),
                   ),
                 if (stockWarning) ...[
@@ -185,12 +214,13 @@ class _SaleScreenState extends State<SaleScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
+                      color: warningTokens.bg,
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: warningTokens.border),
                     ),
                     child: Text(
                       '⚠️ Warning: Requesting more than available stock',
-                      style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                      style: TextStyle(fontSize: 12, color: warningTokens.fg, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -199,21 +229,21 @@ class _SaleScreenState extends State<SaleScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.amber.shade100,
+                      color: warningTokens.bg,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.amber.shade400),
+                      border: Border.all(color: warningTokens.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '⚠️ Material Shortage Warning:',
-                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: warningTokens.fg),
                         ),
                         const SizedBox(height: 2),
                         ...materialShortages.map((s) => Text(
                           '• $s',
-                          style: TextStyle(fontSize: 11, color: Colors.amber.shade900),
+                          style: TextStyle(fontSize: 11, color: warningTokens.fg),
                         )),
                       ],
                     ),
@@ -225,14 +255,17 @@ class _SaleScreenState extends State<SaleScreen> {
                 Row(
                   children: [1, 2, 5, 10].map((n) {
                     final isSelected = qtyMilli == n * 1000;
+                    final isDark = Theme.of(ctx).brightness == Brightness.dark;
                     return Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: isSelected ? Colors.deepOrange.shade50 : null,
+                            backgroundColor: isSelected
+                                ? (isDark ? Colors.deepOrange.withValues(alpha: 0.25) : Colors.deepOrange.shade50)
+                                : null,
                             side: BorderSide(
-                              color: isSelected ? Colors.deepOrange : Colors.grey.shade300,
+                              color: isSelected ? Colors.deepOrange : Theme.of(ctx).colorScheme.outline,
                               width: isSelected ? 2 : 1,
                             ),
                           ),
@@ -246,7 +279,7 @@ class _SaleScreenState extends State<SaleScreen> {
                             '+$n',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: isSelected ? Colors.deepOrange : Colors.black87,
+                              color: isSelected ? Colors.deepOrange : Theme.of(ctx).colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -503,7 +536,11 @@ class _SaleScreenState extends State<SaleScreen> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Recent / ተደጋጋሚ ዕቃዎች:',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ),
@@ -548,16 +585,16 @@ class _SaleScreenState extends State<SaleScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey.shade300),
+                        Icon(Icons.shopping_cart_outlined, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Cart is empty / ቅርጫቱ ባዶ ነው',
-                          style: TextStyle(fontSize: 15, color: Colors.grey),
+                          style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Pick an item above to add to this sale.',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -598,10 +635,13 @@ class _SaleScreenState extends State<SaleScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, -2)),
-              ],
+              color: Theme.of(context).colorScheme.surface,
+              border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outline, width: 0.8)),
+              boxShadow: Theme.of(context).brightness == Brightness.dark
+                  ? null
+                  : [
+                      BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, -2)),
+                    ],
             ),
             child: SafeArea(
               child: Row(
@@ -611,7 +651,10 @@ class _SaleScreenState extends State<SaleScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Total / ጠቅላላ ድምር:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(
+                          'Total / ጠቅላላ ድምር:',
+                          style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                        ),
                         Text(
                           MoneyFormatter.formatCents(_cartTotalCents),
                           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
@@ -695,7 +738,7 @@ class _ProductPickerSheetState extends State<_ProductPickerSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: Theme.of(context).colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

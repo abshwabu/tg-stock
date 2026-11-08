@@ -31,6 +31,49 @@ class AppColors {
   static const Color textPrimaryDark = Color(0xFFF1F5F9);
   static const Color textSecondaryDark = Color(0xFF94A3B8);
   static const Color outlineDark = Color(0xFF334155);
+
+  // Semantic Tokens for Surface Badges & Highlights
+  static SemanticColors successTokens(bool isDark) => SemanticColors(
+    bg: isDark ? const Color(0xFF064E3B).withValues(alpha: 0.35) : const Color(0xFFF0FDF4),
+    fg: isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
+    border: isDark ? const Color(0xFF047857) : const Color(0xFFBBF7D0),
+  );
+
+  static SemanticColors warningTokens(bool isDark) => SemanticColors(
+    bg: isDark ? const Color(0xFF78350F).withValues(alpha: 0.35) : const Color(0xFFFFFBEB),
+    fg: isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309),
+    border: isDark ? const Color(0xFFB45309) : const Color(0xFFFDE68A),
+  );
+
+  static SemanticColors dangerTokens(bool isDark) => SemanticColors(
+    bg: isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.35) : const Color(0xFFFEF2F2),
+    fg: isDark ? const Color(0xFFF87171) : const Color(0xFFB91C1C),
+    border: isDark ? const Color(0xFFB91C1C) : const Color(0xFFFECACA),
+  );
+
+  static SemanticColors infoTokens(bool isDark) => SemanticColors(
+    bg: isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : const Color(0xFFEFF6FF),
+    fg: isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8),
+    border: isDark ? const Color(0xFF1D4ED8) : const Color(0xFFBFDBFE),
+  );
+
+  static SemanticColors neutralTokens(bool isDark) => SemanticColors(
+    bg: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+    fg: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
+    border: isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1),
+  );
+}
+
+class SemanticColors {
+  final Color bg;
+  final Color fg;
+  final Color border;
+
+  const SemanticColors({
+    required this.bg,
+    required this.fg,
+    required this.border,
+  });
 }
 
 class AppTheme {
@@ -75,6 +118,18 @@ class AppTheme {
           systemNavigationBarColor: AppColors.surfaceLight,
           systemNavigationBarIconBrightness: Brightness.dark,
         ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surfaceLight,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.surfaceLight,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.outlineLight,
+        thickness: 0.8,
       ),
       cardTheme: CardThemeData(
         elevation: 0.5,
@@ -217,6 +272,18 @@ class AppTheme {
           systemNavigationBarColor: AppColors.surfaceDark,
           systemNavigationBarIconBrightness: Brightness.light,
         ),
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.surfaceDark,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.surfaceDark,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.outlineDark,
+        thickness: 0.8,
       ),
       cardTheme: CardThemeData(
         elevation: 0,

@@ -39,6 +39,8 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
   @override
   Widget build(BuildContext context) {
     final isAm = widget.language == 'am';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     final logs = ErrorLogger.instance.logs;
 
     return Scaffold(
@@ -76,7 +78,7 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                       isAm
                           ? 'መተግበሪያው በጥሩ ሁኔታ እየሰራ ነው።'
                           : 'The app is running smoothly with zero logged issues.',
-                      style: const TextStyle(color: Colors.grey),
+                      style: TextStyle(color: scheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -86,10 +88,10 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
-                  color: Colors.blueGrey.shade50,
+                  color: isDark ? scheme.surfaceContainerHighest : Colors.blueGrey.shade50,
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 20, color: Colors.blueGrey),
+                      Icon(Icons.info_outline, size: 20, color: isDark ? scheme.primary : Colors.blueGrey),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -121,7 +123,7 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                             const SizedBox(height: 4),
                             Text(
                               '${item.context} • ${item.timestamp.toLocal().toString().split('.').first}',
-                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                             ),
                             if (item.stackSummary != null) ...[
                               const SizedBox(height: 4),
@@ -129,7 +131,11 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                                 item.stackSummary!,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                  color: scheme.onSurfaceVariant,
+                                ),
                               ),
                             ],
                           ],

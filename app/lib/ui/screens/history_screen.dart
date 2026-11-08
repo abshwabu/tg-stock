@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
+import '../theme.dart';
 import '../widgets/empty_state_widget.dart';
 import 'sale_screen.dart';
 
@@ -192,8 +193,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     }
 
     if (_salesList.isEmpty) {
-      return const Center(
-        child: Text('No sales recorded yet / ምንም ሽያጭ የለም', style: TextStyle(color: Colors.grey)),
+      return Center(
+        child: Text(
+          'No sales recorded yet / ምንም ሽያጭ የለም',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
       );
     }
 
@@ -210,24 +214,30 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
             DateTime.fromMillisecondsSinceEpoch(sale.createdAtMs).toLocal(),
           );
 
-          Color badgeColor;
-          Color badgeTextColor;
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          final SemanticColors statusTokens;
           switch (s.statusBadge) {
             case 'Paid':
-              badgeColor = Colors.green.shade100;
-              badgeTextColor = Colors.green.shade900;
+              statusTokens = AppColors.successTokens(isDark);
               break;
             case 'Partial':
-              badgeColor = Colors.amber.shade100;
-              badgeTextColor = Colors.amber.shade900;
+              statusTokens = AppColors.warningTokens(isDark);
               break;
             case 'Dube':
-              badgeColor = Colors.deepOrange.shade100;
-              badgeTextColor = Colors.deepOrange.shade900;
+              statusTokens = isDark
+                  ? const SemanticColors(
+                      bg: Color(0xFF7C2D12),
+                      fg: Color(0xFFFB923C),
+                      border: Color(0xFFC2410C),
+                    )
+                  : SemanticColors(
+                      bg: Colors.deepOrange.shade100,
+                      fg: Colors.deepOrange.shade900,
+                      border: Colors.deepOrange.shade300,
+                    );
               break;
             default: // Voided
-              badgeColor = Colors.grey.shade200;
-              badgeTextColor = Colors.grey.shade800;
+              statusTokens = AppColors.neutralTokens(isDark);
               break;
           }
 
@@ -251,15 +261,16 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: badgeColor,
+                              color: statusTokens.bg,
                               borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: statusTokens.border, width: 0.8),
                             ),
                             child: Text(
                               s.statusBadge,
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: badgeTextColor,
+                                color: statusTokens.fg,
                               ),
                             ),
                           ),
@@ -267,7 +278,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.blueGrey.shade50,
+                              color: isDark ? Theme.of(context).colorScheme.surfaceContainerHighest : Colors.blueGrey.shade50,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -275,7 +286,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.blueGrey.shade800,
+                                color: isDark ? Theme.of(context).colorScheme.onSurfaceVariant : Colors.blueGrey.shade800,
                               ),
                             ),
                           ),
@@ -289,7 +300,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     children: [
                       Text(
                         '$dateStr • ${s.customer?.name ?? "Anonymous"}',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                       if (s.canUndo)
                         TextButton.icon(
@@ -371,45 +382,52 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               return Column(
                 children: [
                   if (canUndoMostRecent) ...[
-                    Container(
-                      margin: const EdgeInsets.all(12),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.amber.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.amber.shade400),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.history_toggle_off, color: Colors.amber.shade900),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Last action: ${mostRecent.product?.name ?? "Item"} (${mostRecent.movement.type})',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.amber.shade900),
-                                ),
-                                const Text(
-                                  'Eligible for 1-tap undo within 10 minutes',
-                                  style: TextStyle(fontSize: 11, color: Colors.black87),
-                                ),
-                              ],
+                    Builder(builder: (ctx) {
+                      final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                      final tokens = AppColors.warningTokens(isDark);
+                      return Container(
+                        margin: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: tokens.bg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.history_toggle_off, color: tokens.fg),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Last action: ${mostRecent.product?.name ?? "Item"} (${mostRecent.movement.type})',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: tokens.fg),
+                                  ),
+                                  Text(
+                                    'Eligible for 1-tap undo within 10 minutes',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(ctx).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          FilledButton.tonalIcon(
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.amber.shade200,
-                              foregroundColor: Colors.amber.shade900,
+                            FilledButton.tonalIcon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: isDark ? const Color(0xFF78350F) : Colors.amber.shade200,
+                                foregroundColor: tokens.fg,
+                              ),
+                              onPressed: _undoLastMovement,
+                              icon: const Icon(Icons.undo, size: 16),
+                              label: const Text('Undo', style: TextStyle(fontWeight: FontWeight.bold)),
                             ),
-                            onPressed: _undoLastMovement,
-                            icon: const Icon(Icons.undo, size: 16),
-                            label: const Text('Undo', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ],
-                      ),
-                    ),
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                   Expanded(
                     child: ListView.separated(
@@ -417,6 +435,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                       itemCount: list.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
                         final item = list[index];
                         final m = item.movement;
                         final p = item.product;
@@ -433,17 +452,19 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           case 'sale':
                             iconData = Icons.shopping_cart;
                             iconColor = Colors.deepOrange;
-                            qtyColor = Colors.deepOrange.shade800;
+                            qtyColor = isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade800;
                             break;
                           case 'in':
                             iconData = Icons.add_box;
                             iconColor = Colors.green;
-                            qtyColor = Colors.green.shade800;
+                            qtyColor = isDark ? const Color(0xFF4ADE80) : Colors.green.shade800;
                             break;
                           default:
                             iconData = Icons.tune;
                             iconColor = Colors.blue;
-                            qtyColor = isPositive ? Colors.green.shade800 : Colors.red.shade800;
+                            qtyColor = isPositive
+                                ? (isDark ? const Color(0xFF4ADE80) : Colors.green.shade800)
+                                : (isDark ? const Color(0xFFF87171) : Colors.red.shade800);
                             break;
                         }
 
@@ -474,7 +495,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                       const SizedBox(height: 2),
                                       Text(
                                         '$dateStr${m.note != null ? " • ${m.note}" : ""}',
-                                        style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -496,7 +520,10 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                                         MoneyFormatter.formatCents(
                                           ((m.qtyMilli.abs() * m.unitPriceCents) / 1000).round(),
                                         ),
-                                        style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                        ),
                                       ),
                                     ],
                                   ],

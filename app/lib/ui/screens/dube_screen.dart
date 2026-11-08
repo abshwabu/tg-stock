@@ -7,6 +7,7 @@ import '../../database/app_database.dart';
 import '../../repositories/ledger_repository.dart';
 import '../../utils/money_formatter.dart';
 import '../../utils/phone_validator.dart';
+import '../theme.dart';
 import '../widgets/empty_state_widget.dart';
 
 class DubeScreen extends StatefulWidget {
@@ -193,55 +194,64 @@ class _DubeScreenState extends State<DubeScreen> {
       body: Column(
         children: [
           // KPI Summary Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: Colors.grey.shade100,
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Total Outstanding Dube',
-                        style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        MoneyFormatter.formatCents(totalOutstanding),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepOrange),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: overdueCount > 0 ? Colors.red.shade100 : Colors.green.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        overdueCount > 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline,
-                        size: 16,
-                        color: overdueCount > 0 ? Colors.red.shade900 : Colors.green.shade900,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        overdueCount > 0 ? '$overdueCount Overdue' : 'All on track',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: overdueCount > 0 ? Colors.red.shade900 : Colors.green.shade900,
+          Builder(builder: (ctx) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final tokens = overdueCount > 0 ? AppColors.dangerTokens(isDark) : AppColors.successTokens(isDark);
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: isDark ? Theme.of(ctx).colorScheme.surfaceContainerHighest : Colors.grey.shade100,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Outstanding Dube',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 2),
+                        Text(
+                          MoneyFormatter.formatCents(totalOutstanding),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepOrange),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: tokens.bg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: tokens.border, width: 0.8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          overdueCount > 0 ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+                          size: 16,
+                          color: tokens.fg,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          overdueCount > 0 ? '$overdueCount Overdue' : 'All on track',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: tokens.fg,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
 
           // Search Bar
           Padding(
@@ -290,18 +300,38 @@ class _DubeScreenState extends State<DubeScreen> {
                           final prof = _profiles[i];
                           final isOverdue = prof.overdueCents > 0;
                           final hasCredit = prof.hasOverpayment;
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                          final Color avatarBg;
+                          final Color avatarFg;
+                          if (isOverdue) {
+                            avatarBg = isDark ? const Color(0xFF7F1D1D).withValues(alpha: 0.35) : Colors.red.shade100;
+                            avatarFg = isDark ? const Color(0xFFF87171) : Colors.red.shade900;
+                          } else if (hasCredit) {
+                            avatarBg = isDark ? const Color(0xFF1E3A8A).withValues(alpha: 0.35) : Colors.blue.shade100;
+                            avatarFg = isDark ? const Color(0xFF60A5FA) : Colors.blue.shade900;
+                          } else {
+                            avatarBg = isDark ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2) : Colors.teal.shade50;
+                            avatarFg = Theme.of(context).colorScheme.primary;
+                          }
+
+                          final overdueTokens = AppColors.dangerTokens(isDark);
+                          final Color balanceColor;
+                          if (prof.netBalanceCents > 0) {
+                            balanceColor = isOverdue
+                                ? (isDark ? const Color(0xFFF87171) : Colors.red.shade900)
+                                : Theme.of(context).colorScheme.onSurface;
+                          } else {
+                            balanceColor = isDark ? const Color(0xFF4ADE80) : Colors.green.shade800;
+                          }
 
                           return ListTile(
                             onTap: () => _openCustomerDetail(prof),
                             leading: CircleAvatar(
-                              backgroundColor: isOverdue
-                                  ? Colors.red.shade100
-                                  : (hasCredit ? Colors.blue.shade100 : Colors.teal.shade50),
+                              backgroundColor: avatarBg,
                               child: Icon(
                                 Icons.person,
-                                color: isOverdue
-                                    ? Colors.red.shade900
-                                    : (hasCredit ? Colors.blue.shade900 : const Color(0xFF0F766E)),
+                                color: avatarFg,
                               ),
                             ),
                             title: Row(
@@ -316,15 +346,16 @@ class _DubeScreenState extends State<DubeScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: Colors.red.shade100,
+                                      color: overdueTokens.bg,
                                       borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: overdueTokens.border, width: 0.8),
                                     ),
                                     child: Text(
                                       '${prof.maxDaysOverdue}d overdue',
                                       style: TextStyle(
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.red.shade900,
+                                        color: overdueTokens.fg,
                                       ),
                                     ),
                                   ),
@@ -338,7 +369,9 @@ class _DubeScreenState extends State<DubeScreen> {
                                       : 'Open sales: ${prof.openSalesCount}'),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isOverdue ? Colors.red.shade800 : Colors.grey.shade700,
+                                color: isOverdue
+                                    ? (isDark ? const Color(0xFFF87171) : Colors.red.shade800)
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
                             ),
                             trailing: Column(
@@ -350,14 +383,12 @@ class _DubeScreenState extends State<DubeScreen> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
-                                    color: prof.netBalanceCents > 0
-                                        ? (isOverdue ? Colors.red.shade900 : Colors.black87)
-                                        : Colors.green.shade800,
+                                    color: balanceColor,
                                   ),
                                 ),
                                 Text(
                                   prof.netBalanceCents > 0 ? 'Owed' : (hasCredit ? 'Credit' : 'Settled'),
-                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 ),
                               ],
                             ),
@@ -717,7 +748,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                     if (cust.phone != null)
                       Text(
                         cust.phone!,
-                        style: const TextStyle(color: Colors.grey, fontSize: 13),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                       ),
                   ],
                 ),
@@ -735,45 +766,70 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
           const SizedBox(height: 14),
 
           // Balance Card
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: widget.profile.overdueCents > 0 ? Colors.red.shade50 : Colors.teal.shade50,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: widget.profile.overdueCents > 0 ? Colors.red.shade300 : Colors.teal.shade300,
+          Builder(builder: (ctx) {
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final isOverdue = widget.profile.overdueCents > 0;
+            final tokens = isOverdue
+                ? AppColors.dangerTokens(isDark)
+                : SemanticColors(
+                    bg: isDark ? Theme.of(ctx).colorScheme.surfaceContainerHighest : Colors.teal.shade50,
+                    fg: Theme.of(ctx).colorScheme.primary,
+                    border: isDark ? Theme.of(ctx).colorScheme.outline : Colors.teal.shade300,
+                  );
+            final creditTokens = AppColors.infoTokens(isDark);
+
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: tokens.bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: tokens.border),
               ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total Debt / ጠቅላላ ዕዳ', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                    const SizedBox(height: 2),
-                    Text(
-                      debtFormatted,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: widget.profile.overdueCents > 0 ? Colors.red.shade900 : const Color(0xFF0F766E),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Debt / ጠቅላላ ዕዳ',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        debtFormatted,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: tokens.fg,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (widget.profile.hasOverpayment)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: creditTokens.bg,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: creditTokens.border, width: 0.8),
+                      ),
+                      child: Text(
+                        'Credit: ${MoneyFormatter.formatCents(widget.profile.overpaymentCents)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: creditTokens.fg,
+                        ),
                       ),
                     ),
-                  ],
-                ),
-                if (widget.profile.hasOverpayment)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(6)),
-                    child: Text(
-                      'Credit: ${MoneyFormatter.formatCents(widget.profile.overpaymentCents)}',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue.shade900),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }),
           const SizedBox(height: 12),
 
           // Action Buttons: Receive Payment & Share Reminder
@@ -812,7 +868,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                 children: [
                   TabBar(
                     labelColor: const Color(0xFF0F766E),
-                    unselectedLabelColor: Colors.grey,
+                    unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
                     indicatorColor: const Color(0xFF0F766E),
                     tabs: [
                       Tab(text: 'Open Sales (${_openSales.length})'),
@@ -825,8 +881,8 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                       children: [
                         // Tab 1: Open Sales
                         _openSales.isEmpty
-                            ? const Center(
-                                child: Text('No open sales for this customer.', style: TextStyle(color: Colors.grey)),
+                            ? Center(
+                                child: Text('No open sales for this customer.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                               )
                             : ListView.builder(
                                 itemCount: _openSales.length,
@@ -853,7 +909,11 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                                                 'Remaining: ${MoneyFormatter.formatCents(item.remainingBalanceCents)}',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
-                                                  color: isOverdue ? Colors.red.shade900 : Colors.deepOrange,
+                                                  color: isOverdue
+                                                      ? (Theme.of(context).brightness == Brightness.dark
+                                                          ? const Color(0xFFF87171)
+                                                          : Colors.red.shade900)
+                                                      : Colors.deepOrange,
                                                 ),
                                               ),
                                             ],
@@ -864,7 +924,14 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                                             children: [
                                               Text(
                                                 'Due: ${item.dueDate ?? "No due date"}',
-                                                style: TextStyle(fontSize: 12, color: isOverdue ? Colors.red : Colors.grey),
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: isOverdue
+                                                      ? (Theme.of(context).brightness == Brightness.dark
+                                                          ? const Color(0xFFF87171)
+                                                          : Colors.red)
+                                                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                                                ),
                                               ),
                                               TextButton(
                                                 style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
@@ -881,8 +948,8 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                               ),
                         // Tab 2: Payments
                         _customerPayments.isEmpty
-                            ? const Center(
-                                child: Text('No payments recorded yet.', style: TextStyle(color: Colors.grey)),
+                            ? Center(
+                                child: Text('No payments recorded yet.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                               )
                             : ListView.builder(
                                 itemCount: _customerPayments.length,
@@ -906,7 +973,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                                         '${MoneyFormatter.formatCents(p.amountCents)} • ${p.method.toUpperCase()}',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          color: isReversal ? Colors.red : Colors.black87,
+                                          color: isReversal ? Colors.red : Theme.of(context).colorScheme.onSurface,
                                         ),
                                       ),
                                       subtitle: Text(

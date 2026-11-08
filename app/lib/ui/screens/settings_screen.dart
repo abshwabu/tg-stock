@@ -423,7 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 return ListTile(
                   leading: Icon(
                     loc.kind == 'warehouse' ? Icons.warehouse_rounded : Icons.storefront_rounded,
-                    color: isSelected ? const Color(0xFF0F766E) : Colors.grey,
+                    color: isSelected ? const Color(0xFF0F766E) : Theme.of(ctx).colorScheme.onSurfaceVariant,
                   ),
                   title: Text(loc.name, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
                   trailing: isSelected ? const Icon(Icons.check, color: Color(0xFF0F766E)) : null,
@@ -1354,7 +1354,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 : DateFormat('MMM d, yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_lastBackupMs!)),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: _lastBackupMs == null ? Colors.red.shade700 : Colors.black87,
+                              color: _lastBackupMs == null
+                                  ? (Theme.of(context).brightness == Brightness.dark
+                                      ? const Color(0xFFF87171)
+                                      : Colors.red.shade700)
+                                  : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -1491,7 +1495,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           children: [
                             Icon(
                               _isOnline ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-                              color: _isOnline ? Colors.green : Colors.grey,
+                              color: _isOnline ? Colors.green : Theme.of(context).colorScheme.onSurfaceVariant,
                               size: 28,
                             ),
                             const SizedBox(width: 12),
@@ -1507,12 +1511,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     _isOnline
                                         ? 'Device: $_deviceName${_shopName != null ? ' • Shop: $_shopName' : ''}'
                                         : (isAm ? 'ያለ ኢንተርኔት በስልክዎ ላይ ብቻ ይሰራል' : 'Working locally without internet connection'),
-                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
                                   ),
                                   if (_serverUrl.isNotEmpty)
                                     Text(
                                       'Server: $_serverUrl',
-                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
                                     ),
                                 ],
                               ),
@@ -1706,7 +1716,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.only(left: 4, bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey),
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary),
       ),
     );
   }
@@ -1828,7 +1838,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 const Text('Favorite Providers / ተመራጭ ባንኮች እና ዋሌቶች', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 6),
-                const Text('Star your frequent banks and mobile wallets for quick access at checkout.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('Star your frequent banks and mobile wallets for quick access at checkout.', style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
                 const Divider(height: 16),
                 Expanded(
                   child: ListView(
@@ -1836,7 +1846,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const Text('Banks / ባንኮች', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
                       ...allBanks.map((b) => CheckboxListTile(
                         dense: true,
-                        secondary: Icon(b.favorite ? Icons.star : Icons.star_border, color: b.favorite ? Colors.amber : Colors.grey),
+                        secondary: Icon(b.favorite ? Icons.star : Icons.star_border, color: b.favorite ? Colors.amber : Theme.of(ctx).colorScheme.onSurfaceVariant),
                         title: Text(b.name ?? b.providerKey),
                         value: b.favorite,
                         onChanged: (val) async {
@@ -1852,7 +1862,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const Text('Wallets / ዋሌቶች', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
                       ...allWallets.map((w) => CheckboxListTile(
                         dense: true,
-                        secondary: Icon(w.favorite ? Icons.star : Icons.star_border, color: w.favorite ? Colors.amber : Colors.grey),
+                        secondary: Icon(w.favorite ? Icons.star : Icons.star_border, color: w.favorite ? Colors.amber : Theme.of(ctx).colorScheme.onSurfaceVariant),
                         title: Text(w.name ?? w.providerKey),
                         value: w.favorite,
                         onChanged: (val) async {

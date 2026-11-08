@@ -9,6 +9,7 @@ import '../../services/auth_storage.dart';
 import '../../services/backup_service.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/money_formatter.dart';
+import '../theme.dart';
 import '../widgets/location_selector_chip.dart';
 import '../widgets/sync_status_header.dart';
 import '../widgets/warehouse_setup_sheet.dart';
@@ -167,39 +168,56 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 Text(
                   isAm ? 'የቀን መዝገብ' : 'POS & Inventory',
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: _isOnline ? Colors.teal.shade50 : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _isOnline ? Colors.teal.shade300 : Colors.grey.shade400,
-                      width: 0.6,
+                Builder(builder: (ctx) {
+                  final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                  final Color pillBg;
+                  final Color pillBorder;
+                  final Color pillFg;
+                  if (_isOnline) {
+                    final tokens = AppColors.successTokens(isDark);
+                    pillBg = tokens.bg;
+                    pillBorder = tokens.border;
+                    pillFg = tokens.fg;
+                  } else {
+                    final tokens = AppColors.neutralTokens(isDark);
+                    pillBg = tokens.bg;
+                    pillBorder = tokens.border;
+                    pillFg = tokens.fg;
+                  }
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: pillBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: pillBorder,
+                        width: 0.6,
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _isOnline ? Icons.cloud_done_rounded : Icons.offline_pin_rounded,
-                        size: 11,
-                        color: _isOnline ? const Color(0xFF0F766E) : Colors.grey.shade800,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        _isOnline ? (isAm ? 'ኦንላይን' : 'Online') : (isAm ? 'ስልክ ላይ' : 'Offline'),
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                          color: _isOnline ? const Color(0xFF0F766E) : Colors.grey.shade800,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isOnline ? Icons.cloud_done_rounded : Icons.offline_pin_rounded,
+                          size: 11,
+                          color: pillFg,
                         ),
-                      ),
-                    ],
-                  ),
-                ),
+                        const SizedBox(width: 3),
+                        Text(
+                          _isOnline ? (isAm ? 'ኦንላይን' : 'Online') : (isAm ? 'ስልክ ላይ' : 'Offline'),
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                            color: pillFg,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
               ],
             ),
           ],
@@ -431,7 +449,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             isAm
                                 ? 'መረጃዎ ተጠብቋል፡ የመጨረሻ ኮፒ ${_formatDaysAgo(_lastBackupMs!)}'
                                 : 'Data safe: Last backed up ${_formatDaysAgo(_lastBackupMs!)}',
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           const Spacer(),
                           InkWell(
@@ -478,7 +496,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             isAm
                                 ? 'ለሱቅ እና ለመጋዘን የተለያዩ ስቶኮችን መያዝ እና ማዘዋወር ይችላሉ።'
                                 : 'Separate stock for store front and warehouse, with offline transfers.',
-                            style: const TextStyle(fontSize: 12.5, color: Colors.black87),
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                           const SizedBox(height: 10),
                           Row(
@@ -491,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 },
                                 child: Text(
                                   isAm ? 'አሁን አይደለም' : 'Not now',
-                                  style: const TextStyle(color: Colors.grey),
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -527,10 +548,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         stream: widget.repository.watchTodaySalesTotalCents(),
                         builder: (context, snapshot) {
                           final cents = snapshot.data ?? 0;
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                          final tokens = AppColors.successTokens(isDark);
                           return Card(
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            color: Colors.green.shade50,
+                            elevation: isDark ? 0 : 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
+                            ),
+                            color: tokens.bg,
                             child: Padding(
                               padding: const EdgeInsets.all(14),
                               child: Column(
@@ -538,14 +564,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.point_of_sale_rounded, size: 18, color: Colors.green.shade900),
+                                      Icon(Icons.point_of_sale_rounded, size: 18, color: tokens.fg),
                                       const SizedBox(width: 6),
                                       Text(
                                         isAm ? 'የዛሬ ሽያጭ' : "Today's Sales",
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 12,
-                                          color: Colors.green.shade900,
+                                          color: tokens.fg,
                                         ),
                                       ),
                                     ],
@@ -556,7 +582,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
-                                      color: Colors.green.shade900,
+                                      color: tokens.fg,
                                     ),
                                   ),
                                 ],
@@ -575,10 +601,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         builder: (context, snapshot) {
                           final count = snapshot.data ?? 0;
                           final isWarning = count > 0;
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                          final tokens = isWarning ? AppColors.dangerTokens(isDark) : AppColors.neutralTokens(isDark);
                           return Card(
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            color: isWarning ? Colors.red.shade50 : Colors.grey.shade100,
+                            elevation: isDark ? 0 : 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
+                            ),
+                            color: tokens.bg,
                             child: Padding(
                               padding: const EdgeInsets.all(14),
                               child: Column(
@@ -589,7 +620,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       Icon(
                                         Icons.warning_amber_rounded,
                                         size: 18,
-                                        color: isWarning ? Colors.red.shade900 : Colors.grey.shade800,
+                                        color: tokens.fg,
                                       ),
                                       const SizedBox(width: 6),
                                       Text(
@@ -597,7 +628,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 12,
-                                          color: isWarning ? Colors.red.shade900 : Colors.grey.shade800,
+                                          color: tokens.fg,
                                         ),
                                       ),
                                     ],
@@ -608,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
-                                      color: isWarning ? Colors.red.shade900 : Colors.grey.shade800,
+                                      color: tokens.fg,
                                     ),
                                   ),
                                 ],
@@ -631,10 +662,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         future: widget.repository.getCashExpectedInDrawer(),
                         builder: (context, snapshot) {
                           final cents = snapshot.data ?? 0;
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                          final tokens = AppColors.infoTokens(isDark);
                           return Card(
-                            elevation: 1,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            color: Colors.blue.shade50,
+                            elevation: isDark ? 0 : 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
+                            ),
+                            color: tokens.bg,
                             child: Padding(
                               padding: const EdgeInsets.all(12),
                               child: Column(
@@ -642,14 +678,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.point_of_sale, size: 16, color: Colors.blue.shade900),
+                                      Icon(Icons.point_of_sale, size: 16, color: tokens.fg),
                                       const SizedBox(width: 6),
                                       Text(
                                         isAm ? 'ጥሬ ገንዘብ በካዝና' : 'Cash in Drawer',
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 11.5,
-                                          color: Colors.blue.shade900,
+                                          color: tokens.fg,
                                         ),
                                       ),
                                     ],
@@ -660,7 +696,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
-                                      color: Colors.blue.shade900,
+                                      color: tokens.fg,
                                     ),
                                   ),
                                 ],
@@ -690,10 +726,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           stream: widget.repository.watchOutstandingDubeTotal(),
                           builder: (context, snapshot) {
                             final cents = snapshot.data ?? 0;
+                            final isDark = Theme.of(context).brightness == Brightness.dark;
+                            final tokens = AppColors.warningTokens(isDark);
                             return Card(
-                              elevation: 1,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              color: Colors.amber.shade50,
+                              elevation: isDark ? 0 : 1,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
+                              ),
+                              color: tokens.bg,
                               child: Padding(
                                 padding: const EdgeInsets.all(12),
                                 child: Column(
@@ -701,14 +742,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   children: [
                                     Row(
                                       children: [
-                                        Icon(Icons.edit_note, size: 16, color: Colors.amber.shade900),
+                                        Icon(Icons.edit_note, size: 16, color: tokens.fg),
                                         const SizedBox(width: 6),
                                         Text(
                                           isAm ? 'ጠቅላላ ዱቤ' : 'Outstanding Dube',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 11.5,
-                                            color: Colors.amber.shade900,
+                                            color: tokens.fg,
                                           ),
                                         ),
                                       ],
@@ -719,7 +760,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
-                                        color: Colors.amber.shade900,
+                                        color: tokens.fg,
                                       ),
                                     ),
                                   ],
@@ -945,29 +986,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 const SizedBox(height: 10),
 
                 // Dube & Customers Button
-                FilledButton.tonalIcon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: Colors.amber.shade100,
-                    foregroundColor: Colors.amber.shade900,
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (ctx) => DubeScreen(
-                          repository: widget.repository,
-                          onMutation: _notifyMutation,
-                        ),
+                Builder(builder: (ctx) {
+                  final isDark = Theme.of(ctx).brightness == Brightness.dark;
+                  final tokens = AppColors.warningTokens(isDark);
+                  return FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: tokens.bg,
+                      foregroundColor: tokens.fg,
+                      minimumSize: const Size.fromHeight(48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: tokens.border, width: 0.8),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.edit_note, size: 22),
-                  label: Text(
-                    isAm ? '📝 ዱቤ እና ደንበኞች (Dube & Customers)' : '📝 Dube & Customers',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                ),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (ctx) => DubeScreen(
+                            repository: widget.repository,
+                            onMutation: _notifyMutation,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.edit_note, size: 22),
+                    label: Text(
+                      isAm ? '📝 ዱቤ እና ደንበኞች (Dube & Customers)' : '📝 Dube & Customers',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  );
+                }),
                 const SizedBox(height: 10),
 
                 // Reports & Analytics Button
@@ -1032,7 +1080,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ? 'ምንም እንቅስቃሴ አልተመዘገበም። ሽያጭ ወይም ገቢ ዕቃ ይጀምሩ።'
                                   : 'No movements yet. Start by recording a sale or stock intake.',
                               textAlign: TextAlign.center,
-                              style: const TextStyle(color: Colors.grey, fontSize: 13),
+                              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                             ),
                           ),
                         ),
@@ -1061,6 +1109,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               ? Colors.deepOrange
                               : (m.type == 'in' ? Colors.green : Colors.blue);
 
+                          final isDark = Theme.of(context).brightness == Brightness.dark;
+                          final qtyColor = isPositive
+                              ? (isDark ? const Color(0xFF4ADE80) : Colors.green.shade800)
+                              : (isDark ? const Color(0xFFF87171) : Colors.red.shade800);
+
                           return ListTile(
                             dense: true,
                             leading: Icon(icon, color: color, size: 20),
@@ -1073,7 +1126,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               '$qtyStr ${p?.unit ?? ""}',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: isPositive ? Colors.green.shade800 : Colors.red.shade800,
+                                color: qtyColor,
                               ),
                             ),
                           );
