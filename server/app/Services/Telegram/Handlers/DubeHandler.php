@@ -463,6 +463,12 @@ class DubeHandler
         $shop = Shop::find($user?->shop_id);
         $enabledMethods = $shop?->payment_methods_enabled ?? ['cash', 'bank', 'wallet', 'dube'];
 
+        // Store repayment state in botState for concise button callbacks (<64 bytes)
+        $this->botState->start($chatId, 'dube_repay', 'method', [
+            'customer_id' => $customerId,
+            'amount_cents' => $amountCents,
+        ]);
+
         $amtFormatted = number_format($amountCents / 100, 2) . ' ETB';
 
         $text = $locale === 'en'
@@ -476,13 +482,13 @@ class DubeHandler
         $methodButtons = [];
         $row = [];
         if (in_array('cash', $enabledMethods, true)) {
-            $row[] = ['text' => '💵 ' . ($locale === 'en' ? 'Cash' : 'ጥሬ ገንዘብ'), 'callback_data' => "dube:pay_m:{$customerId}:cash:{$amountCents}"];
+            $row[] = ['text' => '💵 ' . ($locale === 'en' ? 'Cash' : 'ጥሬ ገንዘብ'), 'callback_data' => 'dube:pay_m:cash'];
         }
         if (in_array('bank', $enabledMethods, true)) {
-            $row[] = ['text' => '🏦 ' . ($locale === 'en' ? 'Bank' : 'ባንክ'), 'callback_data' => "dube:pay_m:{$customerId}:bank:{$amountCents}"];
+            $row[] = ['text' => '🏦 ' . ($locale === 'en' ? 'Bank' : 'ባንክ'), 'callback_data' => 'dube:pay_m:bank'];
         }
         if (in_array('wallet', $enabledMethods, true)) {
-            $row[] = ['text' => '📱 ' . ($locale === 'en' ? 'Wallet' : 'ዋሌት'), 'callback_data' => "dube:pay_m:{$customerId}:wallet:{$amountCents}"];
+            $row[] = ['text' => '📱 ' . ($locale === 'en' ? 'Wallet' : 'ዋሌት'), 'callback_data' => 'dube:pay_m:wallet'];
         }
         if (!empty($row)) {
             $methodButtons[] = $row;
@@ -521,13 +527,21 @@ class DubeHandler
 
         $this->telegram->answerCallbackQuery($callbackId);
 
+        // Store state for concise callback handling
+        $this->botState->start($chatId, 'dube_repay', 'provider', [
+            'customer_id' => $customerId,
+            'amount_cents' => $amountCents,
+            'kind' => $kind,
+        ]);
+
         $shopId = (string) $user?->shop_id;
         $all = $this->providerService->listProviders($shopId, $kind, $locale);
+        $enabledProviders = $all->filter(fn($p) => $p['enabled'])->values();
 
         $perPage = 6;
-        $totalPages = max(1, (int) ceil($all->count() / $perPage));
+        $totalPages = max(1, (int) ceil($enabledProviders->count() / $perPage));
         $page = max(1, min($page, $totalPages));
-        $items = $all->slice(($page - 1) * $perPage, $perPage);
+        $items = $enabledProviders->slice(($page - 1) * $perPage, $perPage);
 
         $kindTitle = $kind === 'bank'
             ? ($locale === 'en' ? 'Bank' : 'ባንክ')
@@ -543,7 +557,7 @@ class DubeHandler
         $row = [];
         foreach ($items as $item) {
             $label = ($item['favorite'] ? '⭐ ' : '') . $item['display_name'];
-            $row[] = ['text' => $label, 'callback_data' => "dube:rpay_prov:{$customerId}:{$kind}:{$amountCents}:{$item['provider_key']}"];
+            $row[] = ['text' => $label, 'callback_data' => "dube:rpay_prov:{$item['provider_key']}"];
             if (count($row) === 2) {
                 $buttons[] = $row;
                 $row = [];
@@ -553,16 +567,16 @@ class DubeHandler
             $buttons[] = $row;
         }
 
-        // Pagination
+        // Pagination (<64 bytes)
         if ($totalPages > 1) {
             $navRow = [];
             if ($page > 1) {
                 $prev = $page - 1;
-                $navRow[] = ['text' => '◀️ ' . ($locale === 'en' ? 'Prev' : 'ወደኋላ'), 'callback_data' => "dube:rpay_page:{$customerId}:{$kind}:{$amountCents}:{$prev}"];
+                $navRow[] = ['text' => '◀️ ' . ($locale === 'en' ? 'Prev' : 'ወደኋላ'), 'callback_data' => "dube:rpay_page:{$prev}"];
             }
             if ($page < $totalPages) {
                 $next = $page + 1;
-                $navRow[] = ['text' => ($locale === 'en' ? 'Next' : 'ወደፊት') . ' ▶️', 'callback_data' => "dube:rpay_page:{$customerId}:{$kind}:{$amountCents}:{$next}"];
+                $navRow[] = ['text' => ($locale === 'en' ? 'Next' : 'ወደፊት') . ' ▶️', 'callback_data' => "dube:rpay_page:{$next}"];
             }
             if (!empty($navRow)) {
                 $buttons[] = $navRow;
@@ -630,7 +644,7 @@ class DubeHandler
                 : "📝 <b>የግብይት ማጣቀሻ ቁጥር (አስገዳጅ ያልሆነ)</b>\nተቋም: <b>{$provName}</b>\n\nየማጣቀሻ ቁጥር ያስገቡ ወይም ይለፉ:";
 
             $buttons = [
-                [['text' => '⏭ ' . ($locale === 'en' ? 'Skip Reference' : 'ይለፉ'), 'callback_data' => "dube:rpay_skip_ref:{$customerId}:{$kind}:{$amountCents}:{$providerKey}"]],
+                [['text' => '⏭ ' . ($locale === 'en' ? 'Skip Reference' : 'ይለፉ'), 'callback_data' => 'dube:rpay_skip_ref']],
                 [['text' => '❌ ' . ($locale === 'en' ? 'Cancel' : 'ሰርዝ'), 'callback_data' => "dube:cust:{$customerId}"]],
             ];
         }
@@ -792,7 +806,7 @@ class DubeHandler
             $rem = number_format($s['remaining_cents'] / 100, 2) . ' ETB';
             $due = $s['sale']->due_date ?? 'No date';
             $buttons[] = [
-                ['text' => "{$rem} (Due: {$due})", 'callback_data' => "dube:ext_opt:{$s['sale']->id}:{$customerId}"],
+                ['text' => "{$rem} (Due: {$due})", 'callback_data' => "dube:ext_opt:{$s['sale']->id}"],
             ];
         }
 
@@ -828,12 +842,12 @@ class DubeHandler
 
         $buttons = [
             [
-                ['text' => '+7 ' . ($locale === 'en' ? 'Days' : 'ቀናት'), 'callback_data' => "dube:ext_do:{$saleId}:7:{$customerId}"],
-                ['text' => '+14 ' . ($locale === 'en' ? 'Days' : 'ቀናት'), 'callback_data' => "dube:ext_do:{$saleId}:14:{$customerId}"],
-                ['text' => '+30 ' . ($locale === 'en' ? 'Days' : 'ቀናት'), 'callback_data' => "dube:ext_do:{$saleId}:30:{$customerId}"],
+                ['text' => '+7 ' . ($locale === 'en' ? 'Days' : 'ቀናት'), 'callback_data' => "dube:ext_do:{$saleId}:7"],
+                ['text' => '+14 ' . ($locale === 'en' ? 'Days' : 'ቀናት'), 'callback_data' => "dube:ext_do:{$saleId}:14"],
+                ['text' => '+30 ' . ($locale === 'en' ? 'Days' : 'ቀናት'), 'callback_data' => "dube:ext_do:{$saleId}:30"],
             ],
             [
-                ['text' => '📅 ' . ($locale === 'en' ? 'Custom Date (YYYY-MM-DD)' : 'የተለየ ቀን አስገባ'), 'callback_data' => "dube:ext_custom:{$saleId}:{$customerId}"],
+                ['text' => '📅 ' . ($locale === 'en' ? 'Custom Date (YYYY-MM-DD)' : 'የተለየ ቀን አስገባ'), 'callback_data' => "dube:ext_custom:{$saleId}"],
             ],
             [
                 ['text' => '❌ ' . ($locale === 'en' ? 'Cancel' : 'ሰርዝ'), 'callback_data' => "dube:cust:{$customerId}"],

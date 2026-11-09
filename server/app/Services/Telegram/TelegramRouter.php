@@ -683,11 +683,27 @@ class TelegramRouter
                 $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
                 return;
             }
-            $customerId = $id;
-            $method = $parts[3] ?? 'cash';
-            $amountCents = (int) ($parts[4] ?? 0);
+            if (isset($parts[4])) {
+                // Legacy format: dube:pay_m:customerId:method:amountCents
+                $customerId = $id;
+                $method = $parts[3] ?? 'cash';
+                $amountCents = (int) ($parts[4] ?? 0);
+            } else {
+                // Short format (<64 bytes): dube:pay_m:method
+                $state = $this->botState->get($chatId);
+                $customerId = (string) ($state?->data['customer_id'] ?? '');
+                $amountCents = (int) ($state?->data['amount_cents'] ?? 0);
+                $method = $id;
+            }
+
+            if (empty($customerId) || $amountCents <= 0) {
+                $this->telegram->answerCallbackQuery($cqId, __('session_expired') ?? 'Session expired', showAlert: true);
+                return;
+            }
+
             if ($method === 'cash') {
                 $this->telegram->answerCallbackQuery($cqId);
+                $this->botState->clear($chatId);
                 $this->dubeHandler->executeRepayment($chatId, $customerId, $amountCents, 'cash', null, null, $user, $messageId);
             } else {
                 $this->dubeHandler->promptRepaymentProvider($cqId, $chatId, $messageId, $customerId, $method, $amountCents, 1, $user);
@@ -700,19 +716,51 @@ class TelegramRouter
                 $this->telegram->answerCallbackQuery($cqId, __('permission_denied'), showAlert: true);
                 return;
             }
-            $customerId = $id;
-            $kind = $parts[3] ?? 'bank';
-            $amountCents = (int) ($parts[4] ?? 0);
-            $providerKey = $parts[5] ?? '';
+            if (isset($parts[5])) {
+                // Legacy format: dube:rpay_prov:customerId:kind:amountCents:providerKey
+                $customerId = $id;
+                $kind = $parts[3] ?? 'bank';
+                $amountCents = (int) ($parts[4] ?? 0);
+                $providerKey = $parts[5] ?? '';
+            } else {
+                // Short format (<64 bytes): dube:rpay_prov:providerKey
+                $state = $this->botState->get($chatId);
+                $customerId = (string) ($state?->data['customer_id'] ?? '');
+                $kind = (string) ($state?->data['kind'] ?? 'bank');
+                $amountCents = (int) ($state?->data['amount_cents'] ?? 0);
+                $providerKey = $id;
+            }
+
+            if (empty($customerId) || $amountCents <= 0 || empty($providerKey)) {
+                $this->telegram->answerCallbackQuery($cqId, __('session_expired') ?? 'Session expired', showAlert: true);
+                return;
+            }
+
             $this->dubeHandler->handleRepaymentProviderPicked($cqId, $chatId, $messageId, $customerId, $kind, $amountCents, $providerKey, $user);
             return;
         }
 
         if ($action === 'rpay_page') {
-            $customerId = $id;
-            $kind = $parts[3] ?? 'bank';
-            $amountCents = (int) ($parts[4] ?? 0);
-            $page = (int) ($parts[5] ?? 1);
+            if (isset($parts[5])) {
+                // Legacy format: dube:rpay_page:customerId:kind:amountCents:page
+                $customerId = $id;
+                $kind = $parts[3] ?? 'bank';
+                $amountCents = (int) ($parts[4] ?? 0);
+                $page = (int) ($parts[5] ?? 1);
+            } else {
+                // Short format (<64 bytes): dube:rpay_page:page
+                $state = $this->botState->get($chatId);
+                $customerId = (string) ($state?->data['customer_id'] ?? '');
+                $kind = (string) ($state?->data['kind'] ?? 'bank');
+                $amountCents = (int) ($state?->data['amount_cents'] ?? 0);
+                $page = (int) ($id ?? 1);
+            }
+
+            if (empty($customerId) || $amountCents <= 0) {
+                $this->telegram->answerCallbackQuery($cqId, __('session_expired') ?? 'Session expired', showAlert: true);
+                return;
+            }
+
             $this->dubeHandler->promptRepaymentProvider($cqId, $chatId, $messageId, $customerId, $kind, $amountCents, $page, $user);
             return;
         }
@@ -723,10 +771,28 @@ class TelegramRouter
                 return;
             }
             $this->telegram->answerCallbackQuery($cqId);
-            $customerId = $id;
-            $kind = $parts[3] ?? 'bank';
-            $amountCents = (int) ($parts[4] ?? 0);
-            $providerKey = $parts[5] ?? '';
+
+            if (isset($parts[5])) {
+                // Legacy format: dube:rpay_skip_ref:customerId:kind:amountCents:providerKey
+                $customerId = $id;
+                $kind = $parts[3] ?? 'bank';
+                $amountCents = (int) ($parts[4] ?? 0);
+                $providerKey = $parts[5] ?? '';
+            } else {
+                // Short format (<64 bytes): dube:rpay_skip_ref
+                $state = $this->botState->get($chatId);
+                $customerId = (string) ($state?->data['customer_id'] ?? '');
+                $kind = (string) ($state?->data['kind'] ?? 'bank');
+                $amountCents = (int) ($state?->data['amount_cents'] ?? 0);
+                $providerKey = (string) ($state?->data['provider_key'] ?? '');
+            }
+
+            if (empty($customerId) || $amountCents <= 0 || empty($providerKey)) {
+                $this->telegram->answerCallbackQuery($cqId, __('session_expired') ?? 'Session expired', showAlert: true);
+                return;
+            }
+
+            $this->botState->clear($chatId);
             $this->dubeHandler->executeRepayment($chatId, $customerId, $amountCents, $kind, $providerKey, null, $user, $messageId);
             return;
         }
@@ -747,6 +813,10 @@ class TelegramRouter
             }
             $saleId = $id;
             $customerId = $parts[3] ?? '';
+            if (empty($customerId)) {
+                $sale = \App\Models\Sale::withoutGlobalScope(\App\Scopes\ShopScope::class)->find($saleId);
+                $customerId = (string) ($sale?->customer_id ?? '');
+            }
             $this->dubeHandler->showExtendOptions($cqId, $chatId, $messageId, $saleId, $customerId, $user);
             return;
         }
@@ -759,6 +829,10 @@ class TelegramRouter
             $saleId = $id;
             $days = (int) ($parts[3] ?? 14);
             $customerId = $parts[4] ?? '';
+            if (empty($customerId)) {
+                $sale = \App\Models\Sale::withoutGlobalScope(\App\Scopes\ShopScope::class)->find($saleId);
+                $customerId = (string) ($sale?->customer_id ?? '');
+            }
             $shop = \App\Models\Shop::find($user?->shop_id);
             $newDueDate = \Carbon\Carbon::now($shop?->timezone ?: 'Africa/Addis_Ababa')->addDays($days)->toDateString();
             $this->dubeHandler->applyExtendDueDate($cqId, $chatId, $messageId, $saleId, $newDueDate, $customerId, $user);
@@ -772,6 +846,10 @@ class TelegramRouter
             }
             $saleId = $id;
             $customerId = $parts[3] ?? '';
+            if (empty($customerId)) {
+                $sale = \App\Models\Sale::withoutGlobalScope(\App\Scopes\ShopScope::class)->find($saleId);
+                $customerId = (string) ($sale?->customer_id ?? '');
+            }
             $this->dubeHandler->promptCustomDueDate($cqId, $chatId, $messageId, $saleId, $customerId, $user);
             return;
         }

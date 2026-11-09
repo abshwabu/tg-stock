@@ -831,4 +831,104 @@ class BotPaymentsAndDubeTest extends TestCase
         $lastMsg = end($this->sentMessages);
         $this->assertStringContainsString('Due date is required', $lastMsg['data']['text'] ?? '');
     }
+
+    public function test_dube_repayment_via_bank_and_wallet_with_short_callbacks_under_64_bytes(): void
+    {
+        $customer = $this->customerService->upsertCustomer($this->shop->id, (string) Str::uuid7(), 'Almaz Kebede', '+251911998877')['customer'];
+
+        Sale::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'location_id' => $this->location->id,
+            'customer_id' => $customer->id,
+            'total_cents' => 50000, // 500.00 ETB
+            'due_date' => Carbon::now()->addDays(10)->toDateString(),
+            'created_at_ms' => 1000,
+            'updated_at_ms' => 1000,
+        ]);
+
+        // 1. Choose Full Balance
+        $this->postCallback($this->cashier, "dube:pay_amt:{$customer->id}:full")->assertOk();
+
+        // Check that callback_data in method buttons are under 64 bytes
+        $lastMsg = end($this->sentMessages);
+        $markup = is_array($lastMsg['data']['reply_markup'] ?? null)
+            ? $lastMsg['data']['reply_markup']
+            : json_decode($lastMsg['data']['reply_markup'] ?? '{}', true);
+        $this->assertNotEmpty($markup['inline_keyboard']);
+        foreach ($markup['inline_keyboard'] as $row) {
+            foreach ($row as $btn) {
+                $this->assertLessThanOrEqual(64, strlen($btn['callback_data']), "Button callback exceeds 64 bytes: {$btn['callback_data']}");
+            }
+        }
+
+        // 2. Tap Bank
+        $this->postCallback($this->cashier, 'dube:pay_m:bank')->assertOk();
+
+        // Check that all provider buttons are under 64 bytes
+        $lastMsg = end($this->sentMessages);
+        $markup = is_array($lastMsg['data']['reply_markup'] ?? null)
+            ? $lastMsg['data']['reply_markup']
+            : json_decode($lastMsg['data']['reply_markup'] ?? '{}', true);
+        $this->assertNotEmpty($markup['inline_keyboard']);
+        foreach ($markup['inline_keyboard'] as $row) {
+            foreach ($row as $btn) {
+                $this->assertLessThanOrEqual(64, strlen($btn['callback_data']), "Provider button callback exceeds 64 bytes: {$btn['callback_data']}");
+            }
+        }
+
+        // 3. Pick CBE Bank
+        $this->postCallback($this->cashier, 'dube:rpay_prov:bank.cbe')->assertOk();
+
+        // Check that skip reference button is under 64 bytes
+        $lastMsg = end($this->sentMessages);
+        $markup = is_array($lastMsg['data']['reply_markup'] ?? null)
+            ? $lastMsg['data']['reply_markup']
+            : json_decode($lastMsg['data']['reply_markup'] ?? '{}', true);
+        $this->assertNotEmpty($markup['inline_keyboard']);
+        foreach ($markup['inline_keyboard'] as $row) {
+            foreach ($row as $btn) {
+                $this->assertLessThanOrEqual(64, strlen($btn['callback_data']), "Skip button callback exceeds 64 bytes: {$btn['callback_data']}");
+            }
+        }
+
+        // 4. Tap Skip Reference
+        $this->postCallback($this->cashier, 'dube:rpay_skip_ref')->assertOk();
+
+        // Verify Bank payment recorded successfully
+        $bankPayment = Payment::withoutGlobalScope(ShopScope::class)
+            ->where('customer_id', $customer->id)
+            ->where('method', 'bank')
+            ->first();
+        $this->assertNotNull($bankPayment);
+        $this->assertSame('bank.cbe', $bankPayment->provider_key);
+        $this->assertSame(50000, $bankPayment->amount_cents);
+        $this->assertNull($bankPayment->reference);
+
+        // 5. Test Wallet Repayment with reference
+        Sale::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'location_id' => $this->location->id,
+            'customer_id' => $customer->id,
+            'total_cents' => 30000, // 300.00 ETB
+            'due_date' => Carbon::now()->addDays(5)->toDateString(),
+            'created_at_ms' => 2000,
+            'updated_at_ms' => 2000,
+        ]);
+
+        $this->postCallback($this->cashier, "dube:pay_amt:{$customer->id}:full")->assertOk();
+        $this->postCallback($this->cashier, 'dube:pay_m:wallet')->assertOk();
+        $this->postCallback($this->cashier, 'dube:rpay_prov:wallet.telebirr')->assertOk();
+        $this->postMessage($this->cashier, 'TXN99887766')->assertOk();
+
+        $walletPayment = Payment::withoutGlobalScope(ShopScope::class)
+            ->where('customer_id', $customer->id)
+            ->where('method', 'wallet')
+            ->first();
+        $this->assertNotNull($walletPayment);
+        $this->assertSame('wallet.telebirr', $walletPayment->provider_key);
+        $this->assertSame(30000, $walletPayment->amount_cents);
+        $this->assertSame('TXN99887766', $walletPayment->reference);
+    }
 }
