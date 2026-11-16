@@ -1,22 +1,27 @@
-.PHONY: all test test-server test-app audit audit-composer audit-osv analyze build-zip clean help
+.PHONY: all test test-server test-console test-app audit audit-composer audit-osv analyze build-zip clean help
 
 all: test audit
 
 help:
 	@echo "Available commands:"
-	@echo "  make test          - Run both server (PHPUnit) and mobile app (Flutter) tests"
+	@echo "  make test          - Run server, console, and mobile app tests"
 	@echo "  make test-server   - Run PHPUnit tests in /server"
+	@echo "  make test-console  - Run PHPUnit tests in /console"
 	@echo "  make test-app      - Run Flutter tests in /app"
 	@echo "  make audit         - Run composer validate, composer audit, and dependency scans"
 	@echo "  make analyze       - Run static analysis on /server and /app"
 	@echo "  make build-zip     - Package production server zip for shared hosting deployment"
 	@echo "  make clean         - Remove build artifacts and temporary caches"
 
-test: test-server test-app
+test: test-server test-console test-app
 
 test-server:
 	@echo "==> Running server tests (PHPUnit)..."
 	cd server && ./vendor/bin/phpunit
+
+test-console:
+	@echo "==> Running license console tests (PHPUnit)..."
+	./console/test.sh
 
 test-app:
 	@echo "==> Running app tests (Flutter)..."

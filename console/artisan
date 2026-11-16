@@ -1,0 +1,28 @@
+#!/usr/bin/env php
+<?php
+
+// Auto-load local sodium extension if not loaded globally
+if (!extension_loaded('sodium')) {
+    $soPath = realpath(__DIR__ . '/../scripts/ext/sodium.so');
+    if ($soPath && file_exists($soPath)) {
+        $cmd = escapeshellarg(PHP_BINARY) . ' -d extension=' . escapeshellarg($soPath) . ' ' . implode(' ', array_map('escapeshellarg', $argv));
+        passthru($cmd, $code);
+        exit($code);
+    }
+}
+
+use Illuminate\Foundation\Application;
+use Symfony\Component\Console\Input\ArgvInput;
+
+define('LARAVEL_START', microtime(true));
+
+// Register the Composer autoloader...
+require __DIR__.'/vendor/autoload.php';
+
+// Bootstrap Laravel and handle the command...
+/** @var Application $app */
+$app = require_once __DIR__.'/bootstrap/app.php';
+
+$status = $app->handleCommand(new ArgvInput);
+
+exit($status);

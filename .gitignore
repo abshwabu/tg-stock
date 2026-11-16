@@ -18,6 +18,20 @@
 /server/public/storage
 /server/public/hot
 
+# Console ignored files
+/console/vendor/
+/console/.env
+/console/.env.*
+!/console/.env.example
+/console/.phpunit.result.cache
+/console/.phpunit.cache/
+/console/storage/*.key
+/console/storage/logs/*.log
+/console/database/*.sqlite
+/console/database/*.sqlite-journal
+/console/public/storage
+/console/public/hot
+
 # App Flutter ignored files
 /app/.dart_tool/
 /app/.flutter-plugins
@@ -35,6 +49,7 @@ key.properties
 
 # Explicitly ensure lockfiles are committed
 !/server/composer.lock
+!/console/composer.lock
 !/app/pubspec.lock
 
 # IDE & Editor artifacts

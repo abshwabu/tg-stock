@@ -27,6 +27,7 @@ class SyncApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response(['ok' => true], 200)]);
 
         $this->pairing = app(PairingService::class);
         $this->ledger = app(LedgerService::class);
