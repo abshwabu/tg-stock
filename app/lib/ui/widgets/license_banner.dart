@@ -115,6 +115,23 @@ class LicenseBanner extends StatelessWidget {
           );
         }
 
+        // 6. Unlicensed Mode (Free Starter Tier)
+        if (state == LicenseState.unlicensed) {
+          return _buildBannerCard(
+            context,
+            color: const Color(0xFFF0FDF4),
+            borderColor: const Color(0xFF10B981),
+            icon: Icons.verified_user_outlined,
+            iconColor: const Color(0xFF059669),
+            title: isAm ? 'ነፃ የመጀመሪያ ሁነታ (Free Starter)' : 'Free Starter Tier',
+            message: isAm
+                ? 'እስከ 30 ምርቶች እና 50 ሽያጮች ድረስ በነፃ መጠቀም ይችላሉ። ያልተገደበ አገልግሎት ለማግኘት ፈቃድ ያግብሩ።'
+                : 'Operating on free starter tier (up to 30 products & 50 sales). Activate a license for unlimited operations.',
+            actionLabel: isAm ? 'ፈቃድ አግብር' : 'Activate License',
+            onAction: onOpenLicenseScreen,
+          );
+        }
+
         return const SizedBox.shrink();
       },
     );

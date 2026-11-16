@@ -538,36 +538,47 @@ class _ProductsScreenState extends State<ProductsScreen> {
             }).toList()
           : null;
 
-      if (isEdit) {
-        final updated = existing.copyWith(
-          name: name,
-          sku: sku != null ? Value(sku) : const Value.absent(),
-          unit: unit,
-          sellPriceCents: sellPriceCents,
-          costPriceCents: costPriceCents,
-          lowStockAtMilli: Value(selectedKind == 'stockable' && lowStockMilli > 0 ? lowStockMilli : null),
-          kind: selectedKind,
-          askPrice: selectedKind == 'service' ? askPrice : false,
-        );
-        await widget.repository.updateProduct(updated, materials: materialPayload);
-      } else {
-        final openingMilli = QuantityFormatter.parseQty(openingStockCtrl.text);
-        await widget.repository.createProduct(
-          name: name,
-          sku: sku,
-          unit: unit,
-          sellPriceCents: sellPriceCents,
-          costPriceCents: costPriceCents,
-          lowStockAtMilli: selectedKind == 'stockable' && lowStockMilli > 0 ? lowStockMilli : null,
-          openingStockMilli: selectedKind == 'stockable' && openingMilli > 0 ? openingMilli : null,
-          kind: selectedKind,
-          askPrice: selectedKind == 'service' ? askPrice : false,
-          materials: materialPayload,
-        );
-      }
+      try {
+        if (isEdit) {
+          final updated = existing.copyWith(
+            name: name,
+            sku: sku != null ? Value(sku) : const Value.absent(),
+            unit: unit,
+            sellPriceCents: sellPriceCents,
+            costPriceCents: costPriceCents,
+            lowStockAtMilli: Value(selectedKind == 'stockable' && lowStockMilli > 0 ? lowStockMilli : null),
+            kind: selectedKind,
+            askPrice: selectedKind == 'service' ? askPrice : false,
+          );
+          await widget.repository.updateProduct(updated, materials: materialPayload);
+        } else {
+          final openingMilli = QuantityFormatter.parseQty(openingStockCtrl.text);
+          await widget.repository.createProduct(
+            name: name,
+            sku: sku,
+            unit: unit,
+            sellPriceCents: sellPriceCents,
+            costPriceCents: costPriceCents,
+            lowStockAtMilli: selectedKind == 'stockable' && lowStockMilli > 0 ? lowStockMilli : null,
+            openingStockMilli: selectedKind == 'stockable' && openingMilli > 0 ? openingMilli : null,
+            kind: selectedKind,
+            askPrice: selectedKind == 'service' ? askPrice : false,
+            materials: materialPayload,
+          );
+        }
 
-      widget.onMutation?.call();
-      setState(() {});
+        widget.onMutation?.call();
+        setState(() {});
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade700,
+              content: Text(e.toString()),
+            ),
+          );
+        }
+      }
     }
   }
 
