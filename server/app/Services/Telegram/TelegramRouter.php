@@ -58,7 +58,9 @@ class TelegramRouter
         protected TransferHandler $transferHandler,
         protected ReviewQueueHandler $reviewQueueHandler,
         protected DubeHandler $dubeHandler,
-        protected PermissionService $permissionService
+        protected PermissionService $permissionService,
+        protected \App\Services\LicenseEnforcer $licenseEnforcer,
+        protected \App\Services\Telegram\Handlers\LicenseBotHandler $licenseBotHandler
     ) {}
 
     /**
@@ -125,6 +127,32 @@ class TelegramRouter
             return;
         }
 
+        // 0.8 License Management Callbacks
+        if ($module === 'license') {
+            $this->telegram->answerCallbackQuery($cqId);
+            if ($action === 'buy') {
+                $code = ($id === 'code') ? ($parts[3] ?? null) : null;
+                $this->licenseBotHandler->handleBuyMenu($chatId, $user, $code, $messageId);
+            } elseif ($action === 'plan') {
+                $planId = $id;
+                $code = $parts[3] ?? 'self';
+                $this->licenseBotHandler->handlePlanSelected($chatId, $user, $planId, $code, $messageId);
+            } elseif ($action === 'trial') {
+                $code = ($id === 'code') ? ($parts[3] ?? null) : null;
+                $this->licenseBotHandler->handleTrialRequest($chatId, $user, $code, $messageId);
+            } elseif ($action === 'enter') {
+                $this->licenseBotHandler->handleEnterTokenPrompt($chatId, $user, $messageId);
+            } elseif ($action === 'toggle_cal') {
+                $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+                if ($shop) {
+                    $shop->use_ethiopian_calendar = !$shop->use_ethiopian_calendar;
+                    $shop->save();
+                }
+                $this->licenseBotHandler->handleViewLicense($chatId, $user, $messageId);
+            }
+            return;
+        }
+
         // 1. Pairing
         if ($module === 'pair') {
             $this->pairingHandler->handleCallback($cqId, $chatId, $messageId, $action, $id, $from, $user);
@@ -162,6 +190,17 @@ class TelegramRouter
         }
 
         if ($module === 'settings') {
+            if ($action === 'license' && $id === 'view') {
+                $this->telegram->answerCallbackQuery($cqId);
+                $this->licenseBotHandler->handleViewLicense($chatId, $user, $messageId);
+                return;
+            }
+            if ($action === 'back') {
+                $this->telegram->answerCallbackQuery($cqId);
+                $this->settingsHandler->handleSettings($chatId, $user);
+                return;
+            }
+
             if ($action === 'pay') {
                 $subAction = $id;
                 if ($subAction === 'menu') {
@@ -195,6 +234,34 @@ class TelegramRouter
                 $this->telegram->answerCallbackQuery($cqId);
             }
             return;
+        }
+
+        // License enforcement and feature gating for shop operations
+        $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+        if ($shop !== null) {
+            if (!$this->licenseEnforcer->hasFeature($shop, 'telegram_bot')) {
+                $this->telegram->answerCallbackQuery($cqId, 'Telegram Bot feature is not included in current license plan.', showAlert: true);
+                return;
+            }
+
+            if (in_array($module, ['prod', 'qadd', 'stockin', 'sale', 'adj', 'trans'], true)) {
+                $isReadOnlyProd = ($module === 'prod' && in_array($action, ['view', 'list', 'page', 'search'], true));
+                if (!$isReadOnlyProd && !$this->licenseEnforcer->canWrite($shop)) {
+                    $this->telegram->answerCallbackQuery($cqId);
+                    $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
+                    return;
+                }
+            }
+
+            if ($module === 'team' && !$this->licenseEnforcer->hasFeature($shop, 'team_roles')) {
+                $this->telegram->answerCallbackQuery($cqId, 'Team roles feature is not included in current license plan.', showAlert: true);
+                return;
+            }
+
+            if (in_array($module, ['loc', 'trans'], true) && !$this->licenseEnforcer->hasFeature($shop, 'multi_location')) {
+                $this->telegram->answerCallbackQuery($cqId, 'Multi-location feature is not included in current license plan.', showAlert: true);
+                return;
+            }
         }
 
         // 3. Reports
@@ -271,6 +338,14 @@ class TelegramRouter
     protected function handleMenuCallback(string $cqId, int $chatId, int $messageId, string $action, string $id, ?User $user): void
     {
         $this->telegram->answerCallbackQuery($cqId);
+
+        $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+        if ($shop !== null && in_array($action, ['stockin', 'sale', 'transfer'], true)) {
+            if (!$this->licenseEnforcer->canWrite($shop)) {
+                $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
+                return;
+            }
+        }
 
         match ($action) {
             'products' => $this->productHandler->handleList($chatId, $user, 1),
@@ -1187,9 +1262,10 @@ class TelegramRouter
     {
         $chatId = (int) ($message['chat']['id'] ?? 0);
         $from = $message['from'] ?? [];
-        $text = trim((string) ($message['text'] ?? ''));
+        $text = trim((string) ($message['text'] ?? ($message['caption'] ?? '')));
+        $hasPhoto = isset($message['photo']) && is_array($message['photo']);
 
-        if (empty($chatId) || $text === '') {
+        if (empty($chatId) || ($text === '' && !$hasPhoto)) {
             return;
         }
 
@@ -1200,6 +1276,24 @@ class TelegramRouter
         // Check rate limit per-user (30 requests / minute)
         if ($this->isRateLimited($chatId)) {
             $this->telegram->sendMessage($chatId, __('rate_limited'));
+            return;
+        }
+
+        // License payment proof state: accepts text reference or receipt photo
+        $state = $this->botState->get($chatId);
+        if ($state && $state->flow === 'awaiting_payment_proof') {
+            $fileId = null;
+            if ($hasPhoto) {
+                $highest = end($message['photo']);
+                $fileId = $highest['file_id'] ?? null;
+            }
+            $reference = $text ?: 'Receipt photo';
+            $this->licenseBotHandler->handlePaymentProofReceived($chatId, $user, $reference, $fileId);
+            return;
+        }
+
+        if ($state && $state->flow === 'awaiting_license_token' && $text !== '') {
+            $this->licenseBotHandler->handleTokenSubmitted($chatId, $user, $text);
             return;
         }
 
@@ -1214,12 +1308,39 @@ class TelegramRouter
             return;
         }
 
-        // Handle /start command (including /start pair_<code>)
+        // Handle /start command (including /start pair_<code> or /start code_<device_code>)
         if (str_starts_with($text, '/start')) {
             $this->botState->clear($chatId);
             $cmdParts = explode(' ', $text, 2);
             $param = isset($cmdParts[1]) ? trim($cmdParts[1]) : null;
             $this->startHandler->handle($chatId, $from, $param, $user);
+            return;
+        }
+
+        // Handle /activate <device_code> command for offline-only customers
+        if (str_starts_with($text, '/activate')) {
+            $this->botState->clear($chatId);
+            $parts = explode(' ', $text, 2);
+            $code = trim($parts[1] ?? '');
+            if (!empty($code)) {
+                $this->licenseBotHandler->handleOfflineCodeStart($chatId, $from, $code, $user);
+                return;
+            }
+        }
+
+        // Handle /trial command
+        if (str_starts_with($text, '/trial')) {
+            $this->botState->clear($chatId);
+            $parts = explode(' ', $text, 2);
+            $code = trim($parts[1] ?? '');
+            $this->licenseBotHandler->handleTrialRequest($chatId, $user, $code ?: null);
+            return;
+        }
+
+        // Handle /license command
+        if (in_array(strtolower($text), ['/license', 'license', 'ፈቃድ', 'የፈቃድ ሁኔታ'], true)) {
+            $this->botState->clear($chatId);
+            $this->licenseBotHandler->handleViewLicense($chatId, $user);
             return;
         }
 
@@ -1289,6 +1410,11 @@ class TelegramRouter
 
         // Check for Quick-Add format: e.g. "Sugar 120 50" or "ጤፍ 150 200" or "Bread 25"
         if ($user?->role === 'owner' && preg_match('/^(.+?)\s+([0-9]+(?:\.[0-9]+)?)(?:\s+([0-9]+(?:\.[0-9]+)?))?$/u', $text, $matches)) {
+            $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+            if ($shop && !$this->licenseEnforcer->canWrite($shop)) {
+                $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
+                return;
+            }
             $nameCandidate = trim($matches[1]);
             $sellPrice = (float) $matches[2];
             $openingStock = isset($matches[3]) ? (float) $matches[3] : 0.0;

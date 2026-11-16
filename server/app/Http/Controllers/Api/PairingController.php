@@ -50,6 +50,7 @@ class PairingController extends Controller
         }
 
         $result = $this->pairingService->getPairingStatus($code);
+        $result['server_time'] = now()->toIso8601String();
 
         return response()->json($result);
     }
@@ -83,8 +84,10 @@ class PairingController extends Controller
                 'device_name' => $result['device']->name,
             ]);
         } catch (InvalidArgumentException $e) {
+            $reason = ($e->getMessage() === 'seat_limit') ? 'seat_limit' : 'invalid_pairing';
             return response()->json([
-                'error' => $e->getMessage(),
+                'error' => $e->getMessage() === 'seat_limit' ? 'Seat limit reached for this shop license.' : $e->getMessage(),
+                'reason' => $reason,
             ], 422);
         }
     }

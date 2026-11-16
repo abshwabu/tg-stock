@@ -1,6 +1,16 @@
 #!/usr/bin/env php
 <?php
 
+// Auto-load local sodium extension if not loaded globally
+if (!extension_loaded('sodium')) {
+    $soPath = realpath(__DIR__ . '/../scripts/ext/sodium.so');
+    if ($soPath && file_exists($soPath)) {
+        $cmd = escapeshellarg(PHP_BINARY) . ' -d extension=' . escapeshellarg($soPath) . ' ' . implode(' ', array_map('escapeshellarg', $argv));
+        passthru($cmd, $code);
+        exit($code);
+    }
+}
+
 use Illuminate\Foundation\Application;
 use Symfony\Component\Console\Input\ArgvInput;
 

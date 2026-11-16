@@ -150,4 +150,25 @@ class Shop extends Model
     {
         return $this->hasMany(PaymentProvider::class, 'shop_id');
     }
+
+    public function license(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ShopLicense::class, 'shop_id', 'id');
+    }
+
+    /**
+     * Get the 8-byte bind binary for this shop (SHA-256 of lowercase UUID).
+     */
+    public function getBindBytes(): string
+    {
+        return substr(hash('sha256', strtolower((string) $this->id), true), 0, 8);
+    }
+
+    /**
+     * Get the formatted Crockford Base32 shop code (SXXX-XXXX-XXXX-XXX).
+     */
+    public function getShopCode(): string
+    {
+        return \App\Services\CrockfordBase32::formatShopCode((string) $this->id);
+    }
 }

@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\AppVersionController;
+use App\Http\Controllers\Api\ConsoleWebhookController;
 use App\Http\Controllers\Api\DeviceController;
+use App\Http\Controllers\Api\LicenseController;
 use App\Http\Controllers\Api\PairingController;
 use App\Http\Controllers\Api\RejectedChangeController;
 use App\Http\Controllers\Api\ShopController;
@@ -28,6 +30,10 @@ Route::get('/health', [HealthController::class, 'check']);
 // Telegram Webhook endpoint (stateless, verified via secret token header)
 Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 
+// Console Webhook endpoint for license events
+Route::post('/api/console/license-events', [ConsoleWebhookController::class, 'handle']);
+Route::post('/console/license-events', [ConsoleWebhookController::class, 'handle']);
+
 Route::prefix('v1')->group(function (): void {
     // Mobile App Version & Update check endpoint (unauthenticated)
     Route::get('/app/version', [AppVersionController::class, 'show']);
@@ -43,6 +49,8 @@ Route::prefix('v1')->group(function (): void {
     Route::middleware('auth.device')->group(function (): void {
         Route::get('/me', [UserController::class, 'me']);
         Route::post('/sync', [SyncController::class, 'sync']);
+        Route::get('/license', [LicenseController::class, 'show']);
+        Route::post('/license', [LicenseController::class, 'store']);
         Route::get('/devices', [DeviceController::class, 'index']);
         Route::post('/devices/{id}/revoke', [DeviceController::class, 'revoke']);
         Route::delete('/devices/{id}', [DeviceController::class, 'revoke']);

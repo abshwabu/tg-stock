@@ -17,7 +17,7 @@ test: test-server test-console test-app
 
 test-server:
 	@echo "==> Running server tests (PHPUnit)..."
-	cd server && ./vendor/bin/phpunit
+	./server/test.sh
 
 test-console:
 	@echo "==> Running license console tests (PHPUnit)..."

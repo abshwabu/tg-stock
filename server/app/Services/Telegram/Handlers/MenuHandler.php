@@ -22,7 +22,9 @@ class MenuHandler
         protected LocationHandler $locationHandler,
         protected TransferHandler $transferHandler,
         protected ReviewQueueHandler $reviewQueueHandler,
-        protected DubeHandler $dubeHandler
+        protected DubeHandler $dubeHandler,
+        protected \App\Services\LicenseEnforcer $licenseEnforcer,
+        protected LicenseBotHandler $licenseBotHandler
     ) {}
 
     /**
@@ -66,6 +68,11 @@ class MenuHandler
 
         // 1.5 Transfer
         if (in_array($clean, ['🚚 Transfer', '🚚 ማስተላለፍ', '/transfer'], true)) {
+            $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+            if ($shop && !$this->licenseEnforcer->canWrite($shop)) {
+                $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
+                return;
+            }
             $this->transferHandler->start($chatId, null, $user);
             return;
         }
@@ -90,12 +97,22 @@ class MenuHandler
 
         // 4. Stock In
         if (in_array($clean, ['➕ Stock In', '➕ ገቢ ዕቃ', '/stockin'], true)) {
+            $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+            if ($shop && !$this->licenseEnforcer->canWrite($shop)) {
+                $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
+                return;
+            }
             $this->stockInHandler->start($chatId, null, $user);
             return;
         }
 
         // 5. Sale
         if (in_array($clean, ['🛒 Sale', '🛒 ሽያጭ', '/sale'], true)) {
+            $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
+            if ($shop && !$this->licenseEnforcer->canWrite($shop)) {
+                $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
+                return;
+            }
             $this->saleHandler->start($chatId, null, $user);
             return;
         }

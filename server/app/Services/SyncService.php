@@ -283,6 +283,7 @@ class SyncService
             'changes' => $outgoingChanges,
             'cursor' => $nextCursor,
             'perm_version' => (int) ($user?->perm_version ?? 1),
+            'server_time' => now()->toIso8601String(),
         ];
     }
 

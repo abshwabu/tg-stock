@@ -19,7 +19,8 @@ class StartHandler
     public function __construct(
         protected TelegramClient $telegram,
         protected BotStateService $botState,
-        protected TeamHandler $teamHandler
+        protected TeamHandler $teamHandler,
+        protected LicenseBotHandler $licenseBotHandler
     ) {}
 
     /**
@@ -41,6 +42,13 @@ class StartHandler
         if (!empty($param) && str_starts_with($param, 'pair_')) {
             $code = substr($param, 5);
             $this->handlePairStart((int) $chatId, $from, $code, $user, $locale);
+            return;
+        }
+
+        // 3. Check if start parameter is an offline device code: /start code_<device_code>
+        if (!empty($param) && str_starts_with($param, 'code_')) {
+            $code = substr($param, 5);
+            $this->licenseBotHandler->handleOfflineCodeStart((int) $chatId, $from, $code, $user);
             return;
         }
 

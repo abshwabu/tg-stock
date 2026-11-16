@@ -187,6 +187,12 @@ class PairingService
             }
             $shop->getDefaultLocation();
 
+            // Enforce license seat limit on shop
+            $licenseEnforcer = app(\App\Services\LicenseEnforcer::class);
+            if (!$licenseEnforcer->canPairNewDevice($shop)) {
+                throw new InvalidArgumentException('seat_limit');
+            }
+
             return \App\Context\CurrentShopContext::runWith($shop, function () use ($shop, $user, $pairing): array {
                 // Generate cryptographically secure device bearer token (64 hex characters)
                 $plainToken = bin2hex(random_bytes(32));

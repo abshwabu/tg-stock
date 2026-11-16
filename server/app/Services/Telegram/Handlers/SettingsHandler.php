@@ -63,6 +63,13 @@ class SettingsHandler
             ];
         }
 
+        // License & Subscription (owner only)
+        if ($user?->role === 'owner') {
+            $rows[] = [
+                ['text' => '🔑 ' . ($locale === 'en' ? 'License & Subscription' : 'የፈቃድ እና ምዝገባ ሁኔታ'), 'callback_data' => 'settings:license:view'],
+            ];
+        }
+
         // Linked devices (owner only)
         if ($user?->role === 'owner') {
             $rows[] = [

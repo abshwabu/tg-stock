@@ -72,6 +72,14 @@ class PairingHandler
                 );
             } catch (\Throwable $e) {
                 Log::warning('Telegram pairing confirmation failed: ' . $e->getMessage());
+                if ($e->getMessage() === 'seat_limit') {
+                    $msg = $locale === 'en'
+                        ? '❌ Seat limit reached for your shop license. Please revoke an unused device in Settings -> Manage Linked Devices before pairing.'
+                        : '❌ ለሱቅዎ የተፈቀደው የስልክ ቁጥር ገደብ ሞልቷል። እባክዎ ከቅንብሮች -> የተገናኙ ስልኮች ውስጥ አንዱን ሰርዘው እንደገና ይሞክሩ።';
+                    $this->telegram->answerCallbackQuery($callbackQueryId, $msg, showAlert: true);
+                    $this->telegram->sendMessage($chatId, $msg);
+                    return;
+                }
                 $this->telegram->answerCallbackQuery($callbackQueryId, __('pair_invalid_code'), showAlert: true);
                 $this->telegram->editMessageText(
                     $chatId,

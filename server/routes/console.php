@@ -33,6 +33,12 @@ Schedule::command('bot:daily-summary')
     ->everyFiveMinutes()
     ->name('bot:daily-summary');
 
+// Check license expirations and send idempotent reminders (7d, 3d, 1d, 0d, grace end)
+Schedule::command('license:check-expirations')
+    ->everyFiveMinutes()
+    ->name('license:check-expirations')
+    ->withoutOverlapping();
+
 // Nightly database backup: VACUUM INTO snapshot, gzip, AES-256-GCM encrypt, off-server Telegram copy
 Schedule::command('backup:run')
     ->dailyAt('02:00')
