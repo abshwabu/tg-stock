@@ -33,7 +33,6 @@ class SaleScreen extends StatefulWidget {
 
 class _SaleScreenState extends State<SaleScreen> {
   final List<SaleLineItem> _cart = [];
-  List<Product> _recentProducts = [];
   List<ProductWithStock> _products = [];
   Map<String, ProductPopularity> _popularityMap = {};
   Location? _activeLocation;
@@ -67,14 +66,13 @@ class _SaleScreenState extends State<SaleScreen> {
   }
 
   Future<void> _loadData() async {
-    final activeLoc = await widget.repository.getActiveLocation();
-    final recents = await widget.repository.getRecentProducts(limit: 6);
-    final prods = await widget.repository.listProducts(locationId: activeLoc.id);
-    final popMap = await widget.repository.getProductPopularityMap(locationId: activeLoc.id);
+    final locEnabled = await widget.repository.getLocationsEnabled();
+    final activeLoc = locEnabled ? await widget.repository.getActiveLocation() : null;
+    final prods = await widget.repository.listProducts(locationId: activeLoc?.id);
+    final popMap = await widget.repository.getProductPopularityMap(locationId: activeLoc?.id);
     if (mounted) {
       setState(() {
         _activeLocation = activeLoc;
-        _recentProducts = recents;
         _products = prods;
         _popularityMap = popMap;
         _isLoadingProducts = false;
@@ -830,45 +828,9 @@ class _SaleScreenState extends State<SaleScreen> {
       ),
       body: Column(
         children: [
-          // Recent items chips
-          if (_recentProducts.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Recent / ተደጋጋሚ ዕቃዎች:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 38,
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                scrollDirection: Axis.horizontal,
-                itemCount: _recentProducts.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final p = _recentProducts[index];
-                  return ActionChip(
-                    avatar: const Icon(Icons.flash_on, size: 16, color: Colors.deepOrange),
-                    label: Text(p.name),
-                    onPressed: () => _promptQuantityAndPrice(p),
-                  );
-                },
-              ),
-            ),
-            const Divider(height: 12),
-          ],
-
           // Search Field
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
@@ -891,38 +853,70 @@ class _SaleScreenState extends State<SaleScreen> {
             ),
           ),
 
-          // Sort Chips: Alphabet first, then Popularity
+          // Header row with Product count and Sort Dropdown
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Sort / ደርድር:',
+                  'Products / ዕቃዎች (${products.length})',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  avatar: const Icon(Icons.sort_by_alpha, size: 16),
-                  label: const Text('Alphabet / በፊደል'),
-                  selected: _sortMode == ProductSortMode.alphabet,
-                  onSelected: (selected) {
-                    if (selected) setState(() => _sortMode = ProductSortMode.alphabet);
-                  },
-                  visualDensity: VisualDensity.compact,
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  avatar: const Icon(Icons.local_fire_department, size: 16),
-                  label: const Text('Popularity / በተወዳጅነት'),
-                  selected: _sortMode == ProductSortMode.popularity,
-                  onSelected: (selected) {
-                    if (selected) setState(() => _sortMode = ProductSortMode.popularity);
-                  },
-                  visualDensity: VisualDensity.compact,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<ProductSortMode>(
+                      value: _sortMode,
+                      icon: const Icon(Icons.arrow_drop_down, size: 20),
+                      isDense: true,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: ProductSortMode.alphabet,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.sort_by_alpha, size: 15),
+                              SizedBox(width: 6),
+                              Text('Alphabet / በፊደል'),
+                            ],
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: ProductSortMode.popularity,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.local_fire_department, size: 15, color: Colors.amber),
+                              SizedBox(width: 6),
+                              Text('Popularity / በተወዳጅነት'),
+                            ],
+                          ),
+                        ),
+                      ],
+                      onChanged: (mode) {
+                        if (mode != null) {
+                          setState(() => _sortMode = mode);
+                        }
+                      },
+                    ),
+                  ),
                 ),
               ],
             ),

@@ -95,10 +95,10 @@ void main() {
     expect(remainingStock, 8000); // 10000 - 2000 = 8000 (8.0 kg)
   });
 
-  testWidgets('Sale screen: products listed by alphabet first, then by popularity', (WidgetTester tester) async {
+  testWidgets('Sale screen: products listed by alphabet first, then by popularity via dropdown', (WidgetTester tester) async {
     // 1. Create 3 products: Banana, Apple, Carrot with initial stock
     final pBanana = await repo.createProduct(name: 'Banana (ሙዝ)', sellPriceCents: 5000, openingStockMilli: 100000);
-    final pApple = await repo.createProduct(name: 'Apple (አፕል)', sellPriceCents: 10000, openingStockMilli: 100000);
+    await repo.createProduct(name: 'Apple (አፕል)', sellPriceCents: 10000, openingStockMilli: 100000);
     final pCarrot = await repo.createProduct(name: 'Carrot (ካሮት)', sellPriceCents: 3000, openingStockMilli: 100000);
 
     // Record sales: Banana 5 sales, Carrot 1 sale, Apple 0 sales
@@ -118,9 +118,12 @@ void main() {
         .toList();
     expect(namesAlphabet, ['Apple (አፕል)', 'Banana (ሙዝ)', 'Carrot (ካሮት)']);
 
-    // 4. Switch to Popularity sort
-    expect(find.widgetWithText(ChoiceChip, 'Popularity / በተወዳጅነት'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Popularity / በተወዳጅነት'));
+    // 4. Switch to Popularity sort via Dropdown
+    expect(find.byType(DropdownButton<ProductSortMode>), findsOneWidget);
+    await tester.tap(find.byType(DropdownButton<ProductSortMode>));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Popularity / በተወዳጅነት').last);
     await tester.pumpAndSettle();
 
     // 5. In Popularity sort: Banana (5 sold) -> Carrot (1 sold) -> Apple (0 sold)
@@ -149,9 +152,9 @@ void main() {
     await tester.pumpWidget(buildTestWidget());
     await tester.pumpAndSettle();
 
-    // Select via 1-tap Recent items chip
-    expect(find.widgetWithText(ActionChip, 'Cooking Oil (ዘይት)'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ActionChip, 'Cooking Oil (ዘይት)'));
+    // Select product from on-screen list
+    expect(find.widgetWithText(ListTile, 'Cooking Oil (ዘይት)'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'Cooking Oil (ዘይት)'));
     await tester.pumpAndSettle();
 
     // Select +5 units
@@ -195,9 +198,9 @@ void main() {
     await tester.pumpWidget(buildTestWidget());
     await tester.pumpAndSettle();
 
-    // Select via 1-tap Recent items chip
-    expect(find.widgetWithText(ActionChip, 'Salt (ጨው)'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ActionChip, 'Salt (ጨው)'));
+    // Select product from on-screen list
+    expect(find.widgetWithText(ListTile, 'Salt (ጨው)'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'Salt (ጨው)'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.textContaining('Add to Cart'));

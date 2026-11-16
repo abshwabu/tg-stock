@@ -558,7 +558,9 @@ class LedgerRepository {
         inTransit = await inTransitStockOf(p.id);
       }
 
-      final effectiveStock = locationId != null ? (stockMap[locationId] ?? 0) : totalStock;
+      final effectiveStock = (locationsEnabled && locationId != null)
+          ? (stockMap[locationId] ?? 0)
+          : totalStock;
 
       result.add(ProductWithStock(
         product: p,
