@@ -55,6 +55,7 @@ $requiredExtensions = [
     'ctype',
     'tokenizer',
     'xml',
+    'sodium',
 ];
 
 foreach ($requiredExtensions as $ext) {
