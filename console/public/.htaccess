@@ -1,0 +1,35 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # 1. Force HTTPS
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # 2. Block sensitive files, dotfiles, SQLite databases, logs, and storage
+    RewriteRule (^|/)\.(?!well-known) - [F,L]
+    RewriteRule \.(sqlite|sqlite-wal|sqlite-shm|db|log|enc|lock|json|env|md)$ - [F,L]
+    RewriteRule ^(vendor|storage|database)/ - [F,L]
+
+    # 3. Handle Authorization Header on FastCGI / LiteSpeed / Apache
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # 4. Redirect Trailing Slashes If Not A Folder...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # 5. Send Requests To Front Controller (Laravel Router)...
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Block sensitive files directly if mod_rewrite is bypassed
+<FilesMatch "(\.(env|sqlite|log|enc|lock|git)|composer\.json|artisan)$">
+    Require all denied
+</FilesMatch>
