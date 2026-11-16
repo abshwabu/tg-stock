@@ -41,14 +41,24 @@
         @endif
 
         <div class="box">
-            <strong>1. Scan QR code or enter secret in Authenticator app:</strong>
-            <div class="code-box">{{ $secret }}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong>1. Scan QR code or enter secret in Authenticator app:</strong>
+                <button type="button" class="btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem; background: #3b82f6;" onclick="copyToClipboard('{{ $secret }}', this)">
+                    📋 Copy Secret
+                </button>
+            </div>
+            <div class="code-box" id="secret-code">{{ $secret }}</div>
             <p style="font-size: 0.78rem; color: #94a3b8; word-break: break-all;">URI: {{ $qrUri }}</p>
         </div>
 
         <div class="box">
-            <strong>2. Save emergency backup codes:</strong>
-            <p style="font-size: 0.78rem; color: #94a3b8;">Store these in a safe password manager. Each code can be used once if you lose device access.</p>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <strong>2. Save emergency backup codes:</strong>
+                <button type="button" class="btn" style="width: auto; padding: 4px 10px; font-size: 0.75rem; background: #3b82f6;" onclick="copyToClipboard('{{ implode("\n", $backupCodes) }}', this)">
+                    📋 Copy All Codes
+                </button>
+            </div>
+            <p style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">Store these in a safe password manager. Each code can be used once if you lose device access.</p>
             <div class="backup-grid">
                 @foreach ($backupCodes as $bCode)
                     <div class="backup-item">{{ $bCode }}</div>
@@ -66,5 +76,48 @@
             <button type="submit" class="btn">Confirm & Enable 2FA</button>
         </form>
     </div>
+
+    <script>
+        function flashCopied(btn) {
+            if (!btn) return;
+            var orig = btn.innerHTML;
+            btn.innerHTML = '✅ Copied!';
+            setTimeout(function() { btn.innerHTML = orig; }, 2000);
+        }
+
+        function fallbackCopy(text, btn) {
+            var ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.left = "-9999px";
+            ta.setAttribute("readonly", "");
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+                if (document.execCommand('copy')) {
+                    flashCopied(btn);
+                } else {
+                    prompt("Copy manually:", text);
+                }
+            } catch (e) {
+                prompt("Copy manually:", text);
+            }
+            document.body.removeChild(ta);
+        }
+
+        function copyToClipboard(text, btn) {
+            if (!text) return;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function() {
+                    flashCopied(btn);
+                }).catch(function() {
+                    fallbackCopy(text, btn);
+                });
+            } else {
+                fallbackCopy(text, btn);
+            }
+        }
+    </script>
 </body>
 </html>

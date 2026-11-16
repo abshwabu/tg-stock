@@ -110,7 +110,7 @@
                         </td>
                         <td>{{ $tok->issuer?->name ?? 'System' }}</td>
                         <td>
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard('{{ $tok->token }}', this)">
+                            <button type="button" class="btn btn-secondary btn-sm" data-copy-text="{{ $tok->token }}" onclick="copyToClipboard('{{ $tok->token }}', this)">
                                 Copy
                             </button>
                         </td>

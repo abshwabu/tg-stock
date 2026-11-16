@@ -17,8 +17,8 @@ class SecurityHeaders
     {
         $response = $next($request);
 
-        // Strict CSP: no third-party scripts, self-hosted only, inline styles permitted for UI rendering
-        $csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';";
+        // Strict CSP: no third-party scripts, self-hosted only, inline scripts & styles permitted for dashboard UI
+        $csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self';";
 
         $response->headers->set('Content-Security-Policy', $csp);
         $response->headers->set('X-Frame-Options', 'DENY');

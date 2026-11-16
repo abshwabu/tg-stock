@@ -92,8 +92,8 @@ class _LicenseScreenState extends State<LicenseScreen> {
   }
 
   Future<void> _copyDeviceCode() async {
-    if (_deviceCode == null) return;
-    await Clipboard.setData(ClipboardData(text: _deviceCode!));
+    final code = _deviceCode ?? await widget.installIdService.getDeviceCode();
+    await Clipboard.setData(ClipboardData(text: code));
     _showToast(_language == 'am' ? 'የመሳሪያው ኮድ ተቀድቷል' : 'Device code copied to clipboard');
   }
 
@@ -117,6 +117,7 @@ class _LicenseScreenState extends State<LicenseScreen> {
 
   void _showToast(String message, {bool isError = false}) {
     if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),

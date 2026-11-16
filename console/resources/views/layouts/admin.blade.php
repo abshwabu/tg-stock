@@ -157,15 +157,70 @@
     </div>
 
     <script>
-        function copyToClipboard(text, buttonElement) {
-            navigator.clipboard.writeText(text).then(function() {
-                var original = buttonElement.innerText;
-                buttonElement.innerText = 'Copied!';
-                setTimeout(function() { buttonElement.innerText = original; }, 2000);
-            }).catch(function(err) {
-                alert('Copy failed: ' + err);
-            });
+        function flashCopied(buttonElement) {
+            if (!buttonElement) return;
+            var original = buttonElement.innerHTML;
+            buttonElement.innerHTML = '✅ Copied!';
+            buttonElement.classList.add('btn-success');
+            setTimeout(function() {
+                buttonElement.innerHTML = original;
+                buttonElement.classList.remove('btn-success');
+            }, 2000);
         }
+
+        function fallbackCopyText(text, buttonElement) {
+            var textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "-9999px";
+            textArea.setAttribute("readonly", "");
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    flashCopied(buttonElement);
+                } else {
+                    prompt("Copy manually (Ctrl+C / Cmd+C):", text);
+                }
+            } catch (err) {
+                prompt("Copy manually (Ctrl+C / Cmd+C):", text);
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function copyToClipboard(text, buttonElement) {
+            if (!text) return;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function() {
+                    flashCopied(buttonElement);
+                }).catch(function() {
+                    fallbackCopyText(text, buttonElement);
+                });
+            } else {
+                fallbackCopyText(text, buttonElement);
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            var target = e.target.closest('[data-copy-target], [data-copy-text]');
+            if (!target) return;
+            e.preventDefault();
+            var text = '';
+            if (target.dataset.copyText) {
+                text = target.dataset.copyText;
+            } else if (target.dataset.copyTarget) {
+                var el = document.querySelector(target.dataset.copyTarget);
+                if (el) {
+                    text = el.value || el.innerText || '';
+                }
+            }
+            if (text) {
+                copyToClipboard(text.trim(), target);
+            }
+        });
     </script>
 </body>
 </html>

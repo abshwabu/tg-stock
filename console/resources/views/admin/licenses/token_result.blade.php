@@ -21,7 +21,7 @@
                 {{ $token }}
             </div>
             <div style="display: flex; gap: 10px;">
-                <button type="button" class="btn btn-primary" onclick="copyToClipboard('{{ $token }}', this)">
+                <button type="button" class="btn btn-primary" data-copy-target="#token-box" onclick="copyToClipboard('{{ $token }}', this)">
                     📋 Copy Token
                 </button>
                 <a href="{{ route('admin.licenses.show', $license) }}" class="btn btn-secondary">
@@ -39,7 +39,7 @@
         <div class="form-group">
             <div class="flex-between" style="margin-bottom: 6px;">
                 <label>English Customer Message</label>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard(document.getElementById('msg-en').value, this)">
+                <button type="button" class="btn btn-secondary btn-sm" data-copy-target="#msg-en" onclick="copyToClipboard(document.getElementById('msg-en').value, this)">
                     Copy English Text
                 </button>
             </div>
@@ -53,7 +53,7 @@
                     የአማርኛ መልእክት (Amharic Message)
                     <span class="badge badge-expiring" style="margin-left: 6px;">Amharic Review Flagged</span>
                 </label>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard(document.getElementById('msg-am').value, this)">
+                <button type="button" class="btn btn-secondary btn-sm" data-copy-target="#msg-am" onclick="copyToClipboard(document.getElementById('msg-am').value, this)">
                     Copy Amharic Text
                 </button>
             </div>
