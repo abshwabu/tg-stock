@@ -1,16 +1,25 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../repositories/ledger_repository.dart';
+import '../../services/licensing/install_id_service.dart';
+import '../../services/licensing/license_gate.dart';
+import '../../services/licensing/license_models.dart';
 
 class FirstRunScreen extends StatefulWidget {
   final LedgerRepository repository;
   final VoidCallback onComplete;
+  final LicenseGate? licenseGate;
+  final InstallIdService? installIdService;
 
   const FirstRunScreen({
     super.key,
     required this.repository,
     required this.onComplete,
+    this.licenseGate,
+    this.installIdService,
   });
 
   @override
@@ -25,10 +34,12 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
   bool _enablePin = false;
   final _pinController = TextEditingController();
 
-  // Step 0: Shop Info & Language, Step 1: Locations Question, Step 2: 3-Card Intro
+  // Step 0: Shop Info & Language, Step 1: Locations Question, Step 2: 3-Card Intro, Step 3: License
   int _currentStep = 0;
   int _introCardIndex = 0;
   final PageController _introPageController = PageController();
+  final _tokenController = TextEditingController();
+  String? _deviceCode;
 
   // Locations choices
   bool _enableLocations = false; // Default: No, one place
@@ -36,10 +47,24 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
   bool _isSaving = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadDeviceCode();
+  }
+
+  Future<void> _loadDeviceCode() async {
+    if (widget.installIdService != null) {
+      final code = await widget.installIdService!.getDeviceCode();
+      if (mounted) setState(() => _deviceCode = code);
+    }
+  }
+
+  @override
   void dispose() {
     _shopNameController.dispose();
     _pinController.dispose();
     _introPageController.dispose();
+    _tokenController.dispose();
     super.dispose();
   }
 
@@ -89,12 +114,14 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
       body: SafeArea(
         child: _currentStep == 2
             ? _buildStep2(isAm)
-            : Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: _currentStep == 0 ? _buildStep0(isAm) : _buildStep1(isAm),
-                ),
-              ),
+            : _currentStep == 3
+                ? _buildStep3(isAm)
+                : Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: _currentStep == 0 ? _buildStep0(isAm) : _buildStep1(isAm),
+                    ),
+                  ),
       ),
     );
   }
@@ -671,7 +698,11 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                               curve: Curves.easeInOut,
                             );
                           } else {
-                            _submitAll();
+                            if (widget.licenseGate != null && widget.installIdService != null) {
+                              setState(() => _currentStep = 3);
+                            } else {
+                              _submitAll();
+                            }
                           }
                         },
                   child: _isSaving
@@ -682,7 +713,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                         )
                       : Text(
                           _introCardIndex == 2
-                              ? (isAm ? 'መተግበሪያውን ጀምር' : 'Get Started')
+                              ? (widget.licenseGate != null ? (isAm ? 'ቀጥል' : 'Next') : (isAm ? 'መተግበሪያውን ጀምር' : 'Get Started'))
                               : (isAm ? 'ቀጥል' : 'Next'),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
@@ -692,6 +723,181 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildStep3(bool isAm) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Icon(
+              Icons.verified_user_rounded,
+              size: 64,
+              color: Color(0xFF0F766E),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isAm ? 'የመተግበሪያ ፈቃድ ያግብሩ' : 'Activate TGStock License',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isAm
+                  ? 'የ14 ቀን ነፃ ሙከራ ይጀምሩ፣ ፈቃድ ይግዙ፣ ወይም የተላከልዎትን የፈቃድ ቁልፍ ያስገቡ።'
+                  : 'Start a free 14-day trial, purchase a license, or enter your token below.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 20),
+
+            // Device code display
+            if (_deviceCode != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _deviceCode!,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF0F766E),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_rounded, size: 18),
+                      tooltip: isAm ? 'ኮድ ቅዳ' : 'Copy',
+                      onPressed: () async {
+                        await Clipboard.setData(ClipboardData(text: _deviceCode!));
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(isAm ? 'የመሳሪያው ኮድ ተቀድቷል' : 'Device code copied')),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 16),
+
+            // Start free trial button
+            FilledButton.icon(
+              onPressed: () async {
+                if (widget.installIdService != null) {
+                  final link = await widget.installIdService!.getTelegramDeepLink();
+                  await launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.flash_on_rounded),
+              label: Text(isAm ? 'የ14 ቀን ነፃ ሙከራ ጀምር' : 'Start Free Trial'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E),
+                padding: const EdgeInsets.symmetric(vertical: 13),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Buy button
+            OutlinedButton.icon(
+              onPressed: () async {
+                if (widget.installIdService != null) {
+                  final link = await widget.installIdService!.getTelegramDeepLink();
+                  await launchUrl(Uri.parse(link), mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.shopping_bag_outlined),
+              label: Text(isAm ? 'ፈቃድ ግዛ (በቴሌብር / ሲቢኢ)' : 'Buy License (Telebirr / CBE)'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // "I have a token" section
+            Text(
+              isAm ? 'ፈቃድ አለኝ (I Have a Token)' : 'I Have a Token',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _tokenController,
+                    decoration: InputDecoration(
+                      hintText: 'LIC1-XXXXX-...',
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _isSaving
+                      ? null
+                      : () async {
+                          final token = _tokenController.text.trim();
+                          if (token.isEmpty) return;
+                          setState(() => _isSaving = true);
+                          try {
+                            if (widget.licenseGate != null) {
+                              final res = await widget.licenseGate!.activateToken(token);
+                              if (res.isValid || res.state == LicenseState.grace) {
+                                await _submitAll();
+                                return;
+                              } else {
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      backgroundColor: Colors.red,
+                                      content: Text(res.reason ?? 'Invalid license token'),
+                                    ),
+                                  );
+                                }
+                              }
+                            }
+                          } finally {
+                            if (mounted) setState(() => _isSaving = false);
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  ),
+                  child: Text(isAm ? 'አግብር' : 'Activate'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Continue with free limits
+            TextButton(
+              onPressed: _isSaving ? null : _submitAll,
+              child: Text(
+                isAm
+                    ? 'በነፃ ጀማሪ ቀጥል (እስከ 30 እቃዎች)'
+                    : 'Continue with Free Starter (up to 30 products)',
+                style: TextStyle(color: Colors.grey[700], decoration: TextDecoration.underline),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

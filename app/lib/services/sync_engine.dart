@@ -10,6 +10,9 @@ import '../utils/quantity_formatter.dart';
 import 'api_client.dart';
 import 'app_update_service.dart';
 import 'auth_storage.dart';
+import 'licensing/clock_service.dart';
+import 'licensing/license_gate.dart';
+import 'licensing/license_storage.dart';
 
 enum SyncStatus {
   offline,
@@ -60,6 +63,9 @@ class SyncEngine {
   final ApiClient api;
   final AuthStorage storage;
   final AppUpdateService? updateService;
+  final LicenseGate? licenseGate;
+  final ClockService? clockService;
+  final LicenseStorage? licenseStorage;
 
   final ValueNotifier<SyncEngineState> stateNotifier;
 
@@ -77,6 +83,9 @@ class SyncEngine {
     required this.api,
     required this.storage,
     this.updateService,
+    this.licenseGate,
+    this.clockService,
+    this.licenseStorage,
   }) : stateNotifier = ValueNotifier(
          const SyncEngineState(status: SyncStatus.offline),
        ) {
@@ -243,8 +252,35 @@ class SyncEngine {
           changes: wireChanges,
         );
 
+        if (response.serverTime != null) {
+          try {
+            final st = DateTime.parse(response.serverTime!);
+            await clockService?.calibrateFromServerTime(st);
+          } catch (_) {}
+        }
+
         for (final rejection in response.rejected) {
           final reason = rejection['reason'] ?? 'Rejected by server';
+          if (reason.contains('license_expired')) {
+            stateNotifier.value = state.copyWith(
+              status: SyncStatus.error,
+              errorMessage:
+                  'Online sync paused: Shop license has expired. Ask owner to renew. Local records remain fully preserved.',
+              progressText: null,
+            );
+            _isSyncing = false;
+            return;
+          }
+          if (reason.contains('seat_limit')) {
+            stateNotifier.value = state.copyWith(
+              status: SyncStatus.error,
+              errorMessage:
+                  'Online sync paused: Active cashier terminal limit reached. Free a seat via the Telegram bot.',
+              progressText: null,
+            );
+            _isSyncing = false;
+            return;
+          }
           // Stale conflicts and tie-breaker losses mean the server record is newer/winner.
           // These are expected LWW resolutions, not fatal errors that pause sync.
           if (!reason.contains('stale_conflict') && !reason.contains('tie_breaker_lost')) {
@@ -342,6 +378,27 @@ class SyncEngine {
         hasNegativeStock: finalNegStock,
         progressText: null,
       );
+
+      // Fetch latest shop license from server if paired
+      if (licenseGate != null) {
+        try {
+          final licData = await api.getLicense(serverUrl: serverUrl, deviceToken: token);
+          final tokenStr = licData['token'] as String?;
+          final shopUuid = licData['shop_uuid'] as String?;
+          if (shopUuid != null && shopUuid.isNotEmpty) {
+            await licenseStorage?.savePairedShopUuid(shopUuid);
+          }
+          if (licData['server_time'] != null) {
+            final st = DateTime.tryParse(licData['server_time'] as String);
+            if (st != null) await clockService?.calibrateFromServerTime(st);
+          }
+          if (tokenStr != null && tokenStr.isNotEmpty) {
+            await licenseGate!.activateToken(tokenStr);
+          } else {
+            await licenseGate!.reevaluate();
+          }
+        } catch (_) {}
+      }
     } on UnauthorizedException {
       // 401: Token revoked or invalid
       _consecutiveFailures = 0;

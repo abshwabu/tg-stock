@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:intl/intl.dart';
 
 import '../database/app_database.dart';
+import '../services/licensing/clock_service.dart';
+import '../services/licensing/license_gate.dart';
 import '../utils/phone_validator.dart';
 import '../utils/quantity_formatter.dart';
 import '../utils/uuid_generator.dart';
@@ -373,8 +375,14 @@ class StockReportData {
 
 class LedgerRepository {
   final AppDatabase db;
+  final LicenseGate? licenseGate;
+  final ClockService? clockService;
 
-  LedgerRepository(this.db);
+  LedgerRepository(
+    this.db, {
+    this.licenseGate,
+    this.clockService,
+  });
 
   // ==========================================
   // PRODUCTS (Mutable Catalog Metadata)
@@ -393,6 +401,7 @@ class LedgerRepository {
     int? openingStockMilli,
     List<Map<String, dynamic>>? materials,
   }) async {
+    await licenseGate?.assertCanWriteProduct(isNew: true);
     if (kind != 'stockable' && openingStockMilli != null && openingStockMilli > 0) {
       throw StateError('Opening stock is not allowed for non-stockable items.');
     }
@@ -423,6 +432,7 @@ class LedgerRepository {
   }
 
   Future<void> updateProduct(Product product, {List<Map<String, dynamic>>? materials}) async {
+    await licenseGate?.assertCanWriteProduct(isNew: false);
     final existing = await getProduct(product.id);
     if (existing != null) {
       await validateProductKindChange(existing, product.kind);
@@ -438,6 +448,7 @@ class LedgerRepository {
   }
 
   Future<void> deleteProduct(String id) async {
+    await licenseGate?.assertCanWriteProduct(isNew: false);
     if (await isUsedAsMaterial(id)) {
       final p = await getProduct(id);
       throw StateError(
@@ -651,6 +662,7 @@ class LedgerRepository {
     String? note,
     String? locationId,
   }) async {
+    licenseGate?.assertCanMutateStock();
     assert(qtyMilli > 0, 'Stock in quantity must be positive');
     final prod = await getProduct(productId);
     if (prod != null && prod.kind != 'stockable') {
@@ -659,7 +671,7 @@ class LedgerRepository {
 
     final locId = locationId ?? await getActiveLocationId();
 
-    return db.recordMovement(
+    final mov = await db.recordMovement(
       productId: productId,
       type: 'in',
       qtyMilli: qtyMilli,
@@ -668,6 +680,8 @@ class LedgerRepository {
       note: note,
       locationId: locId,
     );
+    await clockService?.advanceFromMovementTimestamp(DateTime.now());
+    return mov;
   }
 
   /// Records a point-of-sale customer purchase with multiple line items.
@@ -677,6 +691,7 @@ class LedgerRepository {
     String? locationId,
   }) async {
     if (items.isEmpty) return [];
+    await licenseGate?.assertCanWriteSale();
 
     final targetLocId = locationId ?? await getActiveLocationId();
     final allowNegative = await getAllowNegativeStock();
@@ -750,6 +765,7 @@ class LedgerRepository {
       }
     });
 
+    await clockService?.advanceFromMovementTimestamp(DateTime.now());
     return movements;
   }
 
@@ -762,6 +778,7 @@ class LedgerRepository {
     String? note,
     String? locationId,
   }) async {
+    licenseGate?.assertCanMutateStock();
     final prod = await getProduct(productId);
     if (prod != null && prod.kind != 'stockable') {
       throw StateError('not_stockable');
@@ -790,7 +807,7 @@ class LedgerRepository {
 
     final combinedNote = note != null ? '$reasonLabel: $note' : reasonLabel;
 
-    return db.recordMovement(
+    final mov = await db.recordMovement(
       productId: productId,
       type: 'adjust',
       qtyMilli: diffMilli,
@@ -799,12 +816,15 @@ class LedgerRepository {
       note: combinedNote,
       locationId: targetLocId,
     );
+    await clockService?.advanceFromMovementTimestamp(DateTime.now());
+    return mov;
   }
 
   /// Undoes own last action within 10 minutes via compensating movement(s).
   /// If the action was part of a transfer (instant or two-step), writes compensating movements for both sides.
   /// Never deletes or mutates the original movement.
   Future<Movement> undoLastAction() async {
+    licenseGate?.assertCanMutateStock();
     final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
 
     // Find the most recent movement
@@ -880,6 +900,7 @@ class LedgerRepository {
     int unitPriceCents = 0,
     String? note,
   }) async {
+    licenseGate?.assertCanMutateStock();
     assert(qtyMilli > 0, 'Transfer quantity must be positive');
     assert(fromLocationId != toLocationId, 'Source and destination locations must be different');
 
@@ -952,6 +973,7 @@ class LedgerRepository {
     String? note,
     String? transferId,
   }) async {
+    licenseGate?.assertCanMutateStock();
     assert(qtyMilli > 0, 'Transfer quantity must be positive');
     assert(fromLocationId != toLocationId, 'Source and destination locations must be different');
 
@@ -1001,6 +1023,7 @@ class LedgerRepository {
     int unitPriceCents = 0,
     String? note,
   }) async {
+    licenseGate?.assertCanMutateStock();
     assert(qtyReceivedMilli >= 0, 'Received quantity must be non-negative');
 
     final existingOut = await (db.select(db.movements)
@@ -1359,14 +1382,17 @@ class LedgerRepository {
     String kind = 'store',
     bool isDefault = false,
   }) async {
+    licenseGate?.assertCanMutateStock();
     return db.createLocation(id: id, name: name, kind: kind, isDefault: isDefault);
   }
 
   Future<void> updateLocation(Location location) async {
+    licenseGate?.assertCanMutateStock();
     await db.updateLocation(location);
   }
 
   Future<void> deleteLocation(String id) async {
+    licenseGate?.assertCanMutateStock();
     await db.deleteLocation(id);
   }
 
@@ -2216,6 +2242,7 @@ class LedgerRepository {
     String? reference,
     int? createdAtMs,
   }) async {
+    await licenseGate?.assertCanWriteSale();
     if (items.isEmpty) {
       throw ArgumentError('Cart is empty.');
     }
@@ -2353,6 +2380,7 @@ class LedgerRepository {
         );
       }
 
+      await clockService?.advanceFromMovementTimestamp(DateTime.now());
       return sale;
     });
   }
@@ -2572,12 +2600,13 @@ class LedgerRepository {
     String? reference,
     String? locationId,
   }) async {
+    licenseGate?.assertCanRecordPayment();
     if (amountCents <= 0) {
       throw ArgumentError('Payment amount must be greater than zero.');
     }
     final targetLocId = locationId ?? await getActiveLocationId();
 
-    return db.recordPayment(
+    final payment = await db.recordPayment(
       customerId: customerId,
       saleId: null, // repayment
       locationId: targetLocId,
@@ -2586,9 +2615,12 @@ class LedgerRepository {
       amountCents: amountCents,
       reference: reference,
     );
+    await clockService?.advanceFromMovementTimestamp(DateTime.now());
+    return payment;
   }
 
   Future<void> extendSaleDueDate(String saleId, String newDueDate) async {
+    licenseGate?.assertCanRecordPayment();
     await db.updateSaleDueDate(saleId: saleId, dueDate: newDueDate);
   }
 
@@ -2597,6 +2629,7 @@ class LedgerRepository {
   // ==========================================
 
   Future<void> undoSale(String saleId) async {
+    await licenseGate?.assertCanWriteSale();
     final sale = await (db.select(db.sales)..where((s) => s.id.equals(saleId))).getSingleOrNull();
     if (sale == null) {
       throw ArgumentError('Sale not found: $saleId');

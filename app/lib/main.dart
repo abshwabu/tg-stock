@@ -9,6 +9,11 @@ import 'services/api_client.dart';
 import 'services/app_update_service.dart';
 import 'services/auth_storage.dart';
 import 'services/error_logger.dart';
+import 'services/licensing/clock_service.dart';
+import 'services/licensing/install_id_service.dart';
+import 'services/licensing/license_gate.dart';
+import 'services/licensing/license_notifications.dart';
+import 'services/licensing/license_storage.dart';
 import 'services/sync_engine.dart';
 import 'ui/screens/first_run_screen.dart';
 import 'ui/screens/home_screen.dart';
@@ -28,7 +33,20 @@ void main() {
   };
 
   final db = AppDatabase();
-  final repository = LedgerRepository(db);
+  final licenseStorage = SecureLicenseStorage();
+  final clockService = ClockService(storage: licenseStorage, db: db);
+  final installIdService = InstallIdService(storage: licenseStorage);
+  final licenseGate = LicenseGate(
+    storage: licenseStorage,
+    clockService: clockService,
+    installIdService: installIdService,
+    db: db,
+  );
+  final repository = LedgerRepository(
+    db,
+    licenseGate: licenseGate,
+    clockService: clockService,
+  );
   final authStorage = SecureAuthStorage();
   final apiClient = ApiClient();
   final updateService = AppUpdateService(
@@ -40,6 +58,9 @@ void main() {
     api: apiClient,
     storage: authStorage,
     updateService: updateService,
+    licenseGate: licenseGate,
+    clockService: clockService,
+    licenseStorage: licenseStorage,
   );
 
   runApp(InventoryApp(
@@ -49,6 +70,9 @@ void main() {
     authStorage: authStorage,
     syncEngine: syncEngine,
     updateService: updateService,
+    licenseGate: licenseGate,
+    clockService: clockService,
+    installIdService: installIdService,
   ));
 }
 
@@ -59,6 +83,9 @@ class InventoryApp extends StatefulWidget {
   final AuthStorage authStorage;
   final SyncEngine syncEngine;
   final AppUpdateService? updateService;
+  final LicenseGate? licenseGate;
+  final ClockService? clockService;
+  final InstallIdService? installIdService;
 
   const InventoryApp({
     super.key,
@@ -68,6 +95,9 @@ class InventoryApp extends StatefulWidget {
     required this.authStorage,
     required this.syncEngine,
     this.updateService,
+    this.licenseGate,
+    this.clockService,
+    this.installIdService,
   });
 
   static InventoryAppState? of(BuildContext context) {
@@ -108,6 +138,15 @@ class InventoryAppState extends State<InventoryApp> {
   }
 
   Future<void> _checkAppEntry() async {
+    if (widget.clockService != null) {
+      await widget.clockService!.init();
+    }
+    if (widget.licenseGate != null) {
+      final res = await widget.licenseGate!.reevaluate();
+      final notifService = LicenseNotificationService();
+      await notifService.onLicenseEvaluated(result: res, isAm: _localeStr == 'am');
+    }
+
     final firstRun = await widget.repository.isFirstRunCompleted();
     final lockEnabled = await widget.repository.isAppLockEnabled();
     final pin = await widget.repository.getAppLockPin();
@@ -161,6 +200,8 @@ class InventoryAppState extends State<InventoryApp> {
     if (!_firstRunCompleted) {
       rootWidget = FirstRunScreen(
         repository: widget.repository,
+        licenseGate: widget.licenseGate,
+        installIdService: widget.installIdService,
         onComplete: () async {
           await _checkAppEntry();
         },
@@ -219,6 +260,9 @@ class InventoryAppState extends State<InventoryApp> {
         authStorage: widget.authStorage,
         syncEngine: widget.syncEngine,
         updateService: widget.updateService,
+        licenseGate: widget.licenseGate,
+        clockService: widget.clockService,
+        installIdService: widget.installIdService,
       );
     }
 

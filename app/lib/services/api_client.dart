@@ -67,12 +67,14 @@ class SyncResponse {
   final List<Map<String, String>> rejected;
   final List<Map<String, dynamic>> changes;
   final int cursor;
+  final String? serverTime;
 
   SyncResponse({
     required this.accepted,
     required this.rejected,
     required this.changes,
     required this.cursor,
+    this.serverTime,
   });
 
   factory SyncResponse.fromJson(Map<String, dynamic> json) {
@@ -103,11 +105,14 @@ class SyncResponse {
         ? json['cursor'] as int
         : int.tryParse(json['cursor']?.toString() ?? '0') ?? 0;
 
+    final serverTime = json['server_time'] as String?;
+
     return SyncResponse(
       accepted: acceptedList,
       rejected: rejectedList,
       changes: changesList,
       cursor: cursorInt,
+      serverTime: serverTime,
     );
   }
 }
@@ -237,6 +242,57 @@ class ApiClient {
 
     _handleError(response);
     return false;
+  }
+
+  /// GET /v1/license
+  Future<Map<String, dynamic>> getLicense({
+    required String serverUrl,
+    required String deviceToken,
+  }) async {
+    final uri = Uri.parse('$serverUrl/v1/license');
+    _assertTls(uri);
+
+    final response = await _sendRequest(() => _client.get(
+          uri,
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $deviceToken',
+          },
+        ));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+
+    _handleError(response);
+    throw ApiException('Failed to fetch license from server', response.statusCode);
+  }
+
+  /// POST /v1/license
+  Future<Map<String, dynamic>> uploadLicense({
+    required String serverUrl,
+    required String deviceToken,
+    required String token,
+  }) async {
+    final uri = Uri.parse('$serverUrl/v1/license');
+    _assertTls(uri);
+
+    final response = await _sendRequest(() => _client.post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $deviceToken',
+          },
+          body: jsonEncode({'token': token.trim()}),
+        ));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+
+    _handleError(response);
+    throw ApiException('Failed to upload license to server', response.statusCode);
   }
 
   Future<http.Response> _sendRequest(Future<http.Response> Function() requestFn) async {

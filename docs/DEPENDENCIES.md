@@ -59,6 +59,7 @@ The mobile application is an offline-first Flutter application. To prevent packa
 | `uuid` | Identity | Client-side UUIDv7 generation for append-only movement records, products, and outbox mutations before synchronization. |
 | `path` | File System | Platform-agnostic file path operations for locating and managing local SQLite database files. |
 | `url_launcher` | Networking / UX | Securely launching Telegram deep link (`https://t.me/<bot>?start=pair_<code>`) during device pairing. |
+| `cryptography` | Cryptography | Pure-Dart cryptographic implementation providing Ed25519 signature verification and SHA-256 for offline license verification, device bind validation, and revocation list checks without native binary bridge dependencies. |
 
 ### 2.2 Dev Tooling Justifications
 

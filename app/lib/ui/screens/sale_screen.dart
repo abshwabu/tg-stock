@@ -421,6 +421,22 @@ class _SaleScreenState extends State<SaleScreen> {
   Future<void> _finishSale() async {
     if (_cart.isEmpty || _isLoading) return;
 
+    final isReadOnly = widget.repository.licenseGate?.isReadOnly ?? false;
+    if (isReadOnly) {
+      final isAm = Localizations.localeOf(context).languageCode == 'am';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text(
+            isAm
+                ? 'የፈቃድ ጊዜ አልቋል! መተግበሪያው በንባብ ብቻ ሁነታ ላይ ስለሆነ ሽያጭ መመዝገብ አይቻልም።'
+                : 'License expired! Terminal is operating in Read-Only mode.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final targetLocId = _activeLocation?.id;

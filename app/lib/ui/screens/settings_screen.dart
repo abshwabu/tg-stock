@@ -16,11 +16,14 @@ import '../../services/auth_storage.dart';
 import '../../services/backup_service.dart';
 import '../../services/export_service.dart';
 import '../../services/integrity_checker.dart';
+import '../../services/licensing/install_id_service.dart';
+import '../../services/licensing/license_gate.dart';
 import '../../services/notification_service.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/quantity_formatter.dart';
 import '../widgets/warehouse_setup_sheet.dart';
 import 'error_log_screen.dart';
+import 'license_screen.dart';
 import 'pairing_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -31,6 +34,8 @@ class SettingsScreen extends StatefulWidget {
   final AppDatabase db;
   final BackupService? backupService;
   final LocalAuthentication? localAuth;
+  final LicenseGate? licenseGate;
+  final InstallIdService? installIdService;
 
   const SettingsScreen({
     super.key,
@@ -41,6 +46,8 @@ class SettingsScreen extends StatefulWidget {
     required this.db,
     this.backupService,
     this.localAuth,
+    this.licenseGate,
+    this.installIdService,
   });
 
   @override
@@ -1646,6 +1653,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         title: Text(isAm ? 'ዕቃ ዝርዝር' : 'Inventory'),
                         subtitle: const Text('Version 1.0.0 (Build 1) • Offline-First'),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.verified_user_outlined, color: Color(0xFF0F766E)),
+                        title: Text(isAm ? 'የመተግበሪያ ፈቃድ' : 'App License & Activation'),
+                        subtitle: Text(
+                          isAm
+                              ? 'የፈቃድ ሁኔታ፣ የመሳሪያ ኮድ እና ማግበሪያ'
+                              : 'License status, device code, and activation',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          if (widget.licenseGate != null && widget.installIdService != null) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (ctx) => LicenseScreen(
+                                  licenseGate: widget.licenseGate!,
+                                  installIdService: widget.installIdService!,
+                                  repository: widget.repository,
+                                ),
+                              ),
+                            );
+                          }
+                        },
                       ),
                       const Divider(height: 1),
                       ListTile(

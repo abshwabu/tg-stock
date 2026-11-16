@@ -7,15 +7,20 @@ import '../../services/api_client.dart';
 import '../../services/app_update_service.dart';
 import '../../services/auth_storage.dart';
 import '../../services/backup_service.dart';
+import '../../services/licensing/clock_service.dart';
+import '../../services/licensing/install_id_service.dart';
+import '../../services/licensing/license_gate.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/money_formatter.dart';
 import '../theme.dart';
+import '../widgets/license_banner.dart';
 import '../widgets/location_selector_chip.dart';
 import '../widgets/sync_status_header.dart';
 import '../widgets/warehouse_setup_sheet.dart';
 import 'adjust_screen.dart';
 import 'dube_screen.dart';
 import 'history_screen.dart';
+import 'license_screen.dart';
 import 'products_screen.dart';
 import 'reports_screen.dart';
 import 'sale_screen.dart';
@@ -30,6 +35,9 @@ class HomeScreen extends StatefulWidget {
   final AuthStorage authStorage;
   final SyncEngine syncEngine;
   final AppUpdateService? updateService;
+  final LicenseGate? licenseGate;
+  final ClockService? clockService;
+  final InstallIdService? installIdService;
 
   const HomeScreen({
     super.key,
@@ -39,6 +47,9 @@ class HomeScreen extends StatefulWidget {
     required this.authStorage,
     required this.syncEngine,
     this.updateService,
+    this.licenseGate,
+    this.clockService,
+    this.installIdService,
   });
 
   @override
@@ -80,6 +91,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadShopInfo() async {
+    if (widget.licenseGate != null) {
+      await widget.licenseGate!.reevaluate();
+    }
     final name = await widget.repository.getShopName();
     final lang = await widget.repository.getLanguage();
     final locEnabled = await widget.repository.getLocationsEnabled();
@@ -308,6 +322,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     syncEngine: widget.syncEngine,
                     repository: widget.repository,
                     db: widget.db,
+                    licenseGate: widget.licenseGate,
+                    installIdService: widget.installIdService,
                   ),
                 ),
               );
@@ -323,6 +339,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               children: [
+                if (widget.licenseGate != null && widget.clockService != null) ...[
+                  LicenseBanner(
+                    licenseGate: widget.licenseGate!,
+                    clockService: widget.clockService!,
+                    isAm: isAm,
+                    onVerifyOnline: () async {
+                      await widget.syncEngine.syncNow();
+                      await widget.licenseGate?.reevaluate();
+                      if (mounted) setState(() {});
+                    },
+                    onOpenLicenseScreen: () {
+                      if (widget.installIdService != null) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (ctx) => LicenseScreen(
+                              licenseGate: widget.licenseGate!,
+                              installIdService: widget.installIdService!,
+                              repository: widget.repository,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
                 // Non-blocking App Update Banner
                 if (_updateInfo != null && _updateInfo!.isUpdateAvailable && !_updateBannerDismissed) ...[
                   Card(
