@@ -27,7 +27,7 @@ void main() {
     );
   }
 
-  testWidgets('Sale flow: select product, add to cart, and finish sale', (WidgetTester tester) async {
+  testWidgets('Sale flow: select product from on-screen product list, add to cart, and finish sale', (WidgetTester tester) async {
     // 1. Setup product with initial stock
     final product = await repo.createProduct(
       name: 'Berbere (በርበሬ)',
@@ -40,16 +40,12 @@ void main() {
     await tester.pumpWidget(buildTestWidget());
     await tester.pumpAndSettle();
 
-    // Verify initial empty state
-    expect(find.text('Cart is empty / ቅርጫቱ ባዶ ነው'), findsOneWidget);
-    expect(find.text('Finish Sale / ሽጥ'), findsOneWidget);
-
-    // 3. Open product picker
-    await tester.tap(find.text('Search & Select Product / ዕቃ ምረጥ'));
-    await tester.pumpAndSettle();
-
-    // Tap the product in the picker sheet
+    // Verify products are listed on screen and initial total is zero
     expect(find.widgetWithText(ListTile, 'Berbere (በርበሬ)'), findsOneWidget);
+    expect(find.text('Finish Sale / ሽጥ'), findsOneWidget);
+    expect(find.text('0.00 ETB'), findsOneWidget);
+
+    // 3. Tap the product in the on-screen list
     await tester.tap(find.widgetWithText(ListTile, 'Berbere (በርበሬ)'));
     await tester.pumpAndSettle();
 
@@ -63,11 +59,23 @@ void main() {
     await tester.tap(find.textContaining('Add to Cart'));
     await tester.pumpAndSettle();
 
-    // 5. Verify item appears in the cart
-    expect(find.text('Cart is empty / ቅርጫቱ ባዶ ነው'), findsNothing);
-    expect(find.widgetWithText(ListTile, 'Berbere (በርበሬ)'), findsOneWidget);
+    // 5. Verify item appears in the cart indicator & bottom bar total
+    expect(find.textContaining('🛒 2 kg'), findsOneWidget);
+    expect(find.text('500.00 ETB'), findsOneWidget); // grand total
+
+    // Open Cart sheet via View Cart
+    expect(find.textContaining('View Cart / ቅርጫት እይ'), findsOneWidget);
+    await tester.tap(find.textContaining('View Cart / ቅርጫት እይ'));
+    await tester.pumpAndSettle();
+
+    // Inside Cart sheet: verify line items and totals
     expect(find.textContaining('2 kg × 250.00 ETB'), findsOneWidget);
-    expect(find.text('500.00 ETB'), findsWidgets); // line item total & grand total
+    expect(find.text('500.00 ETB'), findsWidgets);
+
+    // Close Cart sheet by tapping Close Cart icon
+    expect(find.byTooltip('Close Cart'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close Cart'));
+    await tester.pumpAndSettle();
 
     // 6. Finish Sale opens Payment step (Cash preselected, 1-tap finish)
     await tester.tap(find.text('Finish Sale / ሽጥ'));
@@ -79,12 +87,52 @@ void main() {
     // Verify success SnackBar
     expect(find.textContaining('Sale completed! Total: 500.00 ETB'), findsOneWidget);
 
-    // Verify cart is cleared
-    expect(find.text('Cart is empty / ቅርጫቱ ባዶ ነው'), findsOneWidget);
+    // Verify cart total is reset to 0
+    expect(find.text('0.00 ETB'), findsOneWidget);
 
     // 7. Verify ledger & stock in the database
     final remainingStock = await repo.stockOf(product.id);
     expect(remainingStock, 8000); // 10000 - 2000 = 8000 (8.0 kg)
+  });
+
+  testWidgets('Sale screen: products listed by alphabet first, then by popularity', (WidgetTester tester) async {
+    // 1. Create 3 products: Banana, Apple, Carrot with initial stock
+    final pBanana = await repo.createProduct(name: 'Banana (ሙዝ)', sellPriceCents: 5000, openingStockMilli: 100000);
+    final pApple = await repo.createProduct(name: 'Apple (አፕል)', sellPriceCents: 10000, openingStockMilli: 100000);
+    final pCarrot = await repo.createProduct(name: 'Carrot (ካሮት)', sellPriceCents: 3000, openingStockMilli: 100000);
+
+    // Record sales: Banana 5 sales, Carrot 1 sale, Apple 0 sales
+    for (int i = 0; i < 5; i++) {
+      await repo.recordSale(items: [SaleLineItem(product: pBanana, qtyMilli: 1000, unitPriceCents: 5000)]);
+    }
+    await repo.recordSale(items: [SaleLineItem(product: pCarrot, qtyMilli: 1000, unitPriceCents: 3000)]);
+
+    // 2. Open SaleScreen
+    await tester.pumpWidget(buildTestWidget());
+    await tester.pumpAndSettle();
+
+    // 3. By default (Alphabet sort): Apple -> Banana -> Carrot
+    final tilesAlphabet = tester.widgetList<ListTile>(find.byType(ListTile)).toList();
+    final namesAlphabet = tilesAlphabet
+        .map((t) => ((t.title as Row).children.whereType<Expanded>().first.child as Text).data!)
+        .toList();
+    expect(namesAlphabet, ['Apple (አፕል)', 'Banana (ሙዝ)', 'Carrot (ካሮት)']);
+
+    // 4. Switch to Popularity sort
+    expect(find.widgetWithText(ChoiceChip, 'Popularity / በተወዳጅነት'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Popularity / በተወዳጅነት'));
+    await tester.pumpAndSettle();
+
+    // 5. In Popularity sort: Banana (5 sold) -> Carrot (1 sold) -> Apple (0 sold)
+    final tilesPop = tester.widgetList<ListTile>(find.byType(ListTile)).toList();
+    final namesPop = tilesPop
+        .map((t) => ((t.title as Row).children.whereType<Expanded>().first.child as Text).data!)
+        .toList();
+    expect(namesPop, ['Banana (ሙዝ)', 'Carrot (ካሮት)', 'Apple (አፕል)']);
+
+    // Verify popularity badges show sales count
+    expect(find.text('5 sold'), findsOneWidget);
+    expect(find.text('1 sold'), findsOneWidget);
   });
 
   testWidgets('Sale flow: blocks sale when stock is insufficient and negative stock disabled', (WidgetTester tester) async {
@@ -155,7 +203,7 @@ void main() {
     await tester.tap(find.textContaining('Add to Cart'));
     await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(ListTile, 'Salt (ጨው)'), findsOneWidget);
+    expect(find.text('20.00 ETB'), findsOneWidget);
 
     // Tap Clear in AppBar
     expect(find.text('Clear'), findsOneWidget);
@@ -163,6 +211,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Cart is empty again
-    expect(find.text('Cart is empty / ቅርጫቱ ባዶ ነው'), findsOneWidget);
+    expect(find.text('0.00 ETB'), findsOneWidget);
+    expect(find.text('Clear'), findsNothing);
   });
 }

@@ -287,6 +287,20 @@ class TopProductItem {
   });
 }
 
+class ProductPopularity {
+  final int saleCount;
+  final int totalQtyMilli;
+
+  const ProductPopularity({this.saleCount = 0, this.totalQtyMilli = 0});
+
+  int compareTo(ProductPopularity other) {
+    if (saleCount != other.saleCount) {
+      return saleCount.compareTo(other.saleCount);
+    }
+    return totalQtyMilli.compareTo(other.totalQtyMilli);
+  }
+}
+
 class SalesByKindData {
   final String kind;
   final int totalRevenueCents;
@@ -593,6 +607,34 @@ class LedgerRepository {
     }
 
     return result;
+  }
+
+  /// Returns a map of productId -> ProductPopularity (sales frequency and total quantity sold).
+  Future<Map<String, ProductPopularity>> getProductPopularityMap({String? locationId}) async {
+    final locClause = locationId != null ? 'AND location_id = ?' : '';
+    final vars = <Variable<Object>>[];
+    if (locationId != null) {
+      vars.add(Variable.withString(locationId));
+    }
+    final rows = await db.customSelect(
+      '''
+      SELECT product_id, COUNT(*) as sale_count, SUM(ABS(qty_milli)) as total_qty_milli
+      FROM movements
+      WHERE type = 'sale' $locClause
+      GROUP BY product_id
+      ''',
+      variables: vars,
+      readsFrom: {db.movements},
+    ).get();
+
+    final map = <String, ProductPopularity>{};
+    for (final row in rows) {
+      final pid = row.read<String>('product_id');
+      final count = (row.data['sale_count'] as num?)?.toInt() ?? 0;
+      final qty = (row.data['total_qty_milli'] as num?)?.toInt() ?? 0;
+      map[pid] = ProductPopularity(saleCount: count, totalQtyMilli: qty);
+    }
+    return map;
   }
 
   // ==========================================
