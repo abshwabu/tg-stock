@@ -232,6 +232,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
     final qtyCtrl = TextEditingController(text: QuantityFormatter.formatDisplay(t.qtyMilli));
     final reasonCtrl = TextEditingController();
 
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -242,20 +243,20 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
             final hasDiscrepancy = diffMilli != 0;
 
             return AlertDialog(
-              title: const Text('የተለየ ብዛት ተቀበል / Receive Different Qty'),
+              title: Text(isAm ? 'የተለየ ብዛት ተቀበል' : 'Receive Different Qty'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Product: ${t.productName}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    Text('Sent Qty: ${QuantityFormatter.formatDisplay(t.qtyMilli)} ${t.unit}'),
+                    Text('${isAm ? "ዕቃ" : "Product"}: ${t.productName}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('${isAm ? "የተላከ ብዛት" : "Sent Qty"}: ${QuantityFormatter.formatDisplay(t.qtyMilli)} ${t.unit}'),
                     const SizedBox(height: 12),
                     TextField(
                       controller: qtyCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: InputDecoration(
-                        labelText: 'Actual Received Qty (${t.unit})',
+                        labelText: isAm ? 'ትክክለኛ የተቀበሉት ብዛት (${t.unit})' : 'Actual Received Qty (${t.unit})',
                         border: const OutlineInputBorder(),
                       ),
                       onChanged: (_) => setDialogState(() {}),
@@ -273,8 +274,9 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                             border: Border.all(color: tokens.border),
                           ),
                           child: Text(
-                            '⚠️ Discrepancy: ${QuantityFormatter.formatDisplay(diffMilli)} ${t.unit}\n'
-                            'This discrepancy will be flagged in reports. Stock will not be auto-adjusted.',
+                            isAm
+                                ? '⚠️ ልዩነት: ${QuantityFormatter.formatDisplay(diffMilli)} ${t.unit}\nይህ ልዩነት በሪፖርት ውስጥ ምልክት ይደረግበታል፤ ክምችት በራሱ አይስተካከልም።'
+                                : '⚠️ Discrepancy: ${QuantityFormatter.formatDisplay(diffMilli)} ${t.unit}\nThis discrepancy will be flagged in reports. Stock will not be auto-adjusted.',
                             style: TextStyle(fontSize: 12, color: tokens.fg),
                           ),
                         );
@@ -282,10 +284,10 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                       const SizedBox(height: 10),
                       TextField(
                         controller: reasonCtrl,
-                        decoration: const InputDecoration(
-                          labelText: 'Reason for difference / የልዩነቱ ምክንያት',
-                          hintText: 'e.g. Broken in transit, spilled, missing',
-                          border: OutlineInputBorder(),
+                        decoration: InputDecoration(
+                          labelText: isAm ? 'የልዩነቱ ምክንያት' : 'Reason for difference',
+                          hintText: isAm ? 'ምሳሌ፡ በመንገድ ላይ የተሰበረ፣ የፈሰሰ፣ የጎደለ' : 'e.g. Broken in transit, spilled, missing',
+                          border: const OutlineInputBorder(),
                         ),
                       ),
                     ],
@@ -295,11 +297,11 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(false),
-                  child: const Text('Cancel'),
+                  child: Text(isAm ? 'ይቅር' : 'Cancel'),
                 ),
                 FilledButton(
                   onPressed: () => Navigator.of(ctx).pop(true),
-                  child: const Text('Confirm Receipt / አረጋግጥ'),
+                  child: Text(isAm ? 'አረጋግጥ' : 'Confirm Receipt'),
                 ),
               ],
             );
@@ -343,20 +345,21 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('🚚 Stock Transfers / የዕቃ ዝውውር')),
+        appBar: AppBar(title: Text(isAm ? '🚚 የዕቃ ዝውውር' : '🚚 Stock Transfers')),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('🚚 Stock Transfers / የዕቃ ዝውውር'),
+        title: Text(isAm ? '🚚 የዕቃ ዝውውር' : '🚚 Stock Transfers'),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            const Tab(icon: Icon(Icons.send_rounded), text: 'New Transfer'),
+            Tab(icon: const Icon(Icons.send_rounded), text: isAm ? 'አዲስ ዝውውር' : 'New Transfer'),
             StreamBuilder<List<InTransitTransfer>>(
               stream: widget.repository.watchInTransitTransfers(),
               builder: (context, snapshot) {
@@ -367,7 +370,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                     label: Text('$count'),
                     child: const Icon(Icons.move_to_inbox_rounded),
                   ),
-                  text: 'Incoming',
+                  text: isAm ? 'የሚደርሱ' : 'Incoming',
                 );
               },
             ),
@@ -378,7 +381,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                 backgroundColor: Colors.amber.shade900,
                 child: const Icon(Icons.warning_amber_rounded),
               ),
-              text: 'Discrepancies',
+              text: isAm ? 'ልዩነቶች' : 'Discrepancies',
             ),
           ],
         ),
@@ -395,6 +398,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
   }
 
   Widget _buildOfflineNoticeBanner() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tokens = AppColors.infoTokens(isDark);
     return Container(
@@ -412,8 +416,9 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'ማስታወሻ፡ በሁለት የተለያዩ ስልኮች መካከል የሚደረግ ባለሁለት ደረጃ ዝውውር ወደ ተቀባዩ ስልክ የሚደርሰው ሁለቱም ስልኮች ሲመሳከሩ (sync ሲያደርጉ) ብቻ ነው።\n'
-              'Note: A two-step transfer between two different phones appears on the receiving phone only after both devices have synced.',
+              isAm
+                  ? 'ማስታወሻ፡ በሁለት የተለያዩ ስልኮች መካከል የሚደረግ ባለሁለት ደረጃ ዝውውር ወደ ተቀባዩ ስልክ የሚደርሰው ሁለቱም ስልኮች ሲመሳከሩ (sync ሲያደርጉ) ብቻ ነው።'
+                  : 'Note: A two-step transfer between two different phones appears on the receiving phone only after both devices have synced.',
               style: TextStyle(
                 fontSize: 12,
                 color: isDark ? Theme.of(context).colorScheme.onSurface : Colors.blueGrey,
@@ -427,6 +432,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
   }
 
   Widget _buildNewTransferTab() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final modeTokens = _requiresReceipt
         ? AppColors.warningTokens(isDark)
@@ -460,9 +466,9 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _requiresReceipt
-                            ? 'Mode: Two-Step (Receipt Confirmation) / በደረሰኝ ማረጋገጫ'
-                            : 'Mode: Instant Transfer / ፈጣን ዝውውር',
+                        isAm
+                            ? (_requiresReceipt ? 'ሁነታ: ባለሁለት ደረጃ (በደረሰኝ ማረጋገጫ)' : 'ሁነታ: ፈጣን ዝውውር')
+                            : (_requiresReceipt ? 'Mode: Two-Step (Receipt Confirmation)' : 'Mode: Instant Transfer'),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
@@ -471,9 +477,13 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _requiresReceipt
-                            ? 'Sender records transfer-out; receiver verifies and confirms received stock.'
-                            : 'Stock moves immediately from source to destination without secondary confirmation.',
+                        isAm
+                            ? (_requiresReceipt
+                                ? 'ላኪው የወጪ ዝውውር ይመዘግባል፤ ተቀባዩ አረጋግጦ ይረከባል።'
+                                : 'ዕቃው ያለምንም ሁለተኛ ማረጋገጫ ወዲያውኑ ከቦታ ቦታ ይዘዋወራል።')
+                            : (_requiresReceipt
+                                ? 'Sender records transfer-out; receiver verifies and confirms received stock.'
+                                : 'Stock moves immediately from source to destination without secondary confirmation.'),
                         style: TextStyle(
                           fontSize: 11.5,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -493,10 +503,10 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
               Expanded(
                 child: DropdownButtonFormField<Location>(
                   value: _fromLocation,
-                  decoration: const InputDecoration(
-                    labelText: 'ከየት (From)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.outbox_rounded, color: Colors.redAccent),
+                  decoration: InputDecoration(
+                    labelText: isAm ? 'ከየት' : 'From',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.outbox_rounded, color: Colors.redAccent),
                   ),
                   items: _locations.map((loc) {
                     return DropdownMenuItem<Location>(
@@ -521,10 +531,10 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
               Expanded(
                 child: DropdownButtonFormField<Location>(
                   value: _toLocation,
-                  decoration: const InputDecoration(
-                    labelText: 'ወዴት (To)',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.move_to_inbox_rounded, color: Colors.green),
+                  decoration: InputDecoration(
+                    labelText: isAm ? 'ወዴት' : 'To',
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.move_to_inbox_rounded, color: Colors.green),
                   ),
                   items: _locations.map((loc) {
                     return DropdownMenuItem<Location>(
@@ -545,11 +555,13 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
           DropdownButtonFormField<Product>(
             value: _selectedProduct,
             decoration: InputDecoration(
-              labelText: 'ዕቃ ይምረጡ / Select Product',
+              labelText: isAm ? 'ዕቃ ይምረጡ' : 'Select Product',
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.inventory_2_outlined),
               helperText: _selectedProduct != null && _fromLocation != null
-                  ? 'Available at ${_fromLocation!.name}: ${QuantityFormatter.formatDisplay(_availableStockMilli)} ${_selectedProduct!.unit}'
+                  ? (isAm
+                      ? 'በ${_fromLocation!.name} የሚገኝ: ${QuantityFormatter.formatDisplay(_availableStockMilli)} ${_selectedProduct!.unit}'
+                      : 'Available at ${_fromLocation!.name}: ${QuantityFormatter.formatDisplay(_availableStockMilli)} ${_selectedProduct!.unit}')
                   : null,
               helperStyle: TextStyle(
                 fontWeight: FontWeight.bold,
@@ -575,7 +587,9 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
             controller: _qtyController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'ብዛት / Quantity to Transfer (${_selectedProduct?.unit ?? "pcs"})',
+              labelText: isAm
+                  ? 'የሚዘዋወረው ብዛት (${_selectedProduct?.unit ?? "ፍሬ"})'
+                  : 'Quantity to Transfer (${_selectedProduct?.unit ?? "pcs"})',
               hintText: 'e.g. 5 or 12.5',
               border: const OutlineInputBorder(),
               prefixIcon: const Icon(Icons.pin_outlined),
@@ -586,11 +600,11 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
           // Note
           TextField(
             controller: _noteController,
-            decoration: const InputDecoration(
-              labelText: 'ማስታወሻ / Note (Optional)',
-              hintText: 'e.g. Replenishment for morning shift',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.edit_note_rounded),
+            decoration: InputDecoration(
+              labelText: isAm ? 'ማስታወሻ (አማራጭ)' : 'Note (Optional)',
+              hintText: isAm ? 'ምሳሌ፡ ለጠዋት ፈረቃ ማሟያ' : 'e.g. Replenishment for morning shift',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.edit_note_rounded),
             ),
           ),
           const SizedBox(height: 24),
@@ -610,7 +624,9 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                   )
                 : const Icon(Icons.send_rounded),
             label: Text(
-              _requiresReceipt ? 'ላክ / Dispatch Transfer' : 'ዝውውሩን አረጋግጥ / Confirm Transfer',
+              isAm
+                  ? (_requiresReceipt ? 'ዝውውር ላክ' : 'ዝውውሩን አረጋግጥ')
+                  : (_requiresReceipt ? 'Dispatch Transfer' : 'Confirm Transfer'),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
@@ -620,6 +636,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
   }
 
   Widget _buildIncomingTab() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     return Column(
       children: [
         Padding(
@@ -639,7 +656,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                       Icon(Icons.inbox_outlined, size: 64, color: Theme.of(context).colorScheme.outlineVariant),
                       const SizedBox(height: 12),
                       Text(
-                        'ምንም በመንገድ ላይ ያለ ዝውውር የለም\nNo incoming transfers pending',
+                        isAm ? 'ምንም በመንገድ ላይ ያለ ዝውውር የለም' : 'No incoming transfers pending',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
                       ),
@@ -687,7 +704,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                                     border: Border.all(color: tokens.border, width: 0.8),
                                   ),
                                   child: Text(
-                                    'In Transit',
+                                    isAm ? 'በመንገድ ላይ' : 'In Transit',
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -715,7 +732,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                           if (t.note != null && t.note!.isNotEmpty) ...[
                             const SizedBox(height: 4),
                             Text(
-                              'Note: ${t.note}',
+                              '${isAm ? "ማስታወሻ" : "Note"}: ${t.note}',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -724,7 +741,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                           ],
                           const SizedBox(height: 4),
                           Text(
-                            'Sent: $timeStr',
+                            '${isAm ? "የተላከው" : "Sent"}: $timeStr',
                             style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                           const Divider(height: 20),
@@ -733,14 +750,14 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                             children: [
                               OutlinedButton.icon(
                                 icon: const Icon(Icons.edit, size: 16),
-                                label: const Text('Different Qty / የተለየ'),
+                                label: Text(isAm ? 'የተለየ ብዛት' : 'Different Qty'),
                                 onPressed: () => _receiveDifferent(t),
                               ),
                               const SizedBox(width: 8),
                               FilledButton.icon(
                                 style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0F766E)),
                                 icon: const Icon(Icons.check, size: 16),
-                                label: const Text('Receive Full / ሙሉ'),
+                                label: Text(isAm ? 'ሙሉ ተቀበል' : 'Receive Full'),
                                 onPressed: () => _receiveFull(t),
                               ),
                             ],
@@ -759,6 +776,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
   }
 
   Widget _buildDiscrepanciesTab() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     if (_discrepancies.isEmpty) {
       return Center(
         child: Column(
@@ -767,7 +785,7 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
             Icon(Icons.check_circle_outline, size: 64, color: Colors.green.shade400),
             const SizedBox(height: 12),
             Text(
-              'ምንም የዝውውር ልዩነት የለም\nNo transfer discrepancies',
+              isAm ? 'ምንም የዝውውር ልዩነት የለም' : 'No transfer discrepancies',
               textAlign: TextAlign.center,
               style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 14),
             ),
@@ -829,17 +847,21 @@ class _TransferScreenState extends State<TransferScreen> with SingleTickerProvid
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'From: ${d.fromLocationName} ➔ To: ${d.toLocationName}',
+                  isAm
+                      ? 'ከ: ${d.fromLocationName} ➔ ወደ: ${d.toLocationName}'
+                      : 'From: ${d.fromLocationName} ➔ To: ${d.toLocationName}',
                   style: const TextStyle(fontSize: 12.5),
                 ),
                 Text(
-                  'Sent: ${QuantityFormatter.formatDisplay(d.sentQtyMilli)} • Received: ${QuantityFormatter.formatDisplay(d.receivedQtyMilli)}',
+                  isAm
+                      ? 'የተላከ: ${QuantityFormatter.formatDisplay(d.sentQtyMilli)} • የተቀበሉት: ${QuantityFormatter.formatDisplay(d.receivedQtyMilli)}'
+                      : 'Sent: ${QuantityFormatter.formatDisplay(d.sentQtyMilli)} • Received: ${QuantityFormatter.formatDisplay(d.receivedQtyMilli)}',
                   style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface),
                 ),
                 if (d.reason != null && d.reason!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Reason: ${d.reason}',
+                    '${isAm ? "ምክንያት" : "Reason"}: ${d.reason}',
                     style: TextStyle(
                       fontSize: 12,
                       fontStyle: FontStyle.italic,

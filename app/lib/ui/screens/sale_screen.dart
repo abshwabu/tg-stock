@@ -154,6 +154,7 @@ class _SaleScreenState extends State<SaleScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final isAm = Localizations.localeOf(ctx).languageCode == 'am';
           final warningTokens = AppColors.warningTokens(isDark);
           final stockWarning = !isService && !isConsumable && (currentStock < qtyMilli);
 
@@ -163,8 +164,10 @@ class _SaleScreenState extends State<SaleScreen> {
               final needed = ((rm.requiredPerUnitMilli * qtyMilli) + 500) ~/ 1000;
               if (rm.stockMilli < needed) {
                 materialShortages.add(
-                  '${rm.materialProduct.name}: needs ${QuantityFormatter.formatDisplay(needed)} ${rm.materialProduct.unit}, '
-                  'only ${QuantityFormatter.formatDisplay(rm.stockMilli)} available',
+                  isAm
+                      ? '${rm.materialProduct.name}፡ የሚያስፈልገው ${QuantityFormatter.formatDisplay(needed)} ${rm.materialProduct.unit}፣ ያለው ${QuantityFormatter.formatDisplay(rm.stockMilli)}'
+                      : '${rm.materialProduct.name}: needs ${QuantityFormatter.formatDisplay(needed)} ${rm.materialProduct.unit}, '
+                          'only ${QuantityFormatter.formatDisplay(rm.stockMilli)} available',
                 );
               }
             }
@@ -199,7 +202,7 @@ class _SaleScreenState extends State<SaleScreen> {
                           border: Border.all(color: isDark ? const Color(0xFF1D4ED8) : Colors.blue.shade200),
                         ),
                         child: Text(
-                          '🛠 Service',
+                          isAm ? '🛠 አገልግሎት' : '🛠 Service',
                           style: TextStyle(
                             color: isDark ? const Color(0xFF93C5FD) : Colors.blue.shade900,
                             fontWeight: FontWeight.bold,
@@ -216,7 +219,7 @@ class _SaleScreenState extends State<SaleScreen> {
                           border: Border.all(color: isDark ? const Color(0xFF7E22CE) : Colors.purple.shade200),
                         ),
                         child: Text(
-                          '🧪 Consumable',
+                          isAm ? '🧪 የተዘጋጀ' : '🧪 Consumable',
                           style: TextStyle(
                             color: isDark ? const Color(0xFFC084FC) : Colors.purple.shade900,
                             fontWeight: FontWeight.bold,
@@ -229,7 +232,7 @@ class _SaleScreenState extends State<SaleScreen> {
                 const SizedBox(height: 4),
                 if (isService)
                   Text(
-                    'Service • No stock tracking',
+                    isAm ? 'አገልግሎት • ስቶክ አይቆጠርም' : 'Service • No stock tracking',
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? const Color(0xFF60A5FA) : Colors.blue.shade700,
@@ -238,7 +241,9 @@ class _SaleScreenState extends State<SaleScreen> {
                   )
                 else if (isConsumable)
                   Text(
-                    'Consumable • ${recipeMaterials.isEmpty ? 'No raw materials' : '${recipeMaterials.length} raw material(s)'}',
+                    isAm
+                        ? 'የተዘጋጀ • ${recipeMaterials.isEmpty ? 'ምንም ጥሬ ዕቃ የለም' : '${recipeMaterials.length} ጥሬ ዕቃ(ዎች)'}'
+                        : 'Consumable • ${recipeMaterials.isEmpty ? 'No raw materials' : '${recipeMaterials.length} raw material(s)'}',
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? const Color(0xFFC084FC) : Colors.purple.shade700,
@@ -247,7 +252,9 @@ class _SaleScreenState extends State<SaleScreen> {
                   )
                 else
                   Text(
-                    'Available Stock: ${QuantityFormatter.formatDisplay(currentStock)} ${product.unit}',
+                    isAm
+                        ? 'ያለ ስቶክ: ${QuantityFormatter.formatDisplay(currentStock)} ${product.unit}'
+                        : 'Available Stock: ${QuantityFormatter.formatDisplay(currentStock)} ${product.unit}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -266,7 +273,7 @@ class _SaleScreenState extends State<SaleScreen> {
                       border: Border.all(color: warningTokens.border),
                     ),
                     child: Text(
-                      '⚠️ Warning: Requesting more than available stock',
+                      isAm ? '⚠️ ማስጠንቀቂያ፡ ከተገኘው ስቶክ በላይ እየተጠየቀ ነው' : '⚠️ Warning: Requesting more than available stock',
                       style: TextStyle(fontSize: 12, color: warningTokens.fg, fontWeight: FontWeight.w600),
                     ),
                   ),
@@ -284,7 +291,7 @@ class _SaleScreenState extends State<SaleScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '⚠️ Material Shortage Warning:',
+                          isAm ? '⚠️ የጥሬ ዕቃ እጥረት ማስጠንቀቂያ:' : '⚠️ Material Shortage Warning:',
                           style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: warningTokens.fg),
                         ),
                         const SizedBox(height: 2),
@@ -297,7 +304,7 @@ class _SaleScreenState extends State<SaleScreen> {
                   ),
                 ],
                 const SizedBox(height: 16),
-                const Text('Quick Quantity / ፈጣን መጠን:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(isAm ? 'ፈጣን መጠን:' : 'Quick Quantity:', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                 const SizedBox(height: 8),
                 Row(
                   children: [1, 2, 5, 10].map((n) {
@@ -343,7 +350,7 @@ class _SaleScreenState extends State<SaleScreen> {
                         controller: customQtyCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
-                          labelText: 'Custom Qty (${product.unit})',
+                          labelText: isAm ? 'የተለየ መጠን (${product.unit})' : 'Custom Qty (${product.unit})',
                           border: const OutlineInputBorder(),
                         ),
                         onChanged: (val) {
@@ -361,7 +368,9 @@ class _SaleScreenState extends State<SaleScreen> {
                         autofocus: product.askPrice,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
-                          labelText: product.askPrice ? 'Unit Price * (Ask)' : 'Unit Price (ETB)',
+                          labelText: product.askPrice
+                              ? (isAm ? 'የአንዱ ዋጋ * (ጠይቅ)' : 'Unit Price * (Ask)')
+                              : (isAm ? 'የአንዱ ዋጋ (ብር)' : 'Unit Price (ETB)'),
                           border: const OutlineInputBorder(),
                         ),
                         onChanged: (val) {
@@ -384,7 +393,11 @@ class _SaleScreenState extends State<SaleScreen> {
                     Navigator.of(ctx).pop(true);
                   },
                   icon: const Icon(Icons.add_shopping_cart),
-                  label: Text('Add to Cart (${MoneyFormatter.formatCents((qtyMilli * priceCents) ~/ 1000)})'),
+                  label: Text(
+                    isAm
+                        ? 'ወደ ቅርጫት ጨምር (${MoneyFormatter.formatCents((qtyMilli * priceCents) ~/ 1000)})'
+                        : 'Add to Cart (${MoneyFormatter.formatCents((qtyMilli * priceCents) ~/ 1000)})',
+                  ),
                 ),
               ],
             ),
@@ -456,15 +469,18 @@ class _SaleScreenState extends State<SaleScreen> {
               if (matStock < neededMilli) {
                 HapticFeedback.vibrate();
                 if (mounted) {
+                  final isAm = Localizations.localeOf(context).languageCode == 'am';
                   showDialog(
                     context: context,
                     builder: (ctx) => AlertDialog(
-                      title: const Text('⚠️ Material Shortage / የጥሬ ዕቃ እጥረት'),
+                      title: Text(isAm ? '⚠️ የጥሬ ዕቃ እጥረት' : '⚠️ Material Shortage'),
                       content: Text(
-                        'Cannot complete sale because raw material "${matProd?.name ?? mat.materialProductId}" '
-                        'for "${item.product.name}" is short (needs ${QuantityFormatter.formatDisplay(neededMilli)}, '
-                        'only ${QuantityFormatter.formatDisplay(matStock)} available).\n\n'
-                        'To allow selling when materials are short, disable "Block sale when raw materials are short" in Settings.',
+                        isAm
+                            ? 'ጥሬ ዕቃ "${matProd?.name ?? mat.materialProductId}" ለ"${item.product.name}" ስላነሰ (የሚያስፈልገው ${QuantityFormatter.formatDisplay(neededMilli)}፣ ያለው ${QuantityFormatter.formatDisplay(matStock)}) ሽያጩን ማጠናቀቅ አይቻልም።\n\nጥሬ ዕቃ ቢያጥርም ለመሸጥ በቅንብሮች ውስጥ "ጥሬ ዕቃ ሲያጥር ሽያጭ ከልክል" የሚለውን ያጥፉ።'
+                            : 'Cannot complete sale because raw material "${matProd?.name ?? mat.materialProductId}" '
+                                'for "${item.product.name}" is short (needs ${QuantityFormatter.formatDisplay(neededMilli)}, '
+                                'only ${QuantityFormatter.formatDisplay(matStock)} available).\n\n'
+                                'To allow selling when materials are short, disable "Block sale when raw materials are short" in Settings.',
                       ),
                       actions: [
                         FilledButton(
@@ -558,9 +574,10 @@ class _SaleScreenState extends State<SaleScreen> {
   }
 
   Future<void> _showCartSheet() async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     if (_cart.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty / ቅርጫቱ ባዶ ነው')),
+        SnackBar(content: Text(isAm ? 'ቅርጫቱ ባዶ ነው' : 'Cart is empty')),
       );
       return;
     }
@@ -573,6 +590,7 @@ class _SaleScreenState extends State<SaleScreen> {
       ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
+          final sheetIsAm = Localizations.localeOf(ctx).languageCode == 'am';
           return DraggableScrollableSheet(
             initialChildSize: 0.6,
             minChildSize: 0.35,
@@ -598,7 +616,7 @@ class _SaleScreenState extends State<SaleScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Shopping Cart / የሽያጭ ቅርጫት (${_cart.length})',
+                            sheetIsAm ? 'የሽያጭ ቅርጫት (${_cart.length})' : 'Shopping Cart (${_cart.length})',
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -607,11 +625,11 @@ class _SaleScreenState extends State<SaleScreen> {
                             setState(() => _cart.clear());
                             Navigator.of(ctx).pop();
                           },
-                          child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+                          child: Text(sheetIsAm ? 'ሁሉንም አጽዳ' : 'Clear All', style: const TextStyle(color: Colors.red)),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
-                          tooltip: 'Close Cart',
+                          tooltip: sheetIsAm ? 'ቅርጫት ዝጋ' : 'Close Cart',
                           onPressed: () => Navigator.of(ctx).pop(),
                         ),
                       ],
@@ -621,7 +639,7 @@ class _SaleScreenState extends State<SaleScreen> {
                       child: _cart.isEmpty
                           ? Center(
                               child: Text(
-                                'Cart is empty / ቅርጫቱ ባዶ ነው',
+                                sheetIsAm ? 'ቅርጫቱ ባዶ ነው' : 'Cart is empty',
                                 style: TextStyle(color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                               ),
                             )
@@ -669,7 +687,7 @@ class _SaleScreenState extends State<SaleScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Total / ጠቅላላ ድምር:',
+                              sheetIsAm ? 'ጠቅላላ ድምር:' : 'Total:',
                               style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                             ),
                             Text(
@@ -691,7 +709,7 @@ class _SaleScreenState extends State<SaleScreen> {
                                   _finishSale();
                                 },
                           icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Finish Sale / ሽጥ', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: Text(sheetIsAm ? 'ሽጥ' : 'Finish Sale', style: const TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -708,13 +726,20 @@ class _SaleScreenState extends State<SaleScreen> {
   Widget _buildProductTile(ProductWithStock item) {
     final p = item.product;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final inCartMilli = _qtyInCart(p.id);
 
-    String subtitle = '${MoneyFormatter.formatCents(p.sellPriceCents)} • Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${p.unit}';
+    String subtitle = isAm
+        ? '${MoneyFormatter.formatCents(p.sellPriceCents)} • ስቶክ: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${p.unit}'
+        : '${MoneyFormatter.formatCents(p.sellPriceCents)} • Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${p.unit}';
     if (item.isService) {
-      subtitle = '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🛠 Service${p.askPrice ? ' (Ask Price)' : ''}';
+      subtitle = isAm
+          ? '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🛠 አገልግሎት${p.askPrice ? ' (ዋጋ ጠይቅ)' : ''}'
+          : '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🛠 Service${p.askPrice ? ' (Ask Price)' : ''}';
     } else if (item.isConsumable) {
-      subtitle = '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🧪 Consumable';
+      subtitle = isAm
+          ? '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🧪 የተዘጋጀ'
+          : '${MoneyFormatter.formatCents(p.sellPriceCents)} • 🧪 Consumable';
     }
 
     final popularity = _popularityMap[p.id]?.saleCount ?? 0;
@@ -743,7 +768,7 @@ class _SaleScreenState extends State<SaleScreen> {
                   const Icon(Icons.local_fire_department, size: 12, color: Colors.amber),
                   const SizedBox(width: 2),
                   Text(
-                    '$popularity sold',
+                    isAm ? '$popularity የተሸጠ' : '$popularity sold',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -786,7 +811,7 @@ class _SaleScreenState extends State<SaleScreen> {
             ),
           IconButton(
             icon: const Icon(Icons.add_circle_outline, color: Colors.deepOrange),
-            tooltip: 'Add to Cart / ወደ ቅርጫት ጨምር',
+            tooltip: isAm ? 'ወደ ቅርጫት ጨምር' : 'Add to Cart',
             onPressed: () => _promptQuantityAndPrice(p),
           ),
         ],
@@ -797,11 +822,12 @@ class _SaleScreenState extends State<SaleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final products = _filteredAndSortedProducts;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sale / ሽያጭ'),
+        title: Text(isAm ? 'ሽያጭ' : 'Sale'),
         actions: [
           LocationSelectorChip(
             repository: widget.repository,
@@ -816,13 +842,13 @@ class _SaleScreenState extends State<SaleScreen> {
               isLabelVisible: _cart.isNotEmpty,
               child: const Icon(Icons.shopping_cart),
             ),
-            tooltip: 'View Cart / ቅርጫት',
+            tooltip: isAm ? 'ቅርጫት' : 'View Cart',
             onPressed: _cart.isEmpty ? null : _showCartSheet,
           ),
           if (_cart.isNotEmpty)
             TextButton(
               onPressed: () => setState(() => _cart.clear()),
-              child: const Text('Clear', style: TextStyle(color: Colors.red)),
+              child: Text(isAm ? 'አጽዳ' : 'Clear', style: const TextStyle(color: Colors.red)),
             ),
         ],
       ),
@@ -834,7 +860,7 @@ class _SaleScreenState extends State<SaleScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search products... / ዕቃ ፈልግ...',
+                hintText: isAm ? 'ዕቃ ፈልግ...' : 'Search products...',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -860,7 +886,7 @@ class _SaleScreenState extends State<SaleScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Products / ዕቃዎች (${products.length})',
+                  isAm ? 'ዕቃዎች (${products.length})' : 'Products (${products.length})',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -886,15 +912,15 @@ class _SaleScreenState extends State<SaleScreen> {
                         fontWeight: FontWeight.w600,
                         color: Theme.of(context).colorScheme.onSurface,
                       ),
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                           value: ProductSortMode.alphabet,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.sort_by_alpha, size: 15),
-                              SizedBox(width: 6),
-                              Text('Alphabet / በፊደል'),
+                              const Icon(Icons.sort_by_alpha, size: 15),
+                              const SizedBox(width: 6),
+                              Text(isAm ? 'በፊደል' : 'Alphabet'),
                             ],
                           ),
                         ),
@@ -903,9 +929,9 @@ class _SaleScreenState extends State<SaleScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.local_fire_department, size: 15, color: Colors.amber),
-                              SizedBox(width: 6),
-                              Text('Popularity / በተወዳጅነት'),
+                              const Icon(Icons.local_fire_department, size: 15, color: Colors.amber),
+                              const SizedBox(width: 6),
+                              Text(isAm ? 'በተወዳጅነት' : 'Popularity'),
                             ],
                           ),
                         ),
@@ -936,8 +962,8 @@ class _SaleScreenState extends State<SaleScreen> {
                             const SizedBox(height: 12),
                             Text(
                               _searchQuery.isEmpty
-                                  ? 'No products available / ምንም ዕቃ የለም'
-                                  : 'No products matching "$_searchQuery"',
+                                  ? (isAm ? 'ምንም ዕቃ የለም' : 'No products available')
+                                  : (isAm ? 'ከ"$_searchQuery" ጋር የሚዛመድ ዕቃ የለም' : 'No products matching "$_searchQuery"'),
                               style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onSurfaceVariant),
                             ),
                           ],
@@ -973,7 +999,7 @@ class _SaleScreenState extends State<SaleScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total / ጠቅላላ ድምር:',
+                          isAm ? 'ጠቅላላ ድምር:' : 'Total:',
                           style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                         ),
                         Text(
@@ -991,7 +1017,9 @@ class _SaleScreenState extends State<SaleScreen> {
                                   const Icon(Icons.shopping_cart_outlined, size: 14, color: Colors.deepOrange),
                                   const SizedBox(width: 4),
                                   Text(
-                                    '${_cart.length} ${_cart.length == 1 ? 'item' : 'items'} • View Cart / ቅርጫት እይ',
+                                    isAm
+                                        ? '${_cart.length} ${_cart.length == 1 ? 'ዕቃ' : 'ዕቃዎች'} • ቅርጫት እይ'
+                                        : '${_cart.length} ${_cart.length == 1 ? 'item' : 'items'} • View Cart',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -1019,7 +1047,7 @@ class _SaleScreenState extends State<SaleScreen> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
                         : const Icon(Icons.check_circle_outline),
-                    label: const Text('Finish Sale / ሽጥ', style: TextStyle(fontWeight: FontWeight.bold)),
+                    label: Text(isAm ? 'ሽጥ' : 'Finish Sale', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

@@ -30,7 +30,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify first run setup is presented
-    expect(find.textContaining('Welcome to Inventory'), findsOneWidget);
+    expect(find.textContaining('እንኳን ወደ ኢንቬንቶሪ በደህና መጡ'), findsOneWidget);
 
     await db.close();
   });

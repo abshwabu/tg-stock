@@ -49,23 +49,25 @@ class _ProductsScreenState extends State<ProductsScreen> {
   }
 
   Future<void> _loadDemoProducts() async {
+    final isAm = mounted ? Localizations.localeOf(context).languageCode == 'am' : false;
     await _demoService.loadDemoProducts();
     await _checkDemoStatus();
     widget.onMutation?.call();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demo products loaded! / የሙከራ ዕቃዎች ተጭነዋል')),
+        SnackBar(content: Text(isAm ? 'የሙከራ ዕቃዎች ተጭነዋል' : 'Demo products loaded!')),
       );
     }
   }
 
   Future<void> _removeDemoProducts() async {
+    final isAm = mounted ? Localizations.localeOf(context).languageCode == 'am' : false;
     await _demoService.removeDemoProducts();
     await _checkDemoStatus();
     widget.onMutation?.call();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demo products removed. / የሙከራ ዕቃዎች ተሰርዘዋል')),
+        SnackBar(content: Text(isAm ? 'የሙከራ ዕቃዎች ተሰርዘዋል' : 'Demo products removed.')),
       );
     }
   }
@@ -90,6 +92,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     BuildContext parentCtx,
     String? excludeProductId,
   ) async {
+    final isAm = Localizations.localeOf(parentCtx).languageCode == 'am';
     final stockables = await widget.repository.listProducts(kindFilter: 'stockable');
     final available = stockables
         .map((pws) => pws.product)
@@ -100,7 +103,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     if (available.isEmpty) {
       ScaffoldMessenger.of(parentCtx).showSnackBar(
-        const SnackBar(content: Text('No stockable products available to use as raw materials.')),
+        SnackBar(content: Text(isAm ? 'እንደ ጥሬ ዕቃ የሚሆን ምንም ስቶክ ያለው ዕቃ የለም።' : 'No stockable products available to use as raw materials.')),
       );
       return null;
     }
@@ -111,55 +114,63 @@ class _ProductsScreenState extends State<ProductsScreen> {
     return showDialog<({Product materialProduct, int qtyMilli})>(
       context: parentCtx,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: const Text('Add Raw Material / ጥሬ ዕቃ ጨምር'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Select Material / ጥሬ ዕቃ ይምረጡ:', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-              const SizedBox(height: 6),
-              DropdownButtonFormField<Product>(
-                initialValue: selectedProduct,
-                isExpanded: true,
-                items: available.map((p) {
-                  return DropdownMenuItem(
-                    value: p,
-                    child: Text('${p.name} (${p.unit}) - Cost: ${MoneyFormatter.formatCents(p.costPriceCents)}'),
-                  );
-                }).toList(),
-                onChanged: (p) {
-                  if (p != null) {
-                    setDialogState(() => selectedProduct = p);
-                  }
-                },
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: qtyCtrl,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Qty per 1 unit sold (${selectedProduct.unit}) *',
-                  hintText: 'e.g. 0.02',
+        builder: (ctx, setDialogState) {
+          final dlgIsAm = Localizations.localeOf(ctx).languageCode == 'am';
+          return AlertDialog(
+            title: Text(dlgIsAm ? 'ጥሬ ዕቃ ጨምር' : 'Add Raw Material'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dlgIsAm ? 'ጥሬ ዕቃ ይምረጡ:' : 'Select Material:',
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<Product>(
+                  initialValue: selectedProduct,
+                  isExpanded: true,
+                  items: available.map((p) {
+                    return DropdownMenuItem(
+                      value: p,
+                      child: Text('${p.name} (${p.unit}) - ${dlgIsAm ? "መግዣ" : "Cost"}: ${MoneyFormatter.formatCents(p.costPriceCents)}'),
+                    );
+                  }).toList(),
+                  onChanged: (p) {
+                    if (p != null) {
+                      setDialogState(() => selectedProduct = p);
+                    }
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: qtyCtrl,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: dlgIsAm
+                        ? 'ለአንድ ሽያጭ የሚያስፈልግ መጠን (${selectedProduct.unit}) *'
+                        : 'Qty per 1 unit sold (${selectedProduct.unit}) *',
+                    hintText: 'e.g. 0.02',
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(null),
+                child: Text(dlgIsAm ? 'ሰርዝ' : 'Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final qtyMilli = QuantityFormatter.parseQty(qtyCtrl.text);
+                  if (qtyMilli <= 0) return;
+                  Navigator.of(ctx).pop((materialProduct: selectedProduct, qtyMilli: qtyMilli));
+                },
+                child: Text(dlgIsAm ? 'ጨምር' : 'Add'),
               ),
             ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(null),
-              child: const Text('Cancel / ሰርዝ'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final qtyMilli = QuantityFormatter.parseQty(qtyCtrl.text);
-                if (qtyMilli <= 0) return;
-                Navigator.of(ctx).pop((materialProduct: selectedProduct, qtyMilli: qtyMilli));
-              },
-              child: const Text('Add / ጨምር'),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -201,12 +212,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     if (!mounted) return;
 
-    final title = isEdit ? 'Edit Item / ዕቃ አሻሽል' : 'Add Item / አዲስ ዕቃ መዝግብ';
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
+    final title = isEdit ? (isAm ? 'ዕቃ አሻሽል' : 'Edit Item') : (isAm ? 'አዲስ ዕቃ መዝግብ' : 'Add Item');
 
     final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          final dlgIsAm = Localizations.localeOf(ctx).languageCode == 'am';
           final isProduct = selectedKind == 'stockable';
           final isService = selectedKind == 'service';
           final isConsumable = selectedKind == 'consumable';
@@ -232,7 +245,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'What are you adding? / ምን ዓይነት ዕቃ ነው የሚመዘግቡት?',
+                      dlgIsAm ? 'ምን ዓይነት ዕቃ ነው የሚመዘግቡት?' : 'What are you adding?',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -241,10 +254,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                     const SizedBox(height: 8),
                     SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'stockable', label: Text('📦 Product')),
-                        ButtonSegment(value: 'service', label: Text('🛠 Service')),
-                        ButtonSegment(value: 'consumable', label: Text('🧪 Consumable')),
+                      segments: [
+                        ButtonSegment(value: 'stockable', label: Text(dlgIsAm ? '📦 ዕቃ' : '📦 Product')),
+                        ButtonSegment(value: 'service', label: Text(dlgIsAm ? '🛠 አገልግሎት' : '🛠 Service')),
+                        ButtonSegment(value: 'consumable', label: Text(dlgIsAm ? '🧪 የተዘጋጀ' : '🧪 Consumable')),
                       ],
                       selected: {selectedKind},
                       onSelectionChanged: (newSelection) async {
@@ -279,13 +292,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     TextField(
                       controller: nameCtrl,
                       autofocus: !isEdit,
-                      decoration: const InputDecoration(labelText: 'Name / ስም *'),
+                      decoration: InputDecoration(labelText: dlgIsAm ? 'ስም *' : 'Name *'),
                     ),
                     if (isProduct) ...[
                       const SizedBox(height: 10),
                       TextField(
                         controller: skuCtrl,
-                        decoration: const InputDecoration(labelText: 'SKU / Barcode / ባርኮድ (Optional)'),
+                        decoration: InputDecoration(
+                          labelText: dlgIsAm ? 'ባርኮድ (አስፈላጊ አይደለም)' : 'SKU / Barcode (Optional)',
+                        ),
                       ),
                     ],
                     const SizedBox(height: 10),
@@ -295,7 +310,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           child: TextField(
                             controller: sellPriceCtrl,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(labelText: 'Sell Price ETB *'),
+                            decoration: InputDecoration(
+                              labelText: dlgIsAm ? 'መሸጫ ዋጋ (ብር) *' : 'Sell Price ETB *',
+                            ),
                             onChanged: (_) => setDialogState(() {}),
                           ),
                         ),
@@ -303,7 +320,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         Expanded(
                           child: TextField(
                             controller: unitCtrl,
-                            decoration: const InputDecoration(labelText: 'Unit / መለኪያ *'),
+                            decoration: InputDecoration(
+                              labelText: dlgIsAm ? 'መለኪያ *' : 'Unit *',
+                            ),
                           ),
                         ),
                       ],
@@ -315,8 +334,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
                           labelText: isService
-                              ? 'Cost Price ETB / የወጪ ዋጋ (Optional)'
-                              : 'Cost Price ETB / መግዣ ዋጋ',
+                              ? (dlgIsAm ? 'የወጪ ዋጋ (አስፈላጊ አይደለም)' : 'Cost Price ETB (Optional)')
+                              : (dlgIsAm ? 'መግዣ ዋጋ (ብር)' : 'Cost Price ETB'),
                         ),
                       ),
                     ],
@@ -324,8 +343,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       const SizedBox(height: 10),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const Text('Ask price at every sale', style: TextStyle(fontSize: 13.5)),
-                        subtitle: const Text('Prompt for price when adding to cart', style: TextStyle(fontSize: 11)),
+                        title: Text(
+                          dlgIsAm ? 'በሽያጭ ወቅት ዋጋ ጠይቅ' : 'Ask price at every sale',
+                          style: const TextStyle(fontSize: 13.5),
+                        ),
+                        subtitle: Text(
+                          dlgIsAm ? 'ወደ ቅርጫት ሲጨመር ዋጋ ይጠይቃል' : 'Prompt for price when adding to cart',
+                          style: const TextStyle(fontSize: 11),
+                        ),
                         value: askPrice,
                         onChanged: (val) => setDialogState(() => askPrice = val),
                       ),
@@ -335,14 +360,18 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       TextField(
                         controller: lowStockCtrl,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(labelText: 'Low Stock Alert Limit / አነስተኛ ስቶክ ገደብ'),
+                        decoration: InputDecoration(
+                          labelText: dlgIsAm ? 'ዝቅተኛ የስቶክ ገደብ' : 'Low Stock Alert Limit',
+                        ),
                       ),
                       if (!isEdit) ...[
                         const SizedBox(height: 10),
                         TextField(
                           controller: openingStockCtrl,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(labelText: 'Opening Stock / የመጀመሪያ ስቶክ'),
+                          decoration: InputDecoration(
+                            labelText: dlgIsAm ? 'የመጀመሪያ ስቶክ' : 'Opening Stock',
+                          ),
                         ),
                       ],
                     ],
@@ -351,13 +380,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Materials used / ጥሬ ዕቃዎች:',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          Text(
+                            dlgIsAm ? 'ጥሬ ዕቃዎች:' : 'Materials used:',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           TextButton.icon(
                             icon: const Icon(Icons.add, size: 16),
-                            label: const Text('Add Material'),
+                            label: Text(dlgIsAm ? 'ጥሬ ዕቃ ጨምር' : 'Add Material'),
                             onPressed: () async {
                               final picked = await _showAddMaterialDialog(ctx, existing?.id);
                               if (picked != null) {
@@ -379,7 +408,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            'No raw materials selected. (Optional recipe)',
+                            dlgIsAm ? 'ምንም ጥሬ ዕቃ አልተመረጠም።' : 'No raw materials selected. (Optional recipe)',
                             style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                           ),
                         )
@@ -441,7 +470,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Est. Material Cost:', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                  Text(
+                                    dlgIsAm ? 'ግምታዊ የጥሬ ዕቃ ዋጋ:' : 'Est. Material Cost:',
+                                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  ),
                                   Text(
                                     MoneyFormatter.formatCents(estimatedMatCostCents),
                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
@@ -451,7 +483,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Text('Margin / Unit:', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                  Text(
+                                    dlgIsAm ? 'የአንዱ ትርፍ:' : 'Margin / Unit:',
+                                    style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                  ),
                                   Text(
                                     '${MoneyFormatter.formatCents(marginCents)} ($marginPct%)',
                                     style: TextStyle(
@@ -474,13 +509,13 @@ class _ProductsScreenState extends State<ProductsScreen> {
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel / ሰርዝ')),
+              TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(dlgIsAm ? 'ሰርዝ' : 'Cancel')),
               FilledButton(
                 onPressed: () {
                   if (nameCtrl.text.trim().isEmpty) return;
                   Navigator.of(ctx).pop(true);
                 },
-                child: Text(isEdit ? 'Update' : 'Save'),
+                child: Text(isEdit ? (dlgIsAm ? 'አሻሽል' : 'Update') : (dlgIsAm ? 'መዝግብ' : 'Save')),
               ),
             ],
           );
@@ -542,19 +577,24 @@ class _ProductsScreenState extends State<ProductsScreen> {
       if (mounted) {
         showDialog(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Cannot Delete / መሰረዝ አይቻልም'),
-            content: Text(
-              'Cannot delete "${product.name}" because it is used as a raw material in one or more recipes.\n\n'
-              'Remove it from recipes before deleting.',
-            ),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
+          builder: (ctx) {
+            final dlgIsAm = Localizations.localeOf(ctx).languageCode == 'am';
+            return AlertDialog(
+              title: Text(dlgIsAm ? 'መሰረዝ አይቻልም' : 'Cannot Delete'),
+              content: Text(
+                dlgIsAm
+                    ? 'ይህን ዕቃ መሰረዝ አይቻልም፡ በሌሎች አዘገጃጀቶች ውስጥ እንደ ጥሬ ዕቃ ተመዝግቧል።\n\nከመሰረዝዎ በፊት ከአዘገጃጀቶቹ ላይ ያስወግዱት።'
+                    : 'Cannot delete "${product.name}" because it is used as a raw material in one or more recipes.\n\n'
+                        'Remove it from recipes before deleting.',
               ),
-            ],
-          ),
+              actions: [
+                FilledButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
         );
       }
       return;
@@ -564,18 +604,28 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Product / ዕቃ ሰርዝ'),
-        content: Text('Are you sure you want to remove "${product.name}" from your catalog?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Delete'),
+      builder: (ctx) {
+        final dlgIsAm = Localizations.localeOf(ctx).languageCode == 'am';
+        return AlertDialog(
+          title: Text(dlgIsAm ? 'ዕቃ ሰርዝ' : 'Delete Product'),
+          content: Text(
+            dlgIsAm
+                ? '"${product.name}"ን ከዕቃዎች ዝርዝር መሰረዝ እንደሚፈልጉ እርግጠኛ ነዎት?'
+                : 'Are you sure you want to remove "${product.name}" from your catalog?',
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(dlgIsAm ? 'ተመለስ' : 'Cancel'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(dlgIsAm ? 'ሰርዝ' : 'Delete'),
+            ),
+          ],
+        );
+      },
     );
 
     if (confirm == true) {
@@ -595,158 +645,168 @@ class _ProductsScreenState extends State<ProductsScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    p.name,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Text(
-                  '${MoneyFormatter.formatCents(p.sellPriceCents)} / ${p.unit}',
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            if (isStockable)
-              Text(
-                'Stock: $stockFormatted ${p.unit} • Cost: ${MoneyFormatter.formatCents(p.costPriceCents)}',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
-              )
-            else if (item.isService)
-              Text(
-                '🛠 Service • No stock tracking',
-                style: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFF60A5FA)
-                      : Colors.blue.shade700,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              )
-            else
-              Text(
-                '🧪 Consumable • Stock tracked via raw materials',
-                style: TextStyle(
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? const Color(0xFFC084FC)
-                      : Colors.purple.shade700,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            if (isStockable && item.stockByLocation.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
+      builder: (ctx) {
+        final sheetIsAm = Localizations.localeOf(ctx).languageCode == 'am';
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  ...item.stockByLocation.entries.map((e) {
-                    return Chip(
-                      label: Text('${e.key}: ${QuantityFormatter.formatDisplay(e.value)} ${p.unit}'),
-                      visualDensity: VisualDensity.compact,
-                    );
-                  }),
-                  if (item.inTransitMilli > 0)
-                    Chip(
-                      avatar: const Icon(Icons.local_shipping, size: 16, color: Colors.amber),
-                      label: Text('In transit: ${QuantityFormatter.formatDisplay(item.inTransitMilli)} ${p.unit}'),
-                      visualDensity: VisualDensity.compact,
+                  Expanded(
+                    child: Text(
+                      p.name,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
+                  ),
+                  Text(
+                    '${MoneyFormatter.formatCents(p.sellPriceCents)} / ${p.unit}',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
                 ],
               ),
+              const SizedBox(height: 6),
+              if (isStockable)
+                Text(
+                  sheetIsAm
+                      ? 'ስቶክ: $stockFormatted ${p.unit} • መግዣ: ${MoneyFormatter.formatCents(p.costPriceCents)}'
+                      : 'Stock: $stockFormatted ${p.unit} • Cost: ${MoneyFormatter.formatCents(p.costPriceCents)}',
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
+                )
+              else if (item.isService)
+                Text(
+                  sheetIsAm ? '🛠 አገልግሎት • ስቶክ አይቆጠርም' : '🛠 Service • No stock tracking',
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFF60A5FA)
+                        : Colors.blue.shade700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+              else
+                Text(
+                  sheetIsAm ? '🧪 የተዘጋጀ • ስቶክ የሚቆጠረው በጥሬ ዕቃ ነው' : '🧪 Consumable • Stock tracked via raw materials',
+                  style: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? const Color(0xFFC084FC)
+                        : Colors.purple.shade700,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              if (isStockable && item.stockByLocation.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    ...item.stockByLocation.entries.map((e) {
+                      return Chip(
+                        label: Text('${e.key}: ${QuantityFormatter.formatDisplay(e.value)} ${p.unit}'),
+                        visualDensity: VisualDensity.compact,
+                      );
+                    }),
+                    if (item.inTransitMilli > 0)
+                      Chip(
+                        avatar: const Icon(Icons.local_shipping, size: 16, color: Colors.amber),
+                        label: Text(
+                          sheetIsAm
+                              ? 'በዝውውር ላይ: ${QuantityFormatter.formatDisplay(item.inTransitMilli)} ${p.unit}'
+                              : 'In transit: ${QuantityFormatter.formatDisplay(item.inTransitMilli)} ${p.unit}',
+                        ),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
+              ],
+              const Divider(height: 20),
+              if (isStockable) ...[
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.add_shopping_cart, color: Colors.green),
+                  title: Text(sheetIsAm ? 'ገቢ መዝግብ' : 'Stock In'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (c) => StockInScreen(
+                          repository: widget.repository,
+                          onMutation: widget.onMutation,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.tune, color: Colors.orange),
+                  title: Text(sheetIsAm ? 'ስቶክ ማስተካከል' : 'Adjust Stock'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (c) => AdjustScreen(
+                          repository: widget.repository,
+                          onMutation: widget.onMutation,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.swap_horiz, color: Colors.teal),
+                  title: Text(sheetIsAm ? 'ዕቃ ማስተላለፍ' : 'Transfer'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (c) => TransferScreen(
+                          repository: widget.repository,
+                          onMutation: widget.onMutation,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const Divider(height: 12),
+              ],
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.edit_outlined, color: Colors.blue),
+                title: Text(sheetIsAm ? 'መረጃ አሻሽል' : 'Edit Details'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _showAddOrEditProductDialog(existing: p);
+                },
+              ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: Text(sheetIsAm ? 'ዕቃ ሰርዝ' : 'Delete Product'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _confirmDeleteProduct(p);
+                },
+              ),
             ],
-            const Divider(height: 20),
-            if (isStockable) ...[
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.add_shopping_cart, color: Colors.green),
-                title: const Text('Stock In / ገቢ መዝግብ'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (c) => StockInScreen(
-                        repository: widget.repository,
-                        onMutation: widget.onMutation,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.tune, color: Colors.orange),
-                title: const Text('Adjust Stock / ስቶክ ማስተካከል'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (c) => AdjustScreen(
-                        repository: widget.repository,
-                        onMutation: widget.onMutation,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              ListTile(
-                dense: true,
-                leading: const Icon(Icons.swap_horiz, color: Colors.teal),
-                title: const Text('Transfer / ዕቃ ማስተላለፍ'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (c) => TransferScreen(
-                        repository: widget.repository,
-                        onMutation: widget.onMutation,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              const Divider(height: 12),
-            ],
-            ListTile(
-              dense: true,
-              leading: const Icon(Icons.edit_outlined, color: Colors.blue),
-              title: const Text('Edit Product Details / መረጃ አሻሽል'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _showAddOrEditProductDialog(existing: p);
-              },
-            ),
-            ListTile(
-              dense: true,
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete Product / ዕቃ ሰርዝ'),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                _confirmDeleteProduct(p);
-              },
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final warningTokens = AppColors.warningTokens(isDark);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Products / የዕቃዎች ዝርዝር'),
+        title: Text(isAm ? 'የዕቃዎች ዝርዝር' : 'Products'),
       ),
       body: Column(
         children: [
@@ -756,7 +816,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search products (e.g. Sugar, ጤፍ)...',
+                hintText: isAm ? 'ዕቃዎችን ይፈልጉ (ለምሳሌ ስኳር፣ ጤፍ)...' : 'Search products (e.g. Sugar, Teff)...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -790,7 +850,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'የሙከራ ዕቃዎች እየታዩ ነው (Demo Products)',
+                      isAm ? 'የሙከራ ዕቃዎች እየታዩ ነው' : 'Demo products active',
                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: warningTokens.fg),
                     ),
                   ),
@@ -801,7 +861,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     ),
                     onPressed: _removeDemoProducts,
                     icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('ሰርዝ / Remove'),
+                    label: Text(isAm ? 'ሰርዝ' : 'Remove'),
                   ),
                 ],
               ),
@@ -814,31 +874,31 @@ class _ProductsScreenState extends State<ProductsScreen> {
             child: Row(
               children: [
                 ChoiceChip(
-                  label: const Text('All / ሁሉም'),
+                  label: Text(isAm ? 'ሁሉም' : 'All'),
                   selected: _selectedKindFilter == 'all',
                   onSelected: (sel) => setState(() => _selectedKindFilter = 'all'),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('📦 Products / ዕቃዎች'),
+                  label: Text(isAm ? '📦 ዕቃዎች' : '📦 Products'),
                   selected: _selectedKindFilter == 'stockable',
                   onSelected: (sel) => setState(() => _selectedKindFilter = 'stockable'),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('🛠 Services / አገልግሎቶች'),
+                  label: Text(isAm ? '🛠 አገልግሎቶች' : '🛠 Services'),
                   selected: _selectedKindFilter == 'service',
                   onSelected: (sel) => setState(() => _selectedKindFilter = 'service'),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('🧪 Consumables / የተዘጋጁ'),
+                  label: Text(isAm ? '🧪 የተዘጋጁ' : '🧪 Consumables'),
                   selected: _selectedKindFilter == 'consumable',
                   onSelected: (sel) => setState(() => _selectedKindFilter = 'consumable'),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text('🌾 Materials / ጥሬ ዕቃዎች'),
+                  label: Text(isAm ? '🌾 ጥሬ ዕቃዎች' : '🌾 Materials'),
                   selected: _selectedKindFilter == 'material',
                   onSelected: (sel) => setState(() => _selectedKindFilter = 'material'),
                 ),
@@ -868,7 +928,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           Icon(Icons.search_off_rounded, size: 48, color: Theme.of(context).colorScheme.outlineVariant),
                           const SizedBox(height: 12),
                           Text(
-                            'No matching products for "$_searchQuery"',
+                            isAm ? 'ከ"$_searchQuery" ጋር የሚዛመድ ዕቃ የለም' : 'No matching products for "$_searchQuery"',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                           ),
                           const SizedBox(height: 8),
@@ -877,7 +937,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                               _searchController.clear();
                               setState(() => _searchQuery = '');
                             },
-                            child: const Text('Clear Search / ፍለጋውን አጽዳ'),
+                            child: Text(isAm ? 'ፍለጋውን አጽዳ' : 'Clear Search'),
                           ),
                         ],
                       ),
@@ -886,14 +946,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
 
                   return EmptyStateWidget(
                     icon: Icons.inventory_2_outlined,
-                    title: 'ምንም ዕቃዎች አልተመዘገቡም\nNo Products Yet',
-                    description:
-                        'የመጀመሪያዎን ዕቃ መዝግበው ሽያጭ ይጀምሩ ወይም ለሙከራ ዝግጁ የሆኑ የኢትዮጵያ ሱቅ ዕቃዎችን ይጫኑ።\n'
-                        'Add your first item or load realistic sample products to try out the app immediately.',
-                    primaryButtonLabel: 'አዲስ ዕቃ መዝግብ / Add Product',
+                    title: isAm ? 'ምንም ዕቃዎች አልተመዘገቡም' : 'No Products Yet',
+                    description: isAm
+                        ? 'የመጀመሪያዎን ዕቃ መዝግበው ሽያጭ ይጀምሩ ወይም ለሙከራ ዝግጁ የሆኑ የኢትዮጵያ ሱቅ ዕቃዎችን ይጫኑ።'
+                        : 'Add your first item or load realistic sample products to try out the app immediately.',
+                    primaryButtonLabel: isAm ? 'አዲስ ዕቃ መዝግብ' : 'Add Product',
                     primaryButtonIcon: Icons.add_circle_outline,
                     onPrimaryPressed: () => _showAddOrEditProductDialog(),
-                    secondaryButtonLabel: 'የሙከራ ዕቃዎችን ጫን / Load Demo Items',
+                    secondaryButtonLabel: isAm ? 'የሙከራ ዕቃዎችን ጫን' : 'Load Demo Items',
                     secondaryButtonIcon: Icons.auto_awesome,
                     onSecondaryPressed: _loadDemoProducts,
                   );
@@ -1056,7 +1116,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddOrEditProductDialog(),
         icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
+        label: Text(isAm ? 'አዲስ ዕቃ መዝግብ' : 'Add Product'),
       ),
     );
   }

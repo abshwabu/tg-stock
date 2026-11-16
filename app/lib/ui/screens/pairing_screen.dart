@@ -226,9 +226,10 @@ class _PairingScreenState extends State<PairingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connect with Telegram'),
+        title: Text(isAm ? 'ከቴሌግራም ጋር አገናኝ' : 'Connect with Telegram'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -242,6 +243,7 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Widget _buildStartPairingForm() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     final dangerTokens = AppColors.dangerTokens(isDark);
@@ -265,7 +267,7 @@ class _PairingScreenState extends State<PairingScreen> {
                     Icon(Icons.info_outline, color: scheme.onPrimaryContainer),
                     const SizedBox(width: 8),
                     Text(
-                      'Why go online? / ለምን ኦንላይን ይገናኛሉ?',
+                      isAm ? 'ለምን ኦንላይን ይገናኛሉ?' : 'Why go online?',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: scheme.onPrimaryContainer,
@@ -276,10 +278,15 @@ class _PairingScreenState extends State<PairingScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '• Automatic cloud backup of your shop records.\n'
-                  '• Multi-phone sync across all cashiers and staff.\n'
-                  '• Telegram alerts when stock is low and daily 8:00 PM sales summaries.\n'
-                  '• No passwords needed: Your Telegram account is your secure key.',
+                  isAm
+                      ? '• የሱቅዎን መረጃዎች በደመና (ክላውድ) ላይ በራስ-ሰር በኮፒ ያስቀምጣል።\n'
+                        '• በሁሉም ካሺሮች እና ሰራተኞች ስልኮች መካከል መረጃን ያመሳስላል።\n'
+                        '• ዕቃዎች ሲያልቁ እና በየቀኑ ምሽት 2:00 የሽያጭ ማጠቃለያ በቴሌግራም ይልካል።\n'
+                        '• የይለፍ ቃል አያስፈልግም፡ የቴሌግራም አካውንትዎ አስተማማኝ ቁልፍ ነው።'
+                      : '• Automatic cloud backup of your shop records.\n'
+                        '• Multi-phone sync across all cashiers and staff.\n'
+                        '• Telegram alerts when stock is low and daily 8:00 PM sales summaries.\n'
+                        '• No passwords needed: Your Telegram account is your secure key.',
                   style: TextStyle(fontSize: 13, color: scheme.onPrimaryContainer, height: 1.4),
                 ),
               ],
@@ -302,7 +309,7 @@ class _PairingScreenState extends State<PairingScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Cloud Server / የደመና ሰርቨር',
+                        isAm ? 'የደመና ሰርቨር' : 'Cloud Server',
                         style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 2),
@@ -319,25 +326,25 @@ class _PairingScreenState extends State<PairingScreen> {
           const SizedBox(height: 16),
           TextFormField(
             controller: _shopNameController,
-            decoration: const InputDecoration(
-              labelText: 'Shop Name / የሱቁ ስም (Optional)',
-              hintText: 'e.g. Bole Minimarket',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.storefront),
+            decoration: InputDecoration(
+              labelText: isAm ? 'የሱቅ ስም (አማራጭ)' : 'Shop Name (Optional)',
+              hintText: isAm ? 'ምሳሌ፡ ቦሌ ሚኒማርኬት' : 'e.g. Bole Minimarket',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.storefront),
             ),
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _deviceNameController,
-            decoration: const InputDecoration(
-              labelText: 'Device Name / የስልኩ ስም',
-              hintText: 'e.g. Counter Phone 1',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.phone_android),
+            decoration: InputDecoration(
+              labelText: isAm ? 'የስልኩ ስም' : 'Device Name',
+              hintText: isAm ? 'ምሳሌ፡ ካውንተር ስልክ 1' : 'e.g. Counter Phone 1',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.phone_android),
             ),
             validator: (val) {
               if (val == null || val.trim().isEmpty) {
-                return 'Please enter a name for this phone / device';
+                return isAm ? 'እባክዎ ለዚህ ስልክ ስም ያስገቡ' : 'Please enter a name for this phone / device';
               }
               return null;
             },
@@ -367,7 +374,9 @@ class _PairingScreenState extends State<PairingScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
                 : const Icon(Icons.send_rounded),
-            label: Text(_isLoading ? 'Generating Link...' : 'Start Pairing / ማገናኘት ጀምር'),
+            label: Text(_isLoading
+                ? (isAm ? 'ሊንክ እየተዘጋጀ ነው...' : 'Generating Link...')
+                : (isAm ? 'ማገናኘት ጀምር' : 'Start Pairing')),
             style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
           ),
         ],
@@ -376,6 +385,7 @@ class _PairingScreenState extends State<PairingScreen> {
   }
 
   Widget _buildWaitingView() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     final mins = _secondsRemaining ~/ 60;
@@ -386,14 +396,16 @@ class _PairingScreenState extends State<PairingScreen> {
       children: [
         const Icon(Icons.telegram, size: 72, color: Color(0xFF2AABEE)),
         const SizedBox(height: 16),
-        const Text(
-          'Approve on Telegram',
+        Text(
+          isAm ? 'በቴሌግራም ያረጋግጡ' : 'Approve on Telegram',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
-          'Open your shop Telegram bot and tap "Start" to link this device:',
+          isAm
+              ? 'የሱቅዎን ቴሌግራም ቦት ከፍተው ይህን ስልክ ለማገናኘት "Start" የሚለውን ይጫኑ፡'
+              : 'Open your shop Telegram bot and tap "Start" to link this device:',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
         ),
@@ -407,7 +419,7 @@ class _PairingScreenState extends State<PairingScreen> {
           ),
           child: Column(
             children: [
-              Text('Pairing Code / የማገናኛ ኮድ:', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+              Text(isAm ? 'የማገናኛ ኮድ:' : 'Pairing Code:', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
               const SizedBox(height: 6),
               Text(
                 _code ?? '---',
@@ -421,7 +433,7 @@ class _PairingScreenState extends State<PairingScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Expires in $mins:$secs',
+                isAm ? 'የሚያበቃበት ጊዜ $mins:$secs' : 'Expires in $mins:$secs',
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? const Color(0xFFF87171) : Colors.red.shade700,
@@ -435,7 +447,7 @@ class _PairingScreenState extends State<PairingScreen> {
         FilledButton.icon(
           onPressed: _openDeepLink,
           icon: const Icon(Icons.open_in_new),
-          label: const Text('Open Telegram Bot / ቴሌግራም ክፈት'),
+          label: Text(isAm ? 'ቴሌግራም ክፈት' : 'Open Telegram Bot'),
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF2AABEE),
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -446,11 +458,11 @@ class _PairingScreenState extends State<PairingScreen> {
           onPressed: () {
             Clipboard.setData(ClipboardData(text: _deepLink ?? _code ?? ''));
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Link copied to clipboard.')),
+              SnackBar(content: Text(isAm ? 'ሊንኩ ተገልብጧል።' : 'Link copied to clipboard.')),
             );
           },
           icon: const Icon(Icons.copy),
-          label: const Text('Copy Link / ሊንኩን ቅዳ'),
+          label: Text(isAm ? 'ሊንኩን ቅዳ' : 'Copy Link'),
         ),
         const SizedBox(height: 24),
         Row(
@@ -459,7 +471,7 @@ class _PairingScreenState extends State<PairingScreen> {
             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
             const SizedBox(width: 10),
             Text(
-              'Waiting for confirmation...',
+              isAm ? 'ማረጋገጫ እየተጠበቀ ነው...' : 'Waiting for confirmation...',
               style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontStyle: FontStyle.italic),
             ),
           ],
@@ -474,13 +486,14 @@ class _PairingScreenState extends State<PairingScreen> {
               _deepLink = null;
             });
           },
-          child: const Text('Cancel / ሰርዝ', style: TextStyle(color: Colors.red)),
+          child: Text(isAm ? 'ይቅር' : 'Cancel', style: const TextStyle(color: Colors.red)),
         ),
       ],
     );
   }
 
   Widget _buildUploadProgressView() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final progress = _historyTotal > 0 ? (_historyCurrent / _historyTotal).clamp(0.0, 1.0) : null;
     final scheme = Theme.of(context).colorScheme;
 
@@ -490,13 +503,13 @@ class _PairingScreenState extends State<PairingScreen> {
         const SizedBox(height: 30),
         const Icon(Icons.cloud_upload_rounded, size: 64, color: Colors.green),
         const SizedBox(height: 16),
-        const Text(
-          'Syncing Offline History',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        Text(
+          isAm ? 'የቀደመ መረጃ በመመሳከር ላይ' : 'Syncing Offline History',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
-          _historyStatusText ?? 'Uploading...',
+          _historyStatusText ?? (isAm ? 'በመላክ ላይ...' : 'Uploading...'),
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: scheme.onSurfaceVariant),
         ),
@@ -504,10 +517,17 @@ class _PairingScreenState extends State<PairingScreen> {
         LinearProgressIndicator(value: progress, minHeight: 8),
         const SizedBox(height: 12),
         if (_historyTotal > 0)
-          Text('$_historyCurrent of $_historyTotal records uploaded', style: const TextStyle(fontSize: 12)),
+          Text(
+            isAm
+                ? 'ከ $_historyTotal መዝገቦች ውስጥ $_historyCurrent ተልከዋል'
+                : '$_historyCurrent of $_historyTotal records uploaded',
+            style: const TextStyle(fontSize: 12),
+          ),
         const SizedBox(height: 30),
         Text(
-          'Please keep the app open while records are uploaded to your online shop.',
+          isAm
+              ? 'መረጃዎች ወደ ኦንላይን ሱቅዎ እስኪላኩ ድረስ እባክዎ መተግበሪያውን ክፍት አድርገው ይጠብቁ።'
+              : 'Please keep the app open while records are uploaded to your online shop.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
         ),

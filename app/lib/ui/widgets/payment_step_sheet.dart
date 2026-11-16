@@ -120,24 +120,32 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
   }
 
   Future<void> _addCustomProvider(String kind) async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final nameCtrl = TextEditingController();
     final customName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(kind == 'bank' ? 'Other Bank / ሌላ ባንክ' : 'Other Wallet / ሌላ ዋሌት'),
+        title: Text(kind == 'bank'
+            ? (isAm ? 'ሌላ ባንክ' : 'Other Bank')
+            : (isAm ? 'ሌላ ዋሌት' : 'Other Wallet')),
         content: TextField(
           controller: nameCtrl,
           autofocus: true,
           decoration: InputDecoration(
-            labelText: kind == 'bank' ? 'Bank Name' : 'Wallet Name',
+            labelText: kind == 'bank'
+                ? (isAm ? 'የባንክ ስም' : 'Bank Name')
+                : (isAm ? 'የዋሌት ስም' : 'Wallet Name'),
             hintText: 'e.g. Global Birr',
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(isAm ? 'ይቅር' : 'Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(nameCtrl.text.trim()),
-            child: const Text('Add / መዝግብ'),
+            child: Text(isAm ? 'መዝግብ' : 'Add'),
           ),
         ],
       ),
@@ -167,6 +175,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
   }
 
   Future<void> _showNewCustomerDialog() async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
@@ -180,12 +189,14 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           if (norm != null) {
             final exists = _customerList.any((c) => c.phone == norm);
             if (exists) {
-              warning = 'Warning: A customer with this phone number already exists.';
+              warning = isAm
+                  ? 'ማስጠንቀቂያ፡ በዚህ ስልክ ቁጥር የተመዘገበ ደንበኛ አለ።'
+                  : 'Warning: A customer with this phone number already exists.';
             }
           }
 
           return AlertDialog(
-            title: const Text('New Customer / አዲስ ደንበኛ'),
+            title: Text(isAm ? 'አዲስ ደንበኛ' : 'New Customer'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -193,8 +204,8 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                   TextField(
                     controller: nameCtrl,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name *',
+                    decoration: InputDecoration(
+                      labelText: isAm ? 'ሙሉ ስም *' : 'Full Name *',
                       hintText: 'Abebe Kebede',
                     ),
                   ),
@@ -202,8 +213,8 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                   TextField(
                     controller: phoneCtrl,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone (09... or 07...)',
+                    decoration: InputDecoration(
+                      labelText: isAm ? 'ስልክ (09... ወይም 07...)' : 'Phone (09... or 07...)',
                       hintText: '0911223344',
                     ),
                     onChanged: (_) => setDlgState(() {}),
@@ -218,16 +229,19 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: noteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Note (optional)',
-                      hintText: 'Address or landmark',
+                    decoration: InputDecoration(
+                      labelText: isAm ? 'ማስታወሻ (አማራጭ)' : 'Note (optional)',
+                      hintText: isAm ? 'አድራሻ ወይም መለያ ቦታ' : 'Address or landmark',
                     ),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(isAm ? 'ይቅር' : 'Cancel'),
+              ),
               FilledButton(
                 onPressed: () async {
                   final name = nameCtrl.text.trim();
@@ -239,7 +253,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                   );
                   if (ctx.mounted) Navigator.of(ctx).pop(cust);
                 },
-                child: const Text('Save / መዝግብ'),
+                child: Text(isAm ? 'መዝግብ' : 'Save'),
               ),
             ],
           );
@@ -258,37 +272,38 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
   }
 
   Future<void> _confirmFinish() async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     // 1. Validation
     if (_selectedMethod == 'bank') {
       if (_selectedBank == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a bank.')),
+          SnackBar(content: Text(isAm ? 'እባክዎ ባንክ ይምረጡ።' : 'Please select a bank.')),
         );
         return;
       }
       if (_requireReference && _referenceCtrl.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaction reference is required by shop settings.')),
+          SnackBar(content: Text(isAm ? 'የግብይት ቁጥር ማስገባት ግዴታ ነው።' : 'Transaction reference is required by shop settings.')),
         );
         return;
       }
     } else if (_selectedMethod == 'wallet') {
       if (_selectedWallet == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a mobile wallet.')),
+          SnackBar(content: Text(isAm ? 'እባክዎ የሞባይል ዋሌት ይምረጡ።' : 'Please select a mobile wallet.')),
         );
         return;
       }
       if (_requireReference && _referenceCtrl.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Transaction reference is required by shop settings.')),
+          SnackBar(content: Text(isAm ? 'የግብይት ቁጥር ማስገባት ግዴታ ነው።' : 'Transaction reference is required by shop settings.')),
         );
         return;
       }
     } else if (_selectedMethod == 'dube') {
       if (_selectedCustomer == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Customer is required for Dube sale.')),
+          SnackBar(content: Text(isAm ? 'ለዱቤ ሽያጭ ደንበኛ መምረጥ ግዴታ ነው።' : 'Customer is required for Dube sale.')),
         );
         return;
       }
@@ -343,6 +358,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
       );
     }
 
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final totalDisplay = MoneyFormatter.formatCents(widget.totalCents);
 
     return Container(
@@ -367,10 +383,10 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Complete Sale / ሽያጭ ጨርስ',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  isAm ? 'ሽያጭ ጨርስ' : 'Complete Sale',
+                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 8),
@@ -392,13 +408,13 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
             child: Row(
               children: [
                 if (_enabledMethods.contains('cash'))
-                  _buildMethodChip('cash', '💵 Cash (ጥሬ ገንዘብ)', Icons.money),
+                  _buildMethodChip('cash', isAm ? '💵 ጥሬ ገንዘብ' : '💵 Cash', Icons.money),
                 if (_enabledMethods.contains('bank'))
-                  _buildMethodChip('bank', '🏦 Bank (ባንክ)', Icons.account_balance),
+                  _buildMethodChip('bank', isAm ? '🏦 ባንክ' : '🏦 Bank', Icons.account_balance),
                 if (_enabledMethods.contains('wallet'))
-                  _buildMethodChip('wallet', '📱 Wallet (ዋሌት)', Icons.phone_android),
+                  _buildMethodChip('wallet', isAm ? '📱 ዋሌት' : '📱 Wallet', Icons.phone_android),
                 if (_enabledMethods.contains('dube'))
-                  _buildMethodChip('dube', '📝 Dube (ዱቤ)', Icons.edit_note),
+                  _buildMethodChip('dube', isAm ? '📝 ዱቤ' : '📝 Dube', Icons.edit_note),
               ],
             ),
           ),
@@ -407,7 +423,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           // Method Details View
           Flexible(
             child: SingleChildScrollView(
-              child: _buildSelectedMethodBody(),
+              child: _buildSelectedMethodBody(isAm),
             ),
           ),
 
@@ -424,8 +440,8 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
             icon: const Icon(Icons.check_circle_outline, size: 22),
             label: Text(
               _selectedMethod == 'cash'
-                  ? 'Finish Sale ($totalDisplay)'
-                  : 'Confirm & Finish / ጨርስ',
+                  ? (isAm ? 'ሽያጭ አጠናቅቅ ($totalDisplay)' : 'Finish Sale ($totalDisplay)')
+                  : (isAm ? 'አረጋግጥና ጨርስ' : 'Confirm & Finish'),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
@@ -454,36 +470,36 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
     );
   }
 
-  Widget _buildSelectedMethodBody() {
+  Widget _buildSelectedMethodBody(bool isAm) {
     switch (_selectedMethod) {
       case 'cash':
-        return _buildCashBody();
+        return _buildCashBody(isAm);
       case 'bank':
-        return _buildBankBody();
+        return _buildBankBody(isAm);
       case 'wallet':
-        return _buildWalletBody();
+        return _buildWalletBody(isAm);
       case 'dube':
-        return _buildDubeBody();
+        return _buildDubeBody(isAm);
       default:
         return const SizedBox.shrink();
     }
   }
 
-  Widget _buildCashBody() {
+  Widget _buildCashBody(bool isAm) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Cash Payment / የጥሬ ገንዘብ ክፍያ',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        Text(
+          isAm ? 'የጥሬ ገንዘብ ክፍያ' : 'Cash Payment',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 10),
         TextField(
           controller: _amountReceivedCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Amount Received (ETB) / የተቀበሉት ገንዘብ',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: isAm ? 'የተቀበሉት ገንዘብ (ብር)' : 'Amount Received (ETB)',
+            border: const OutlineInputBorder(),
             prefixText: 'ETB ',
           ),
           onChanged: (val) {
@@ -497,7 +513,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           children: [
             ActionChip(
-              label: const Text('Exact / ልክ'),
+              label: Text(isAm ? 'ልክ' : 'Exact'),
               onPressed: () {
                 setState(() {
                   _cashReceivedCents = widget.totalCents;
@@ -543,7 +559,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Change Due / መልስ:',
+                    isAm ? 'መልስ:' : 'Change Due:',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: tokens.fg),
                   ),
                   Text(
@@ -559,7 +575,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
     );
   }
 
-  Widget _buildBankBody() {
+  Widget _buildBankBody(bool isAm) {
     final query = _bankSearchCtrl.text.toLowerCase();
     final filtered = _bankProviders.where((b) {
       final n = (b.name ?? b.providerKey).toLowerCase();
@@ -572,24 +588,24 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Select Bank / ባንክ ይምረጡ',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              isAm ? 'ባንክ ይምረጡ' : 'Select Bank',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             TextButton.icon(
               onPressed: () => _addCustomProvider('bank'),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Other bank…'),
+              label: Text(isAm ? 'ሌላ ባንክ…' : 'Other bank…'),
             ),
           ],
         ),
         TextField(
           controller: _bankSearchCtrl,
-          decoration: const InputDecoration(
-            hintText: 'Search bank / ፈልግ...',
-            prefixIcon: Icon(Icons.search, size: 20),
+          decoration: InputDecoration(
+            hintText: isAm ? 'ባንክ ፈልግ...' : 'Search bank...',
+            prefixIcon: const Icon(Icons.search, size: 20),
             isDense: true,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -628,8 +644,8 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           controller: _referenceCtrl,
           decoration: InputDecoration(
             labelText: _requireReference
-                ? 'Reference / Tx Number * (Required)'
-                : 'Reference / Tx Number (Optional)',
+                ? (isAm ? 'የግብይት ቁጥር * (ግዴታ)' : 'Reference / Tx Number * (Required)')
+                : (isAm ? 'የግብይት ቁጥር (አማራጭ)' : 'Reference / Tx Number (Optional)'),
             border: const OutlineInputBorder(),
           ),
         ),
@@ -637,7 +653,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
     );
   }
 
-  Widget _buildWalletBody() {
+  Widget _buildWalletBody(bool isAm) {
     final query = _walletSearchCtrl.text.toLowerCase();
     final filtered = _walletProviders.where((w) {
       final n = (w.name ?? w.providerKey).toLowerCase();
@@ -650,24 +666,24 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Select Wallet / ዋሌት ይምረጡ',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              isAm ? 'ዋሌት ይምረጡ' : 'Select Wallet',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             TextButton.icon(
               onPressed: () => _addCustomProvider('wallet'),
               icon: const Icon(Icons.add, size: 16),
-              label: const Text('Other wallet…'),
+              label: Text(isAm ? 'ሌላ ዋሌት…' : 'Other wallet…'),
             ),
           ],
         ),
         TextField(
           controller: _walletSearchCtrl,
-          decoration: const InputDecoration(
-            hintText: 'Search wallet / ፈልግ...',
-            prefixIcon: Icon(Icons.search, size: 20),
+          decoration: InputDecoration(
+            hintText: isAm ? 'ዋሌት ፈልግ...' : 'Search wallet...',
+            prefixIcon: const Icon(Icons.search, size: 20),
             isDense: true,
-            border: OutlineInputBorder(),
+            border: const OutlineInputBorder(),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -706,8 +722,8 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           controller: _referenceCtrl,
           decoration: InputDecoration(
             labelText: _requireReference
-                ? 'Reference / Tx Number * (Required)'
-                : 'Reference / Tx Number (Optional)',
+                ? (isAm ? 'የግብይት ቁጥር * (ግዴታ)' : 'Reference / Tx Number * (Required)')
+                : (isAm ? 'የግብይት ቁጥር (አማራጭ)' : 'Reference / Tx Number (Optional)'),
             border: const OutlineInputBorder(),
           ),
         ),
@@ -715,7 +731,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
     );
   }
 
-  Widget _buildDubeBody() {
+  Widget _buildDubeBody(bool isAm) {
     final remainingDubeCents = widget.totalCents - _dubePaidNowCents;
     final dueDateFormatted = DateFormat('dd MMM yyyy').format(_dubeDueDate);
 
@@ -726,14 +742,14 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Customer / ደንበኛ *',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            Text(
+              isAm ? 'ደንበኛ *' : 'Customer *',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             TextButton.icon(
               onPressed: _showNewCustomerDialog,
               icon: const Icon(Icons.person_add, size: 16),
-              label: const Text('+ New customer'),
+              label: Text(isAm ? '+ አዲስ ደንበኛ' : '+ New customer'),
             ),
           ],
         ),
@@ -800,7 +816,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                   ),
                   TextButton(
                     onPressed: () => setState(() => _selectedCustomer = null),
-                    child: const Text('Change'),
+                    child: Text(isAm ? 'ቀይር' : 'Change'),
                   ),
                 ],
               ),
@@ -811,20 +827,20 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         const SizedBox(height: 16),
 
         // 2. Paid Now Selection
-        const Text(
-          'Paid Now / አሁን የተከፈለ',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        Text(
+          isAm ? 'አሁን የተከፈለ' : 'Paid Now',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            _buildPaidNowChip('0 (Unpaid)', 0),
+            _buildPaidNowChip(isAm ? '0 (ያልተከፈለ)' : '0 (Unpaid)', 0),
             const SizedBox(width: 6),
             _buildPaidNowChip('25%', (widget.totalCents * 0.25).round()),
             const SizedBox(width: 6),
             _buildPaidNowChip('50%', (widget.totalCents * 0.50).round()),
             const SizedBox(width: 6),
-            _buildPaidNowCustomChip(),
+            _buildPaidNowCustomChip(isAm),
           ],
         ),
 
@@ -834,19 +850,19 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           Row(
             children: [
               ChoiceChip(
-                label: const Text('Cash'),
+                label: Text(isAm ? 'ጥሬ ገንዘብ' : 'Cash'),
                 selected: _dubePaidMethod == 'cash',
                 onSelected: (v) => setState(() => _dubePaidMethod = 'cash'),
               ),
               const SizedBox(width: 6),
               ChoiceChip(
-                label: const Text('Bank'),
+                label: Text(isAm ? 'ባንክ' : 'Bank'),
                 selected: _dubePaidMethod == 'bank',
                 onSelected: (v) => setState(() => _dubePaidMethod = 'bank'),
               ),
               const SizedBox(width: 6),
               ChoiceChip(
-                label: const Text('Wallet'),
+                label: Text(isAm ? 'ዋሌት' : 'Wallet'),
                 selected: _dubePaidMethod == 'wallet',
                 onSelected: (v) => setState(() => _dubePaidMethod = 'wallet'),
               ),
@@ -860,9 +876,9 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Due Date / የሚከፈልበት ቀን *',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            Text(
+              isAm ? 'የሚከፈልበት ቀን *' : 'Due Date *',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             TextButton.icon(
               onPressed: () async {
@@ -884,17 +900,17 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           children: [
             ActionChip(
-              label: const Text('+7 Days'),
+              label: Text(isAm ? '+7 ቀናት' : '+7 Days'),
               onPressed: () => setState(() => _dubeDueDate = DateTime.now().add(const Duration(days: 7))),
             ),
             const SizedBox(width: 6),
             ActionChip(
-              label: const Text('+14 Days'),
+              label: Text(isAm ? '+14 ቀናት' : '+14 Days'),
               onPressed: () => setState(() => _dubeDueDate = DateTime.now().add(const Duration(days: 14))),
             ),
             const SizedBox(width: 6),
             ActionChip(
-              label: const Text('+30 Days'),
+              label: Text(isAm ? '+30 ቀናት' : '+30 Days'),
               onPressed: () => setState(() => _dubeDueDate = DateTime.now().add(const Duration(days: 30))),
             ),
           ],
@@ -917,12 +933,14 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Pays now: ${MoneyFormatter.formatCents(_dubePaidNowCents)}, Dube: ${MoneyFormatter.formatCents(remainingDubeCents)}',
+                  isAm
+                      ? 'አሁን የሚከፈል: ${MoneyFormatter.formatCents(_dubePaidNowCents)}፣ ዱቤ: ${MoneyFormatter.formatCents(remainingDubeCents)}'
+                      : 'Pays now: ${MoneyFormatter.formatCents(_dubePaidNowCents)}, Dube: ${MoneyFormatter.formatCents(remainingDubeCents)}',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: tokens.fg),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Due: $dueDateFormatted',
+                  isAm ? 'የመክፈያ ቀን: $dueDateFormatted' : 'Due: $dueDateFormatted',
                   style: TextStyle(
                     fontSize: 13,
                     color: isDark ? tokens.fg.withValues(alpha: 0.85) : Colors.brown.shade800,
@@ -952,13 +970,13 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
     );
   }
 
-  Widget _buildPaidNowCustomChip() {
+  Widget _buildPaidNowCustomChip(bool isAm) {
     final isCustom = _dubePaidNowCents > 0 &&
         _dubePaidNowCents != (widget.totalCents * 0.25).round() &&
         _dubePaidNowCents != (widget.totalCents * 0.50).round();
 
     return ChoiceChip(
-      label: const Text('Custom'),
+      label: Text(isAm ? 'የተወሰነ' : 'Custom'),
       selected: isCustom,
       selectedColor: Colors.deepOrange,
       labelStyle: TextStyle(
@@ -972,7 +990,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         final res = await showDialog<double>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Custom Paid Now (ETB)'),
+            title: Text(isAm ? 'የተወሰነ መጠን (ብር)' : 'Custom Paid Now (ETB)'),
             content: TextField(
               controller: ctrl,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -980,13 +998,16 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
               decoration: const InputDecoration(prefixText: 'ETB '),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(isAm ? 'ይቅር' : 'Cancel'),
+              ),
               FilledButton(
                 onPressed: () {
                   final val = double.tryParse(ctrl.text);
                   Navigator.of(ctx).pop(val);
                 },
-                child: const Text('Apply'),
+                child: Text(isAm ? 'ተግብር' : 'Apply'),
               ),
             ],
           ),

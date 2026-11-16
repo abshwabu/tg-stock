@@ -59,24 +59,31 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Future<void> _undoSale(SaleWithDetails saleWithDetails) async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final s = saleWithDetails.sale;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Undo Sale / ሽያጭ ሰርዝ?'),
+        title: Text(isAm ? 'ሽያጭ ሰርዝ?' : 'Undo Sale?'),
         content: Text(
-          'Are you sure you want to undo this sale of ${MoneyFormatter.formatCents(s.totalCents)}?\n\n'
-          'This will:\n'
-          '• Void the sale\n'
-          '• Restore stock to inventory\n'
-          '• Reverse recorded payments',
+          isAm
+              ? 'የ${MoneyFormatter.formatCents(s.totalCents)} ሽያጭ መሰረዝ እርግጠኛ ነዎት?\n\n'
+                  'ይህ እርምጃ፡\n'
+                  '• ሽያጩን ይሰርዛል\n'
+                  '• ዕቃውን ወደ ክምችት ይመልሳል\n'
+                  '• የተመዘገበ ክፍያን ያወራርዳል'
+              : 'Are you sure you want to undo this sale of ${MoneyFormatter.formatCents(s.totalCents)}?\n\n'
+                  'This will:\n'
+                  '• Void the sale\n'
+                  '• Restore stock to inventory\n'
+                  '• Reverse recorded payments',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(isAm ? 'ይቅር' : 'Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Confirm Undo / ሰርዝ'),
+            child: Text(isAm ? 'ሽያጭ ሰርዝ' : 'Confirm Undo'),
           ),
         ],
       ),
@@ -91,9 +98,9 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             backgroundColor: Colors.green,
-            content: Text('↩️ Sale voided and stock restored successfully!'),
+            content: Text(isAm ? '↩️ ሽያጩ ተሰርዞ ዕቃው ወደ ክምችት ተመልሷል!' : '↩️ Sale voided and stock restored successfully!'),
           ),
         );
       }
@@ -106,26 +113,29 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.red, content: Text('Undo failed: $e')),
+          SnackBar(backgroundColor: Colors.red, content: Text(isAm ? 'ስረዛ አልተሳካም: $e' : 'Undo failed: $e')),
         );
       }
     }
   }
 
   Future<void> _undoLastMovement() async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Undo Last Transaction? / ግብይት መልስ?'),
-        content: const Text(
-          'This will record a compensating movement to reverse your last action.\n\nActions can only be undone within 10 minutes of creation.',
+        title: Text(isAm ? 'የመጨረሻውን ግብይት መልስ?' : 'Undo Last Transaction?'),
+        content: Text(
+          isAm
+              ? 'ይህ የመጨረሻውን እርምጃ የሚሽር አፀፋዊ እንቅስቃሴ ይመዘግባል።\n\nእርምጃዎችን መመለስ የሚቻለው ከተፈጸሙ በ10 ደቂቃ ውስጥ ብቻ ነው።'
+              : 'This will record a compensating movement to reverse your last action.\n\nActions can only be undone within 10 minutes of creation.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(isAm ? 'ይቅር' : 'Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.deepOrange),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Confirm Undo / መልስ'),
+            child: Text(isAm ? 'መልስ' : 'Confirm Undo'),
           ),
         ],
       ),
@@ -145,7 +155,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: Colors.green,
-            content: Text('↩️ Action undone! Recorded compensating movement: $qtyStr'),
+            content: Text(
+              isAm
+                  ? '↩️ እርምጃው ተመልሷል! የተመዘገበ ማካካሻ: $qtyStr'
+                  : '↩️ Action undone! Recorded compensating movement: $qtyStr',
+            ),
           ),
         );
       }
@@ -158,7 +172,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(backgroundColor: Colors.red, content: Text('Undo failed: $e')),
+          SnackBar(backgroundColor: Colors.red, content: Text(isAm ? 'መመለስ አልተሳካም: $e' : 'Undo failed: $e')),
         );
       }
     }
@@ -166,14 +180,15 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('History & Ledger / ታሪክ እና መዝገብ'),
+        title: Text(isAm ? 'ታሪክ እና መዝገብ' : 'History & Ledger'),
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.point_of_sale), text: 'Sales / ሽያጮች'),
-            Tab(icon: Icon(Icons.swap_vert), text: 'Movements / እንቅስቃሴ'),
+          tabs: [
+            Tab(icon: const Icon(Icons.point_of_sale), text: isAm ? 'ሽያጮች' : 'Sales'),
+            Tab(icon: const Icon(Icons.swap_vert), text: isAm ? 'እንቅስቃሴ' : 'Movements'),
           ],
         ),
       ),
@@ -188,6 +203,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Widget _buildSalesTab() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     if (_isLoadingSales) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -195,7 +211,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
     if (_salesList.isEmpty) {
       return Center(
         child: Text(
-          'No sales recorded yet / ምንም ሽያጭ የለም',
+          isAm ? 'ምንም ሽያጭ የለም' : 'No sales recorded yet',
           style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       );
@@ -299,7 +315,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '$dateStr • ${s.customer?.name ?? "Anonymous"}',
+                        '$dateStr • ${s.customer?.name ?? (isAm ? "ያልታወቀ" : "Anonymous")}',
                         style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                       if (s.canUndo)
@@ -311,7 +327,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                           ),
                           onPressed: () => _undoSale(s),
                           icon: const Icon(Icons.undo, size: 16),
-                          label: const Text('Undo', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: Text(isAm ? 'ሰርዝ' : 'Undo', style: const TextStyle(fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
@@ -325,6 +341,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   }
 
   Widget _buildMovementsTab() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     return Column(
       children: [
         // Filter Row
@@ -332,13 +349,13 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
             children: [
-              _buildFilterChip('all', 'All / ሁሉም'),
+              _buildFilterChip('all', isAm ? 'ሁሉም' : 'All'),
               const SizedBox(width: 6),
-              _buildFilterChip('sale', 'Sales / ሽያጭ'),
+              _buildFilterChip('sale', isAm ? 'ሽያጭ' : 'Sales'),
               const SizedBox(width: 6),
-              _buildFilterChip('in', 'Intake / ገቢ'),
+              _buildFilterChip('in', isAm ? 'ገቢ' : 'Intake'),
               const SizedBox(width: 6),
-              _buildFilterChip('adjust', 'Adjust / እርማት'),
+              _buildFilterChip('adjust', isAm ? 'እርማት' : 'Adjust'),
             ],
           ),
         ),
@@ -357,11 +374,11 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
               if (list.isEmpty) {
                 return EmptyStateWidget(
                   icon: Icons.receipt_long_outlined,
-                  title: 'ምንም እንቅስቃሴ አልተመዘገበም\nNo Transactions Yet',
-                  description:
-                      'ሽያጭ ሲያካሂዱ ወይም ዕቃ ሲያስገቡ የግብይት ደረሰኞች እና ዝርዝሮች እዚህ በግልጽ ይቀመጣሉ።\n'
-                      'Recorded sales, stock intakes, and adjustments will appear here with full undo support.',
-                  primaryButtonLabel: 'አዲስ ሽያጭ ጀምር / Record Sale',
+                  title: isAm ? 'ምንም እንቅስቃሴ አልተመዘገበም' : 'No Transactions Yet',
+                  description: isAm
+                      ? 'ሽያጭ ሲያካሂዱ ወይም ዕቃ ሲያስገቡ የግብይት ደረሰኞች እና ዝርዝሮች እዚህ በግልጽ ይቀመጣሉ።'
+                      : 'Recorded sales, stock intakes, and adjustments will appear here with full undo support.',
+                  primaryButtonLabel: isAm ? 'አዲስ ሽያጭ ጀምር' : 'Record Sale',
                   primaryButtonIcon: Icons.point_of_sale_rounded,
                   onPrimaryPressed: () {
                     Navigator.of(context).push(
@@ -401,12 +418,24 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  Builder(builder: (c) {
+                                    final typeLabel = switch (mostRecent.movement.type) {
+                                      'sale' => isAm ? 'ሽያጭ' : 'Sale',
+                                      'intake' => isAm ? 'ገቢ' : 'Intake',
+                                      'adjust' => isAm ? 'እርማት' : 'Adjust',
+                                      _ => mostRecent.movement.type,
+                                    };
+                                    return Text(
+                                      isAm
+                                          ? 'የመጨረሻ እርምጃ: ${mostRecent.product?.name ?? "ዕቃ"} ($typeLabel)'
+                                          : 'Last action: ${mostRecent.product?.name ?? "Item"} ($typeLabel)',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: tokens.fg),
+                                    );
+                                  }),
                                   Text(
-                                    'Last action: ${mostRecent.product?.name ?? "Item"} (${mostRecent.movement.type})',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: tokens.fg),
-                                  ),
-                                  Text(
-                                    'Eligible for 1-tap undo within 10 minutes',
+                                    isAm
+                                        ? 'በ10 ደቂቃ ውስጥ በ1-ጠቅታ መመለስ ይቻላል'
+                                        : 'Eligible for 1-tap undo within 10 minutes',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Theme.of(ctx).colorScheme.onSurface,
@@ -422,7 +451,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
                               ),
                               onPressed: _undoLastMovement,
                               icon: const Icon(Icons.undo, size: 16),
-                              label: const Text('Undo', style: TextStyle(fontWeight: FontWeight.bold)),
+                              label: Text(isAm ? 'መልስ' : 'Undo', style: const TextStyle(fontWeight: FontWeight.bold)),
                             ),
                           ],
                         ),

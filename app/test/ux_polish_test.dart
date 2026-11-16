@@ -87,9 +87,9 @@ void main() {
       expect(products.length, equals(5));
 
       final names = products.map((p) => p.product.name).toList();
-      expect(names, contains('ጤፍ (ማኛ) / White Teff'));
-      expect(names, contains('ስኳር / Sugar (1kg)'));
-      expect(names, contains('የቡና ቁርስ ማዘጋጀት / Coffee Service'));
+      expect(names, contains('ጤፍ (ማኛ)'));
+      expect(names, contains('ስኳር (1 ኪ.ግ)'));
+      expect(names, contains('የቡና አገልግሎት'));
 
       // Remove demo items
       await demoService.removeDemoProducts();
@@ -186,7 +186,7 @@ void main() {
 
       // Step 0: Language & Shop Name
       expect(find.textContaining('እንኳን ወደ'), findsOneWidget);
-      expect(find.text('ቀጥል / Next'), findsOneWidget);
+      expect(find.text('ቀጥል'), findsOneWidget);
 
       // Enter shop name
       final shopNameField = find.byType(TextFormField).first;
@@ -196,7 +196,7 @@ void main() {
       await tester.pump();
 
       // Tap Next
-      await tester.tap(find.text('ቀጥል / Next'));
+      await tester.tap(find.text('ቀጥል'));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
@@ -213,7 +213,7 @@ void main() {
       await tester.pump();
 
       // Tap Next to Step 2
-      final nextBtn1 = find.widgetWithText(FilledButton, 'ቀጥል / Next');
+      final nextBtn1 = find.widgetWithText(FilledButton, 'ቀጥል');
       await tester.ensureVisible(nextBtn1);
       await tester.tap(nextBtn1);
       await tester.pump(const Duration(milliseconds: 300));
@@ -222,10 +222,10 @@ void main() {
 
       // Step 2: Intro cards
       expect(find.textContaining('ያለ ኢንተርኔት ይሰራል'), findsWidgets);
-      expect(find.text('ዝለል / Skip'), findsOneWidget);
+      expect(find.text('ዝለል'), findsOneWidget);
 
       // Tap Skip to complete
-      await tester.tap(find.text('ዝለል / Skip'));
+      await tester.tap(find.text('ዝለል'));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
@@ -309,11 +309,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       await tester.pump();
 
-      expect(find.text('1. የሱቅ መረጃ (Shop)'), findsOneWidget);
-      expect(find.text('2. ቋንቋ እና ገጽታ (Language & Display)'), findsOneWidget);
+      expect(find.text('1. የሱቅ መረጃ'), findsOneWidget);
+      expect(find.text('2. ቋንቋ እና ገጽታ'), findsOneWidget);
 
       // Scroll to bottom section
-      final aboutSection = find.text('8. ስለ መተግበሪያው (About)');
+      final aboutSection = find.text('8. ስለ መተግበሪያው');
       await tester.scrollUntilVisible(aboutSection, 300);
       expect(aboutSection, findsOneWidget);
       expect(tester.takeException(), isNull);

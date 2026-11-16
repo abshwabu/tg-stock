@@ -771,12 +771,22 @@ class LedgerRepository {
     final currentStock = await stockOf(productId, locationId: targetLocId);
     final diffMilli = countedQtyMilli - currentStock;
 
-    final reasonLabel = switch (reason) {
-      'damaged' => 'Damaged / Spoilage (የተበላሸ)',
-      'lost' => 'Lost / Shrinkage (የጠፋ)',
-      'count_correction' => 'Count Correction (የቆጠራ እርማት)',
-      _ => 'Other (ሌላ ምክንያት)',
-    };
+    final lang = await getLanguage();
+    final isAm = lang == 'am';
+
+    final reasonLabel = isAm
+        ? switch (reason) {
+            'damaged' => 'የተበላሸ / የወደቀ',
+            'lost' => 'የጠፋ / ጉድለት',
+            'count_correction' => 'የቆጠራ ስህተት እርማት',
+            _ => 'ሌላ ምክንያት',
+          }
+        : switch (reason) {
+            'damaged' => 'Damaged / Spoilage',
+            'lost' => 'Lost / Shrinkage',
+            'count_correction' => 'Count Correction',
+            _ => 'Other',
+          };
 
     final combinedNote = note != null ? '$reasonLabel: $note' : reasonLabel;
 

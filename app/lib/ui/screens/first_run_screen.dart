@@ -112,10 +112,10 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
             color: Color(0xFF0F766E),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'እንኳን ወደ ኢንቬንቶሪ በደህና መጡ\nWelcome to Inventory',
+          Text(
+            isAm ? 'እንኳን ወደ ኢንቬንቶሪ በደህና መጡ' : 'Welcome to Inventory',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               height: 1.3,
@@ -123,16 +123,18 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Offline-first inventory for Ethiopian retail shops.',
+            isAm
+                ? 'ለኢትዮጵያ የችርቻሮ ሱቆች የተዘጋጀ ከመስመር ውጭ የሚሰራ የዕቃ መቆጣጠሪያ'
+                : 'Offline-first inventory for Ethiopian retail shops.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 28),
 
           // Language Selection
-          const Text(
-            'ቋንቋ ይምረጡ / Choose Language',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          Text(
+            isAm ? 'ቋንቋ ይምረጡ' : 'Choose Language',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           ),
           const SizedBox(height: 8),
           Row(
@@ -153,7 +155,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                   ),
                   onPressed: () => setState(() => _selectedLang = 'am'),
                   child: const Text(
-                    'አማርኛ (Amharic)',
+                    'አማርኛ',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
@@ -236,7 +238,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                       obscureText: true,
                       maxLength: 4,
                       decoration: InputDecoration(
-                        labelText: isAm ? 'ባለ 4-አሃዝ ኮድ (PIN)' : '4-digit PIN',
+                        labelText: isAm ? 'ባለ 4-አሃዝ ፒን' : '4-digit PIN',
                         border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.lock_outline),
                       ),
@@ -264,7 +266,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
             ),
             onPressed: _onNextFromStep0,
             child: Text(
-              isAm ? 'ቀጥል / Next' : 'Next',
+              isAm ? 'ቀጥል' : 'Next',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
@@ -338,7 +340,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isAm ? 'አይ፣ በአንድ ቦታ (No, one place)' : 'No, one place',
+                        isAm ? 'አይ፣ በአንድ ቦታ' : 'No, one place',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -405,7 +407,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isAm ? 'አዎ፣ መጋዘን እና ሱቅ (Yes, warehouse & store)' : 'Yes, warehouse and store',
+                        isAm ? 'አዎ፣ መጋዘን እና ሱቅ' : 'Yes, warehouse and store',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -490,7 +492,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       isAm
-                          ? 'ℹ️ ማስታወሻ፡ ሁሉም ዕቃ በሱቅ ውስጥ ይጀምራል። ወደ መጋዘን ለማዘዋወር "ዝውውር" (Transfer) ይጠቀሙ።'
+                          ? 'ℹ️ ማስታወሻ፡ ሁሉም ዕቃ በሱቅ ውስጥ ይጀምራል። ወደ መጋዘን ለማዘዋወር "ዝውውር" ይጠቀሙ።'
                           : 'ℹ️ Hint: All stock starts in Store. Use Transfer or Adjust later to move stock to Warehouse.',
                       style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
                     ),
@@ -522,7 +524,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                 ),
                 onPressed: () => setState(() => _currentStep = 2),
                 child: Text(
-                  isAm ? 'ቀጥል / Next' : 'Next',
+                  isAm ? 'ቀጥል' : 'Next',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -568,7 +570,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
               TextButton(
                 onPressed: _isSaving ? null : _submitAll,
                 child: Text(
-                  isAm ? 'ዝለል / Skip' : 'Skip',
+                  isAm ? 'ዝለል' : 'Skip',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ),
@@ -680,8 +682,8 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                         )
                       : Text(
                           _introCardIndex == 2
-                              ? (isAm ? 'መተግበሪያውን ጀምር / Start' : 'Get Started')
-                              : (isAm ? 'ቀጥል / Next' : 'Next'),
+                              ? (isAm ? 'መተግበሪያውን ጀምር' : 'Get Started')
+                              : (isAm ? 'ቀጥል' : 'Next'),
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                 ),

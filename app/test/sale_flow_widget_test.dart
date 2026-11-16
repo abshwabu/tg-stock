@@ -18,8 +18,9 @@ void main() {
     await db.close();
   });
 
-  Widget buildTestWidget({VoidCallback? onMutation}) {
+  Widget buildTestWidget({VoidCallback? onMutation, Locale locale = const Locale('en')}) {
     return MaterialApp(
+      locale: locale,
       home: SaleScreen(
         repository: repo,
         onMutation: onMutation,
@@ -42,7 +43,7 @@ void main() {
 
     // Verify products are listed on screen and initial total is zero
     expect(find.widgetWithText(ListTile, 'Berbere (በርበሬ)'), findsOneWidget);
-    expect(find.text('Finish Sale / ሽጥ'), findsOneWidget);
+    expect(find.text('Finish Sale'), findsOneWidget);
     expect(find.text('0.00 ETB'), findsOneWidget);
 
     // 3. Tap the product in the on-screen list
@@ -64,8 +65,8 @@ void main() {
     expect(find.text('500.00 ETB'), findsOneWidget); // grand total
 
     // Open Cart sheet via View Cart
-    expect(find.textContaining('View Cart / ቅርጫት እይ'), findsOneWidget);
-    await tester.tap(find.textContaining('View Cart / ቅርጫት እይ'));
+    expect(find.textContaining('View Cart'), findsOneWidget);
+    await tester.tap(find.textContaining('View Cart'));
     await tester.pumpAndSettle();
 
     // Inside Cart sheet: verify line items and totals
@@ -78,7 +79,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 6. Finish Sale opens Payment step (Cash preselected, 1-tap finish)
-    await tester.tap(find.text('Finish Sale / ሽጥ'));
+    await tester.tap(find.text('Finish Sale'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.textContaining('Finish Sale (500.00 ETB)'));
@@ -123,7 +124,7 @@ void main() {
     await tester.tap(find.byType(DropdownButton<ProductSortMode>));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Popularity / በተወዳጅነት').last);
+    await tester.tap(find.text('Popularity').last);
     await tester.pumpAndSettle();
 
     // 5. In Popularity sort: Banana (5 sold) -> Carrot (1 sold) -> Apple (0 sold)
@@ -166,7 +167,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Try to finish sale
-    await tester.tap(find.text('Finish Sale / ሽጥ'));
+    await tester.tap(find.text('Finish Sale'));
     await tester.pumpAndSettle();
 
     // Dialog must appear alerting insufficient stock

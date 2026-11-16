@@ -45,7 +45,7 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isAm ? 'የስህተት መዝገብ (Diagnostics)' : 'Diagnostics & Error Log'),
+        title: Text(isAm ? 'የስህተት መዝገብ' : 'Diagnostics & Error Log'),
         actions: [
           if (logs.isNotEmpty)
             IconButton(

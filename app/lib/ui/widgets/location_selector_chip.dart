@@ -50,6 +50,7 @@ class _LocationSelectorChipState extends State<LocationSelectorChip> {
   }
 
   Future<void> _showLocationPicker() async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final selected = await showModalBottomSheet<Location>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -64,7 +65,7 @@ class _LocationSelectorChipState extends State<LocationSelectorChip> {
               Padding(
                 padding: const EdgeInsets.all(16),
                 child: Text(
-                  'የመሳሪያው የስራ ቦታ / Active Location',
+                  isAm ? 'የመሳሪያው የስራ ቦታ' : 'Active Location',
                   style: Theme.of(ctx).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),

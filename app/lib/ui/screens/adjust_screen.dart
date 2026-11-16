@@ -136,9 +136,11 @@ class _AdjustScreenState extends State<AdjustScreen> {
       diffColor = isDark ? const Color(0xFFF87171) : Colors.red.shade800;
     }
 
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stock Adjustment / ስቶክ ማስተካከል'),
+        title: Text(isAm ? 'ስቶክ ማስተካከል' : 'Stock Adjustment'),
         actions: [
           LocationSelectorChip(
             repository: widget.repository,
@@ -173,20 +175,25 @@ class _AdjustScreenState extends State<AdjustScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _selectedProduct?.name ?? 'Select Product / ዕቃ ይምረጡ',
+                              _selectedProduct?.name ?? (isAm ? 'ዕቃ ይምረጡ' : 'Select Product'),
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             if (_selectedProduct != null) ...[
                               const SizedBox(height: 4),
                               Text(
-                                'System Stock: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}',
+                                isAm
+                                    ? 'የሲስተም ስቶክ: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}'
+                                    : 'System Stock: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}',
                                 style: TextStyle(
                                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                                   fontSize: 13,
                                 ),
                               ),
                             ] else
-                              Text('Tap to choose product', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                              Text(
+                                isAm ? 'ዕቃ ለመምረጥ ይንኩ' : 'Tap to choose product',
+                                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              ),
                           ],
                         ),
                       ),
@@ -204,7 +211,9 @@ class _AdjustScreenState extends State<AdjustScreen> {
                 controller: _countedController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: 'Actual Counted Quantity / የተቆጠረው ትክክለኛ መጠን (${_selectedProduct!.unit}) *',
+                  labelText: isAm
+                      ? 'የተቆጠረው ትክክለኛ መጠን (${_selectedProduct!.unit}) *'
+                      : 'Actual Counted Quantity (${_selectedProduct!.unit}) *',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.pin_outlined),
                 ),
@@ -223,7 +232,10 @@ class _AdjustScreenState extends State<AdjustScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Adjustment Difference / ልዩነት:', style: TextStyle(fontWeight: FontWeight.w600)),
+                    Text(
+                      isAm ? 'ልዩነት:' : 'Adjustment Difference:',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     Text(
                       '$diffFormatted ${_selectedProduct!.unit}',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: diffColor),
@@ -234,16 +246,19 @@ class _AdjustScreenState extends State<AdjustScreen> {
               const SizedBox(height: 20),
 
               // Reason dropdown
-              const Text('Reason / ምክንያት:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(
+                isAm ? 'ምክንያት:' : 'Reason:',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 initialValue: _reason,
                 decoration: const InputDecoration(border: OutlineInputBorder()),
-                items: const [
-                  DropdownMenuItem(value: 'damaged', child: Text('Damaged / Spoilage (የተበላሸ / የወደቀ)')),
-                  DropdownMenuItem(value: 'lost', child: Text('Lost / Shrinkage (የጠፋ / ጉድለት)')),
-                  DropdownMenuItem(value: 'count_correction', child: Text('Count Correction (የቆጠራ ስህተት እርማት)')),
-                  DropdownMenuItem(value: 'other', child: Text('Other (ሌላ ምክንያት)')),
+                items: [
+                  DropdownMenuItem(value: 'damaged', child: Text(isAm ? 'የተበላሸ / የወደቀ' : 'Damaged / Spoilage')),
+                  DropdownMenuItem(value: 'lost', child: Text(isAm ? 'የጠፋ / ጉድለት' : 'Lost / Shrinkage')),
+                  DropdownMenuItem(value: 'count_correction', child: Text(isAm ? 'የቆጠራ ስህተት እርማት' : 'Count Correction')),
+                  DropdownMenuItem(value: 'other', child: Text(isAm ? 'ሌላ ምክንያት' : 'Other')),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() => _reason = val);
@@ -254,10 +269,10 @@ class _AdjustScreenState extends State<AdjustScreen> {
               // Note
               TextField(
                 controller: _noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Additional Details / ማስታወሻ (Optional)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.note_alt_outlined),
+                decoration: InputDecoration(
+                  labelText: isAm ? 'ተጨማሪ ማስታወሻ (አስፈላጊ አይደለም)' : 'Additional Details (Optional)',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.note_alt_outlined),
                 ),
               ),
               const SizedBox(height: 28),
@@ -276,7 +291,10 @@ class _AdjustScreenState extends State<AdjustScreen> {
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
                     : const Icon(Icons.check_circle_outline),
-                label: const Text('Save Adjustment / ማስተካከያውን መዝግብ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                label: Text(
+                  isAm ? 'ማስተካከያውን መዝግብ' : 'Save Adjustment',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ],
           ],
@@ -300,6 +318,7 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final filtered = widget.products.where((p) {
       if (_query.isEmpty) return true;
       final q = _query.toLowerCase();
@@ -328,7 +347,7 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
             TextField(
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Search product...',
+                hintText: isAm ? 'ዕቃ ፈልግ...' : 'Search product...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
@@ -345,7 +364,11 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
                   final item = filtered[index];
                   return ListTile(
                     title: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${item.product.unit}'),
+                    subtitle: Text(
+                      isAm
+                          ? 'የሲስተም ስቶክ: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${item.product.unit}'
+                          : 'System Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${item.product.unit}',
+                    ),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                     onTap: () => Navigator.of(ctx).pop(item.product),
                   );

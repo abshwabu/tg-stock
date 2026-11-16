@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               final isDark = Theme.of(ctx).brightness == Brightness.dark;
               final Color langColor = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
               return IconButton(
-                tooltip: 'Language / ቋንቋ',
+                tooltip: isAm ? 'ቋንቋ ቀይር' : 'Change Language',
                 visualDensity: VisualDensity.compact,
                 icon: CircleAvatar(
                   radius: 13,
@@ -259,8 +259,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               final Color themeColor = isDark ? const Color(0xFFFBBF24) : const Color(0xFF0F766E);
               return IconButton(
                 tooltip: isDark
-                    ? (isAm ? 'ወደ ብርሃን ገጽታ ቀይር / Switch to Light Mode' : 'Switch to Light Mode / ወደ ብርሃን ገጽታ ቀይር')
-                    : (isAm ? 'ወደ ጨለማ ገጽታ ቀይር / Switch to Dark Mode' : 'Switch to Dark Mode / ወደ ጨለማ ገጽታ ቀይር'),
+                    ? (isAm ? 'ወደ ብርሃን ገጽታ ቀይር' : 'Switch to Light Mode')
+                    : (isAm ? 'ወደ ጨለማ ገጽታ ቀይር' : 'Switch to Dark Mode'),
                 visualDensity: VisualDensity.compact,
                 icon: CircleAvatar(
                   radius: 13,
@@ -285,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
-            tooltip: 'Reports / ሪፖርቶች',
+            tooltip: isAm ? 'ሪፖርቶች' : 'Reports',
             visualDensity: VisualDensity.compact,
             onPressed: () {
               Navigator.of(context).push(
@@ -297,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings / ቅንብሮች',
+            tooltip: isAm ? 'ቅንብሮች' : 'Settings',
             visualDensity: VisualDensity.compact,
             onPressed: () async {
               await Navigator.of(context).push(
@@ -407,7 +407,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               },
                               icon: const Icon(Icons.download_rounded, size: 18),
                               label: Text(
-                                isAm ? 'አሁኑኑ አዘምን (Download Update)' : 'Download Update Now',
+                                isAm ? 'አሁኑኑ አዘምን' : 'Download Update Now',
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                             ),
@@ -453,10 +453,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             Text(
                               _lastBackupMs == null
                                   ? (isAm
-                                      ? 'እስካሁን ምንም ኮፒ (Backup) አልተወሰደም። ስልክዎ ቢበላሽ ወይም ቢጠፋ የሱቅዎ መረጃ በሙሉ ይጠፋል።'
+                                      ? 'እስካሁን ምንም ኮፒ አልተወሰደም። ስልክዎ ቢበላሽ ወይም ቢጠፋ የሱቅዎ መረጃ በሙሉ ይጠፋል።'
                                       : 'You have never backed up your data! If this phone is lost or damaged, all records will be gone.')
                                   : (isAm
-                                      ? 'የመጨረሻ ኮፒ የተወሰደው ${_formatDaysAgo(_lastBackupMs!)} ነው። አሁኑኑ አዲስ ኮፒ ወደ ቴሌግራም ወይም ደመና ይላኩ።'
+                                      ? 'የመጨረሻ ኮፒ የተወሰደው ${_formatDaysAgo(_lastBackupMs!)} ነው። አሁኑኑ አዲስ ኮፒ ወደ ሌላ ቦታ ይላኩ።'
                                       : 'Last backup was ${_formatDaysAgo(_lastBackupMs!)}. Back up now to Telegram or cloud storage.'),
                               style: const TextStyle(fontSize: 12.5, color: Color(0xFF78350F), height: 1.3),
                             ),
@@ -471,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 onPressed: _shareBackupNow,
                                 icon: const Icon(Icons.share_rounded, size: 18),
                                 label: Text(
-                                  isAm ? 'አሁኑኑ ኮፒ አድርገው ያጋሩ (Telegram)' : 'Back Up & Share Now',
+                                  isAm ? 'አሁኑኑ ኮፒ አድርገው ያጋሩ' : 'Back Up & Share Now',
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
                               ),
@@ -838,7 +838,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                   icon: const Icon(Icons.shopping_cart_checkout, size: 28),
                   label: Text(
-                    isAm ? '🛒 አዲስ ሽያጭ ጀምር (Sale)' : '🛒 Record New Sale',
+                    isAm ? '🛒 አዲስ ሽያጭ ጀምር' : '🛒 New Sale',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -919,7 +919,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                           icon: const Icon(Icons.local_shipping_outlined, size: 20, color: Color(0xFF0F766E)),
                           label: Text(
-                            isAm ? '🚚 ዝውውር (Transfer)' : '🚚 Transfer',
+                            isAm ? '🚚 የዕቃ ዝውውር' : '🚚 Stock Transfer',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                           ),
                         ),
@@ -968,7 +968,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     },
                     icon: const Icon(Icons.history, size: 18),
                     label: Text(
-                      isAm ? '📜 ታሪክ / Undo' : '📜 History / Undo',
+                      isAm ? '📜 የእንቅስቃሴ ታሪክ' : '📜 History & Undo',
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                     ),
                   ),
@@ -1018,7 +1018,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                           icon: const Icon(Icons.history, size: 18),
                           label: Text(
-                            isAm ? '📜 ታሪክ / Undo' : '📜 History / Undo',
+                            isAm ? '📜 የእንቅስቃሴ ታሪክ' : '📜 History & Undo',
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                           ),
                         ),
@@ -1054,7 +1054,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     },
                     icon: const Icon(Icons.edit_note, size: 22),
                     label: Text(
-                      isAm ? '📝 ዱቤ እና ደንበኞች (Dube & Customers)' : '📝 Dube & Customers',
+                      isAm ? '📝 ዱቤ እና ደንበኞች' : '📝 Dube & Customers',
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                     ),
                   );
@@ -1076,7 +1076,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                   icon: const Icon(Icons.analytics_outlined, size: 20),
                   label: Text(
-                    isAm ? '📊 ሪፖርቶች እና ትንታኔ (Reports)' : '📊 Reports & Analytics',
+                    isAm ? '📊 ሪፖርቶች እና ትንታኔ' : '📊 Reports & Analytics',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),

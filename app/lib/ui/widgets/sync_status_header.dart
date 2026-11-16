@@ -16,6 +16,7 @@ class SyncStatusHeader extends StatelessWidget {
       builder: (context, state, _) {
         final colorScheme = Theme.of(context).colorScheme;
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        final isAm = Localizations.localeOf(context).languageCode == 'am';
 
         Color bg;
         Color fg;
@@ -28,48 +29,48 @@ class SyncStatusHeader extends StatelessWidget {
             bg = tokens.bg;
             fg = tokens.fg;
             icon = Icons.cloud_off_rounded;
-            statusTitle = 'Offline / ኦፍላይን';
+            statusTitle = isAm ? 'ኦፍላይን' : 'Offline';
             break;
           case SyncStatus.syncing:
             final tokens = AppColors.infoTokens(isDark);
             bg = tokens.bg;
             fg = tokens.fg;
             icon = Icons.sync_rounded;
-            statusTitle = 'Syncing... / እየተመሳሰለ ነው...';
+            statusTitle = isAm ? 'እየተመሳሰለ ነው...' : 'Syncing...';
             break;
           case SyncStatus.idle:
             final tokens = AppColors.successTokens(isDark);
             bg = tokens.bg;
             fg = tokens.fg;
             icon = Icons.cloud_done_rounded;
-            statusTitle = 'Up to date / የተመሳሰለ';
+            statusTitle = isAm ? 'የተመሳሰለ' : 'Up to date';
             break;
           case SyncStatus.error:
             final tokens = AppColors.warningTokens(isDark);
             bg = tokens.bg;
             fg = tokens.fg;
             icon = Icons.sync_problem_rounded;
-            statusTitle = 'Sync paused (retrying) / ጊዜያዊ ስህተት';
+            statusTitle = isAm ? 'ጊዜያዊ ስህተት (እየሞከረ ነው)' : 'Sync paused (retrying)';
             break;
           case SyncStatus.unauthorized:
             final tokens = AppColors.dangerTokens(isDark);
             bg = tokens.bg;
             fg = tokens.fg;
             icon = Icons.lock_clock_rounded;
-            statusTitle = 'Re-pairing needed / እንደገና ያገናኙ';
+            statusTitle = isAm ? 'እንደገና ማገናኘት ያስፈልጋል' : 'Re-pairing needed';
             break;
         }
 
         String subtitle = '';
         if (state.lastSyncedAt != null) {
           final timeStr = DateFormat('HH:mm').format(state.lastSyncedAt!.toLocal());
-          subtitle = 'Last synced $timeStr';
+          subtitle = isAm ? 'መጨረሻ የተመሳሰለው $timeStr' : 'Last synced $timeStr';
         }
         if (state.pendingCount > 0) {
-          final pendingText = '${state.pendingCount} changes waiting';
+          final pendingText = isAm ? '${state.pendingCount} ያልተመሳሰሉ ለውጦች' : '${state.pendingCount} changes waiting';
           subtitle = subtitle.isNotEmpty ? '$subtitle • $pendingText' : pendingText;
         } else if (state.status == SyncStatus.idle && subtitle.isEmpty) {
-          subtitle = 'All changes saved locally and online';
+          subtitle = isAm ? 'ሁሉም መረጃዎች በስልኩ እና በሰርቨሩ ላይ ተቀምጠዋል' : 'All changes saved locally and online';
         }
 
         return Container(
@@ -169,7 +170,9 @@ class SyncStatusHeader extends StatelessWidget {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            '⚠️ Check stock / የስቶክ መጠን ያረጋግጡ (Negative count detected)',
+                            isAm
+                                ? '⚠️ የስቶክ መጠን ያረጋግጡ (ከዜሮ በታች የሆነ ዕቃ አለ)'
+                                : '⚠️ Check stock (Negative count detected)',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

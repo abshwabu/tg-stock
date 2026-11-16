@@ -76,6 +76,7 @@ class _DubeScreenState extends State<DubeScreen> {
     final nameCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
 
     final added = await showDialog<Customer>(
       context: context,
@@ -86,12 +87,14 @@ class _DubeScreenState extends State<DubeScreen> {
           if (norm != null) {
             final exists = _profiles.any((p) => p.customerName.toLowerCase() == nameCtrl.text.trim().toLowerCase());
             if (exists) {
-              warning = 'Warning: A customer with this name or number may already exist.';
+              warning = isAm
+                  ? 'ማስጠንቀቂያ፡ በዚህ ስም ወይም ስልክ ደንበኛ አስቀድሞ ተመዝግቧል።'
+                  : 'Warning: A customer with this name or number may already exist.';
             }
           }
 
           return AlertDialog(
-            title: const Text('Add Customer / ደንበኛ መዝግብ'),
+            title: Text(isAm ? 'ደንበኛ መዝግብ' : 'Add Customer'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -99,17 +102,17 @@ class _DubeScreenState extends State<DubeScreen> {
                   TextField(
                     controller: nameCtrl,
                     autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Full Name *',
-                      hintText: 'Abebe Kebede',
+                    decoration: InputDecoration(
+                      labelText: isAm ? 'ሙሉ ስም *' : 'Full Name *',
+                      hintText: isAm ? 'አበበ ከበደ' : 'Abebe Kebede',
                     ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: phoneCtrl,
                     keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(
-                      labelText: 'Phone (09... or 07...)',
+                    decoration: InputDecoration(
+                      labelText: isAm ? 'ስልክ ቁጥር (09... ወይም 07...)' : 'Phone (09... or 07...)',
                       hintText: '0911223344',
                     ),
                     onChanged: (_) => setDlgState(() {}),
@@ -121,16 +124,16 @@ class _DubeScreenState extends State<DubeScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: noteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Note (optional)',
-                      hintText: 'Address or landmark',
+                    decoration: InputDecoration(
+                      labelText: isAm ? 'ማስታወሻ (አማራጭ)' : 'Note (optional)',
+                      hintText: isAm ? 'አድራሻ ወይም መለያ' : 'Address or landmark',
                     ),
                   ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(isAm ? 'ይቅር' : 'Cancel')),
               FilledButton(
                 onPressed: () async {
                   final name = nameCtrl.text.trim();
@@ -142,7 +145,7 @@ class _DubeScreenState extends State<DubeScreen> {
                   );
                   if (ctx.mounted) Navigator.of(ctx).pop(cust);
                 },
-                child: const Text('Save / መዝግብ'),
+                child: Text(isAm ? 'መዝግብ' : 'Save'),
               ),
             ],
           );
@@ -177,16 +180,17 @@ class _DubeScreenState extends State<DubeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final totalOutstanding = _profiles.fold<int>(0, (sum, p) => sum + (p.totalDebtCents > 0 ? p.totalDebtCents : 0));
     final overdueCount = _profiles.where((p) => p.overdueCents > 0).length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dube & Customers / ዱቤ እና ደንበኞች'),
+        title: Text(isAm ? 'ዱቤ እና ደንበኞች' : 'Dube & Customers'),
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add),
-            tooltip: 'Add Customer',
+            tooltip: isAm ? 'ደንበኛ መዝግብ' : 'Add Customer',
             onPressed: _addNewCustomer,
           ),
         ],
@@ -207,7 +211,7 @@ class _DubeScreenState extends State<DubeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total Outstanding Dube',
+                          isAm ? 'ጠቅላላ ያልተሰበሰበ ዱቤ' : 'Total Outstanding Dube',
                           style: TextStyle(
                             fontSize: 12,
                             color: Theme.of(ctx).colorScheme.onSurfaceVariant,
@@ -238,7 +242,9 @@ class _DubeScreenState extends State<DubeScreen> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          overdueCount > 0 ? '$overdueCount Overdue' : 'All on track',
+                          isAm
+                              ? (overdueCount > 0 ? '$overdueCount ጊዜው ያለፈበት' : 'ሁሉም በሰዓቱ')
+                              : (overdueCount > 0 ? '$overdueCount Overdue' : 'All on track'),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
@@ -259,7 +265,7 @@ class _DubeScreenState extends State<DubeScreen> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Search customer by name or phone...',
+                hintText: isAm ? 'ደንበኛ በስም ወይም በስልክ ፈልግ...' : 'Search customer by name or phone...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -284,11 +290,11 @@ class _DubeScreenState extends State<DubeScreen> {
                 : _profiles.isEmpty
                     ? EmptyStateWidget(
                         icon: Icons.menu_book_rounded,
-                        title: 'ምንም የዱቤ ወይም የደንበኛ መዝገብ የለም\nNo Credit Records Yet',
-                        description:
-                            'በዱቤ ሲሸጡ የደንበኞችን ስም፣ ስልክ፣ የመክፈያ ቀነ-ገደብ እና የቀሪ እዳ መጠን እዚህ በቀላሉ መከታተል ይችላሉ።\n'
-                            'Track customer credit balances, payment deadlines, and overdue amounts with 1-tap reminders.',
-                        primaryButtonLabel: 'አዲስ ደንበኛ መዝግብ / Add Customer',
+                        title: isAm ? 'ምንም የዱቤ ወይም የደንበኛ መዝገብ የለም' : 'No Credit Records Yet',
+                        description: isAm
+                            ? 'በዱቤ ሲሸጡ የደንበኞችን ስም፣ ስልክ፣ የመክፈያ ቀነ-ገደብ እና የቀሪ እዳ መጠን እዚህ በቀላሉ መከታተል ይችላሉ።'
+                            : 'Track customer credit balances, payment deadlines, and overdue amounts with 1-tap reminders.',
+                        primaryButtonLabel: isAm ? 'አዲስ ደንበኛ መዝግብ' : 'Add Customer',
                         primaryButtonIcon: Icons.person_add_alt_1_rounded,
                         onPrimaryPressed: _addNewCustomer,
                       )
@@ -466,6 +472,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
 
     if (!mounted) return;
 
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -485,22 +492,24 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Receive Payment / ክፍያ ተቀበል',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                Text(
+                  isAm ? 'ክፍያ ተቀበል' : 'Receive Payment',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  '💡 Payment applies to the oldest dube first (FIFO).',
-                  style: TextStyle(fontSize: 12, color: Colors.teal),
+                Text(
+                  isAm
+                      ? '💡 ክፍያው የቀደመውን እዳ በቅድሚያ ያወራርዳል (FIFO)።'
+                      : '💡 Payment applies to the oldest dube first (FIFO).',
+                  style: const TextStyle(fontSize: 12, color: Colors.teal),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: amountCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (ETB) *',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: isAm ? 'መጠን (ብር) *' : 'Amount (ETB) *',
+                    border: const OutlineInputBorder(),
                     prefixText: 'ETB ',
                   ),
                 ),
@@ -508,7 +517,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                 Row(
                   children: [
                     ActionChip(
-                      label: const Text('Full Balance / ሙሉ ሂሳብ'),
+                      label: Text(isAm ? 'ሙሉ ሂሳብ' : 'Full Balance'),
                       onPressed: () {
                         setSheetState(() {
                           amountCtrl.text = (widget.profile.totalDebtCents / 100).toStringAsFixed(2);
@@ -521,19 +530,19 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                 Row(
                   children: [
                     ChoiceChip(
-                      label: const Text('Cash'),
+                      label: Text(isAm ? 'ጥሬ ገንዘብ' : 'Cash'),
                       selected: method == 'cash',
                       onSelected: (v) => setSheetState(() => method = 'cash'),
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
-                      label: const Text('Bank'),
+                      label: Text(isAm ? 'ባንክ' : 'Bank'),
                       selected: method == 'bank',
                       onSelected: (v) => setSheetState(() => method = 'bank'),
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
-                      label: const Text('Wallet'),
+                      label: Text(isAm ? 'ዋሌት' : 'Wallet'),
                       selected: method == 'wallet',
                       onSelected: (v) => setSheetState(() => method = 'wallet'),
                     ),
@@ -543,7 +552,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<PaymentProvider>(
                     initialValue: selectedBank,
-                    decoration: const InputDecoration(labelText: 'Bank', border: OutlineInputBorder()),
+                    decoration: InputDecoration(labelText: isAm ? 'ባንክ' : 'Bank', border: const OutlineInputBorder()),
                     items: banks.map((b) => DropdownMenuItem(value: b, child: Text(b.name ?? b.providerKey))).toList(),
                     onChanged: (v) => setSheetState(() => selectedBank = v),
                   ),
@@ -552,7 +561,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                   const SizedBox(height: 10),
                   DropdownButtonFormField<PaymentProvider>(
                     initialValue: selectedWallet,
-                    decoration: const InputDecoration(labelText: 'Wallet', border: OutlineInputBorder()),
+                    decoration: InputDecoration(labelText: isAm ? 'ዋሌት' : 'Wallet', border: const OutlineInputBorder()),
                     items: wallets.map((w) => DropdownMenuItem(value: w, child: Text(w.name ?? w.providerKey))).toList(),
                     onChanged: (v) => setSheetState(() => selectedWallet = v),
                   ),
@@ -561,9 +570,9 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                   const SizedBox(height: 10),
                   TextField(
                     controller: refCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Reference / Tx Number',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: isAm ? 'የደረሰኝ / ማረጋገጫ ቁጥር' : 'Reference / Tx Number',
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                 ],
@@ -588,7 +597,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                     );
                     if (ctx.mounted) Navigator.of(ctx).pop(true);
                   },
-                  child: const Text('Record Payment / መዝግብ'),
+                  child: Text(isAm ? 'ክፍያ መዝግብ' : 'Record Payment'),
                 ),
               ],
             ),
@@ -623,17 +632,21 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
   void _shareReminder() {
     final cust = _customer;
     if (cust == null) return;
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
 
-    final dueDateStr = widget.profile.oldestDueDate ?? 'soon';
+    final dueDateStr = widget.profile.oldestDueDate ?? (isAm ? 'በቅርቡ' : 'soon');
     final amountStr = MoneyFormatter.formatCents(widget.profile.totalDebtCents);
 
-    final text = 'Dear ${cust.name}, you owe $amountStr due $dueDateStr. ${widget.shopName}';
+    final text = isAm
+        ? 'ውድ ${cust.name}፣ የ$amountStr ያልተከፈለ የዱቤ ሂሳብ እስከ $dueDateStr ይጠበቅብዎታል። ${widget.shopName}'
+        : 'Dear ${cust.name}, you owe $amountStr due $dueDateStr. ${widget.shopName}';
     SharePlus.instance.share(ShareParams(text: text));
   }
 
   Future<void> _editCustomer() async {
     final cust = _customer;
     if (cust == null) return;
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
 
     final nameCtrl = TextEditingController(text: cust.name);
     final phoneCtrl = TextEditingController(text: cust.phone ?? '');
@@ -642,30 +655,30 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
     final updated = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Edit Customer / ደንበኛ አርም'),
+        title: Text(isAm ? 'ደንበኛ አርም' : 'Edit Customer'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Name'),
+                decoration: InputDecoration(labelText: isAm ? 'ስም' : 'Name'),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: phoneCtrl,
-                decoration: const InputDecoration(labelText: 'Phone'),
+                decoration: InputDecoration(labelText: isAm ? 'ስልክ' : 'Phone'),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: noteCtrl,
-                decoration: const InputDecoration(labelText: 'Note'),
+                decoration: InputDecoration(labelText: isAm ? 'ማስታወሻ' : 'Note'),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(isAm ? 'ይቅር' : 'Cancel')),
           FilledButton(
             onPressed: () async {
               await widget.repository.upsertCustomer(
@@ -676,7 +689,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
               );
               if (ctx.mounted) Navigator.of(ctx).pop(true);
             },
-            child: const Text('Save'),
+            child: Text(isAm ? 'አስቀምጥ' : 'Save'),
           ),
         ],
       ),
@@ -689,6 +702,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
   }
 
   Future<void> _deleteCustomer() async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     try {
       await widget.repository.deleteCustomer(widget.profile.customerId);
       if (mounted) {
@@ -700,10 +714,10 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Cannot Delete / ማጥፋት አይቻልም'),
+            title: Text(isAm ? 'ማጥፋት አይቻልም' : 'Cannot Delete'),
             content: Text(e.toString()),
             actions: [
-              FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK')),
+              FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(isAm ? 'እሺ' : 'OK')),
             ],
           ),
         );
@@ -720,6 +734,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
     final cust = _customer;
     if (cust == null) return const SizedBox.shrink();
 
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final debtFormatted = MoneyFormatter.formatCents(widget.profile.totalDebtCents);
 
     return Container(
@@ -792,7 +807,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Total Debt / ጠቅላላ ዕዳ',
+                        isAm ? 'ጠቅላላ ዕዳ' : 'Total Debt',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(ctx).colorScheme.onSurfaceVariant,
@@ -818,7 +833,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                         border: Border.all(color: creditTokens.border, width: 0.8),
                       ),
                       child: Text(
-                        'Credit: ${MoneyFormatter.formatCents(widget.profile.overpaymentCents)}',
+                        '${isAm ? "ትርፍ ክፍያ" : "Credit"}: ${MoneyFormatter.formatCents(widget.profile.overpaymentCents)}',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -843,7 +858,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                   ),
                   onPressed: _receivePayment,
                   icon: const Icon(Icons.payments_outlined),
-                  label: const Text('Receive Payment'),
+                  label: Text(isAm ? 'ክፍያ ተቀበል' : 'Receive Payment'),
                 ),
               ),
               const SizedBox(width: 8),
@@ -853,7 +868,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                 ),
                 onPressed: _shareReminder,
                 icon: const Icon(Icons.share, size: 18),
-                label: const Text('Share Reminder'),
+                label: Text(isAm ? 'ማስታወሻ ላክ' : 'Share Reminder'),
               ),
             ],
           ),
@@ -871,8 +886,8 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                     unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
                     indicatorColor: const Color(0xFF0F766E),
                     tabs: [
-                      Tab(text: 'Open Sales (${_openSales.length})'),
-                      Tab(text: 'Payments (${_customerPayments.length})'),
+                      Tab(text: isAm ? 'ያልተከፈሉ ሽያጮች (${_openSales.length})' : 'Open Sales (${_openSales.length})'),
+                      Tab(text: isAm ? 'ክፍያዎች (${_customerPayments.length})' : 'Payments (${_customerPayments.length})'),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -882,7 +897,10 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                         // Tab 1: Open Sales
                         _openSales.isEmpty
                             ? Center(
-                                child: Text('No open sales for this customer.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                child: Text(
+                                  isAm ? 'ምንም ያልተከፈለ ሽያጭ የለም።' : 'No open sales for this customer.',
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                ),
                               )
                             : ListView.builder(
                                 itemCount: _openSales.length,
@@ -902,11 +920,11 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
-                                                'Sale: ${MoneyFormatter.formatCents(item.totalCents)}',
+                                                '${isAm ? "ሽያጭ" : "Sale"}: ${MoneyFormatter.formatCents(item.totalCents)}',
                                                 style: const TextStyle(fontWeight: FontWeight.bold),
                                               ),
                                               Text(
-                                                'Remaining: ${MoneyFormatter.formatCents(item.remainingBalanceCents)}',
+                                                '${isAm ? "ቀሪ" : "Remaining"}: ${MoneyFormatter.formatCents(item.remainingBalanceCents)}',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.bold,
                                                   color: isOverdue
@@ -923,7 +941,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
-                                                'Due: ${item.dueDate ?? "No due date"}',
+                                                '${isAm ? "የመክፈያ ቀን" : "Due"}: ${item.dueDate ?? (isAm ? "ቀን አልተወሰነም" : "No due date")}',
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: isOverdue
@@ -936,7 +954,7 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                                               TextButton(
                                                 style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
                                                 onPressed: () => _extendDueDate(item),
-                                                child: const Text('Extend due date', style: TextStyle(fontSize: 12)),
+                                                child: Text(isAm ? 'ቀን አራዝም' : 'Extend due date', style: const TextStyle(fontSize: 12)),
                                               ),
                                             ],
                                           ),
@@ -949,7 +967,10 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                         // Tab 2: Payments
                         _customerPayments.isEmpty
                             ? Center(
-                                child: Text('No payments recorded yet.', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                                child: Text(
+                                  isAm ? 'እስካሁን ምንም ክፍያ አልተመዘገበም።' : 'No payments recorded yet.',
+                                  style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                ),
                               )
                             : ListView.builder(
                                 itemCount: _customerPayments.length,

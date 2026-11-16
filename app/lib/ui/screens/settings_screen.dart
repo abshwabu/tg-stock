@@ -254,7 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             FilledButton(
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(isAm ? 'ፈቅጃለሁ (Enable)' : 'Enable'),
+              child: Text(isAm ? 'ፈቅጃለሁ' : 'Enable'),
             ),
           ],
         ),
@@ -307,7 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     SharePlus.instance.share(
       ShareParams(
         text: isAm
-            ? 'ዕቃ ዝርዝር (Inventory) - ለኢትዮጵያ ሱቆች የተዘጋጀ ፈጣን የሽያጭ እና የዕቃ መቆጣጠሪያ መተግበሪያ! https://stock.yenesuq.com'
+            ? 'ዕቃ ዝርዝር - ለኢትዮጵያ ሱቆች የተዘጋጀ ፈጣን የሽያጭ እና የዕቃ መቆጣጠሪያ መተግበሪያ! https://stock.yenesuq.com'
             : 'Inventory - Offline-first inventory & POS app for Ethiopian retail shops! https://stock.yenesuq.com',
         subject: 'Inventory App for Ethiopian Retailers',
       ),
@@ -315,20 +315,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _editShopName() async {
+    final isAm = _language == 'am';
     final ctrl = TextEditingController(text: _shopName);
     final newName = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Shop Name / የሱቅ ስም'),
+        title: Text(isAm ? 'የሱቅ ስም' : 'Shop Name'),
         content: TextField(
           controller: ctrl,
-          decoration: const InputDecoration(labelText: 'Shop Name'),
+          decoration: InputDecoration(labelText: isAm ? 'የሱቅ ስም' : 'Shop Name'),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(isAm ? 'ይቅር' : 'Cancel')),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
-            child: const Text('Save'),
+            child: Text(isAm ? 'አስቀምጥ' : 'Save'),
           ),
         ],
       ),
@@ -341,20 +342,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _editCurrency() async {
+    final isAm = _language == 'am';
     final ctrl = TextEditingController(text: _currency);
     final newCurr = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Currency Label / የገንዘብ ምልክት'),
+        title: Text(isAm ? 'የገንዘብ ምልክት' : 'Currency Label'),
         content: TextField(
           controller: ctrl,
-          decoration: const InputDecoration(labelText: 'Currency Label (e.g. ETB, ብር, USD)'),
+          decoration: InputDecoration(
+            labelText: isAm ? 'የገንዘብ ምልክት (ምሳሌ፡ ETB, ብር, USD)' : 'Currency Label (e.g. ETB, Birr, USD)',
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(isAm ? 'ይቅር' : 'Cancel')),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(ctrl.text.trim()),
-            child: const Text('Save'),
+            child: Text(isAm ? 'አስቀምጥ' : 'Save'),
           ),
         ],
       ),
@@ -367,15 +371,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _editDefaultLowStock() async {
+    final isAm = _language == 'am';
     final ctrl = TextEditingController(text: QuantityFormatter.formatDisplay(_defaultLowStockMilli));
     final newLimit = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Default Low Stock Threshold / ነባሪ ዝቅተኛ ስቶክ'),
+        title: Text(isAm ? 'ነባሪ ዝቅተኛ ስቶክ' : 'Default Low Stock Threshold'),
         content: TextField(
           controller: ctrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Quantity threshold'),
+          decoration: InputDecoration(labelText: isAm ? 'ዝቅተኛ መጠን' : 'Quantity threshold'),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
@@ -399,6 +404,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // --- Warehouse & Locations ---
 
   Future<void> _pickActiveDeviceLocation() async {
+    final isAm = _language == 'am';
     final selected = await showModalBottomSheet<Location>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -410,11 +416,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  'የመሳሪያው የስራ ቦታ / Active Device Location',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  isAm ? 'የመሳሪያው የስራ ቦታ' : 'Active Device Location',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),
               const Divider(height: 1),
@@ -443,21 +449,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _disableWarehouseAndStore() async {
+    final isAm = _language == 'am';
     final check = await widget.repository.canDisableLocations();
     if (!check.canDisable) {
       if (mounted) {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('⚠️ Cannot Turn Off Warehouse & Store'),
+            title: Text(isAm ? '⚠️ መጋዘን እና ሱቅን ማጥፋት አይቻልም' : '⚠️ Cannot Turn Off Warehouse & Store'),
             content: Text(
               check.reason ??
-                  'Stock exists in multiple locations. All stock must be transferred into one location before turning off warehouse & store.',
+                  (isAm
+                      ? 'ስቶክ በተለያዩ ቦታዎች ይገኛል። መጋዘን እና ሱቅን ከማጥፋትዎ በፊት ሁሉም ስቶክ ወደ አንድ ቦታ መዛወር አለበት።'
+                      : 'Stock exists in multiple locations. All stock must be transferred into one location before turning off warehouse & store.'),
             ),
             actions: [
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK'),
+                child: Text(isAm ? 'እሺ' : 'OK'),
               ),
             ],
           ),
@@ -471,19 +480,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Turn Off Warehouse & Store?'),
-        content: const Text(
-          'This will consolidate inventory into a single place and hide warehouse features.\n\nAre you sure you want to proceed?',
+        title: Text(isAm ? 'መጋዘን እና ሱቅ ይጠፋ?' : 'Turn Off Warehouse & Store?'),
+        content: Text(
+          isAm
+              ? 'ይህ እርምጃ ስቶክን ወደ አንድ ቦታ ያጠቃልላል እና የመጋዘን ገጾችን ይደብቃል።\n\nእርግጠኛ ነዎት?'
+              : 'This will consolidate inventory into a single place and hide warehouse features.\n\nAre you sure you want to proceed?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child: Text(isAm ? 'ይቅር' : 'Cancel'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Turn Off / አጥፋ'),
+            child: Text(isAm ? 'አጥፋ' : 'Turn Off'),
           ),
         ],
       ),
@@ -574,7 +585,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final pin = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isAm ? 'አዲስ ባለ 4 አሃዝ ፒን (PIN) ያስገቡ' : 'Change 4-Digit Security PIN'),
+        title: Text(isAm ? 'አዲስ ባለ 4 አሃዝ ፒን ያስገቡ' : 'Change 4-Digit Security PIN'),
         content: TextField(
           controller: pinCtrl,
           keyboardType: TextInputType.number,
@@ -618,23 +629,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop(3),
-            child: Text(isAm ? 'በየ 3 ቀኑ (3 days)' : 'Every 3 days'),
+            child: Text(isAm ? 'በየ 3 ቀኑ' : 'Every 3 days'),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop(7),
-            child: Text(isAm ? 'በየሳምንቱ / 7 ቀናት (Weekly)' : 'Weekly (7 days)'),
+            child: Text(isAm ? 'በየሳምንቱ' : 'Weekly (7 days)'),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop(14),
-            child: Text(isAm ? 'በየ 14 ቀኑ (14 days)' : 'Every 14 days'),
+            child: Text(isAm ? 'በየ 14 ቀኑ' : 'Every 14 days'),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop(30),
-            child: Text(isAm ? 'በየወሩ / 30 ቀናት (Monthly)' : 'Monthly (30 days)'),
+            child: Text(isAm ? 'በየወሩ' : 'Monthly (30 days)'),
           ),
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop(0),
-            child: Text(isAm ? 'ፈጽሞ አታስታውሰኝ (Never)' : 'Never (Off)'),
+            child: Text(isAm ? 'ፈጽሞ አታስታውሰኝ' : 'Never (Off)'),
           ),
         ],
       ),
@@ -651,7 +662,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final choice = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: Text(isAm ? 'የቁጥሮች አቀራረብ (Number Format)' : 'Number Format'),
+        title: Text(isAm ? 'የቁጥሮች አቀራረብ' : 'Number Format'),
         children: [
           SimpleDialogOption(
             onPressed: () => Navigator.of(ctx).pop('standard'),
@@ -788,19 +799,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!mounted) return;
 
+    final isAm = _language == 'am';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('⚠️ OVERWRITE DATABASE?'),
+        title: Text(isAm ? '⚠️ ዳታቤዙ በባካፑ ይተካ?' : '⚠️ OVERWRITE DATABASE?'),
         content: Text(
-          'Restoring this backup (${p.basename(file.path)}) will replace your current local catalog, sales, and movement records with the data from this backup.\n\nThis cannot be undone. Are you sure you wish to continue?',
+          isAm
+              ? 'ይህን ባካፕ (${p.basename(file.path)}) መመለስ አሁን ያለውን የዕቃዎች ዝርዝር፣ ሽያጮች እና እንቅስቃሴዎች በባካፑ ዳታ ይተካል።\n\nይህ ድርጊት ወደ ኋላ አይመለስም። መቀጠል ይፈልጋሉ?'
+              : 'Restoring this backup (${p.basename(file.path)}) will replace your current local catalog, sales, and movement records with the data from this backup.\n\nThis cannot be undone. Are you sure you wish to continue?',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel / ሰርዝ')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(isAm ? 'ይቅር' : 'Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red.shade900),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Yes, Overwrite & Restore'),
+            child: Text(isAm ? 'አዎ፣ በባካፑ ተካ' : 'Yes, Overwrite & Restore'),
           ),
         ],
       ),
@@ -812,16 +826,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await _backupService.restoreBackup(file);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               backgroundColor: Colors.green,
-              content: Text('Database successfully restored! Please restart the app.'),
+              content: Text(isAm ? 'ዳታቤዙ በተሳካ ሁኔታ ተመልሷል! እባክዎ መተግበሪያውን እንደገና ይክፈቱት።' : 'Database successfully restored! Please restart the app.'),
             ),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Restore failed: $e')),
+            SnackBar(content: Text(isAm ? 'ባካፕ መመለስ አልተሳካም: $e' : 'Restore failed: $e')),
           );
         }
       } finally {
@@ -833,16 +847,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // --- Cloud & Sync Actions (Preserved) ---
 
   Future<void> _goOfflineAgain() async {
+    final isAm = _language == 'am';
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Go Offline Again? / ኦፍላይን ሁን?'),
-        content: const Text(
-          'Cloud sync will stop. All your products, stock counts, and sales remain completely safe on this phone.',
+        title: Text(isAm ? 'ወደ ኦፍላይን ይመለስ?' : 'Go Offline Again?'),
+        content: Text(
+          isAm
+              ? 'የደመና (ክላውድ) ማመሳሰል ይቆማል። ሁሉም ዕቃዎችዎ፣ ስቶክ እና ሽያጮች በዚህ ስልክ ላይ ሳይነኩ በሰላም ይቀመጣሉ።'
+              : 'Cloud sync will stop. All your products, stock counts, and sales remain completely safe on this phone.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Go Offline')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(isAm ? 'ይቅር' : 'Cancel')),
+          FilledButton(onPressed: () => Navigator.of(ctx).pop(true), child: Text(isAm ? 'ኦፍላይን ሁን' : 'Go Offline')),
         ],
       ),
     );
@@ -918,7 +935,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 1. SHOP
                 // ==========================================
-                _buildSectionHeader(isAm ? '1. የሱቅ መረጃ (Shop)' : '1. Shop'),
+                _buildSectionHeader(isAm ? '1. የሱቅ መረጃ' : '1. Shop Info'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
@@ -926,7 +943,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ListTile(
                         leading: const Icon(Icons.storefront_outlined),
                         title: Text(isAm ? 'የሱቅ ስም' : 'Shop Name'),
-                        subtitle: Text(_shopName ?? 'Inventory'),
+                        subtitle: Text(_shopName ?? (isAm ? 'የኔ ሱቅ' : 'Inventory')),
                         trailing: const Icon(Icons.chevron_right),
                         onTap: _editShopName,
                       ),
@@ -989,7 +1006,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ListTile(
                           leading: const Icon(Icons.storefront_outlined, color: Color(0xFF0F766E)),
                           title: Text(isAm ? 'የዚህ ስልክ ነባሪ የስራ ቦታ' : 'Active Device Location'),
-                          subtitle: Text(_activeLocation?.name ?? 'Store'),
+                          subtitle: Text(_activeLocation?.name ?? (isAm ? 'ሱቅ' : 'Store')),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: _pickActiveDeviceLocation,
                         ),
@@ -1031,15 +1048,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 2. LANGUAGE & DISPLAY
                 // ==========================================
-                _buildSectionHeader(isAm ? '2. ቋንቋ እና ገጽታ (Language & Display)' : '2. Language & Display'),
+                _buildSectionHeader(isAm ? '2. ቋንቋ እና ገጽታ' : '2. Language & Display'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     children: [
                       ListTile(
                         leading: const Icon(Icons.language_outlined),
-                        title: Text(isAm ? 'ቋንቋ (Language)' : 'Language'),
-                        subtitle: Text(isAm ? 'አማርኛ (Amharic)' : 'English'),
+                        title: Text(isAm ? 'ቋንቋ' : 'Language'),
+                        subtitle: Text(isAm ? 'አማርኛ' : 'English'),
                         trailing: SegmentedButton<String>(
                           segments: const [
                             ButtonSegment(value: 'am', label: Text('አማ')),
@@ -1077,10 +1094,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       ),
                                       Text(
                                         _themeMode == 'light'
-                                            ? (isAm ? 'ብርሃን (Light)' : 'Light')
+                                            ? (isAm ? 'ብርሃን' : 'Light')
                                             : _themeMode == 'dark'
-                                                ? (isAm ? 'ጨለማ (Dark)' : 'Dark')
-                                                : (isAm ? 'የስልክ ስርዓት (System)' : 'System'),
+                                                ? (isAm ? 'ጨለማ' : 'Dark')
+                                                : (isAm ? 'የስልክ ስርዓት' : 'System'),
                                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                               color: Theme.of(context).colorScheme.onSurfaceVariant,
                                             ),
@@ -1125,7 +1142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         subtitle: Text(
                           isAm
                               ? 'ቀኖችን በኢትዮጵያ ዘመን አቆጣጠር (ዓ.ም) አሳይ'
-                              : 'Show dates using Ethiopian calendar (ዓ.ም)',
+                              : 'Show dates using Ethiopian calendar',
                         ),
                         value: _useEthiopianCalendar,
                         onChanged: (val) async {
@@ -1149,7 +1166,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 3. PAYMENTS
                 // ==========================================
-                _buildSectionHeader(isAm ? '3. ክፍያዎች (Payments)' : '3. Payments'),
+                _buildSectionHeader(isAm ? '3. ክፍያዎች' : '3. Payments'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
@@ -1204,7 +1221,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 4. ALERTS
                 // ==========================================
-                _buildSectionHeader(isAm ? '4. ማሳሰቢያዎች (Alerts)' : '4. Alerts'),
+                _buildSectionHeader(isAm ? '4. ማሳሰቢያዎች' : '4. Alerts'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
@@ -1310,7 +1327,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 5. BACKUP & DATA
                 // ==========================================
-                _buildSectionHeader(isAm ? '5. ባካፕ እና ዳታ (Backup & Data)' : '5. Backup & Data'),
+                _buildSectionHeader(isAm ? '5. ባካፕ እና ዳታ' : '5. Backup & Data'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
@@ -1334,7 +1351,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               Expanded(
                                 child: Text(
                                   isAm
-                                      ? 'ስልክዎ ቢጠፋ ወይም ቢበላሽ ዳታዎ እንዳይጠፋ በየጊዜው ኮፒ (ባካፕ) በማንሳት ወደ ቴሌግራም ወይም ደመና (Drive) ያስቀምጡ።'
+                                      ? 'ስልክዎ ቢጠፋ ወይም ቢበላሽ ዳታዎ እንዳይጠፋ በየጊዜው ኮፒ በማንሳት ወደ ቴሌግራም ወይም ደመና ያስቀምጡ።'
                                       : 'A lost phone means lost data unless backed up. Keep a copy in Telegram Saved Messages or Google Drive.',
                                   style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF92400E)),
                                 ),
@@ -1350,7 +1367,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: Text(isAm ? 'የመጨረሻው ባካፕ ቀን' : 'Last Backup Date'),
                           subtitle: Text(
                             _lastBackupMs == null
-                                ? (isAm ? 'እስካሁን አልተወሰደም (Never)' : 'Never backed up')
+                                ? (isAm ? 'እስካሁን አልተወሰደም' : 'Never backed up')
                                 : DateFormat('MMM d, yyyy HH:mm').format(DateTime.fromMillisecondsSinceEpoch(_lastBackupMs!)),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -1370,7 +1387,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           title: Text(isAm ? 'የባካፕ ማሳሰቢያ ድግግሞሽ' : 'Backup Reminder Frequency'),
                           subtitle: Text(
                             _backupReminderDays == 0
-                                ? (isAm ? 'ጠፍቷል (Never)' : 'Never (Off)')
+                                ? (isAm ? 'ጠፍቷል' : 'Never (Off)')
                                 : (isAm ? 'በየ $_backupReminderDays ቀኑ' : 'Every $_backupReminderDays days'),
                           ),
                           trailing: const Icon(Icons.chevron_right),
@@ -1386,7 +1403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onPressed: _createAndShareBackup,
                           icon: const Icon(Icons.share_outlined),
                           label: Text(
-                            isAm ? 'ባካፕ አዘጋጅተህ አጋራ (Telegram/Cloud)' : 'Create & Share Database Backup',
+                            isAm ? 'ባካፕ አዘጋጅተህ አጋራ' : 'Create & Share Database Backup',
                           ),
                         ),
 
@@ -1395,7 +1412,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           const Divider(),
                           const SizedBox(height: 8),
                           Text(
-                            isAm ? 'የቀደሙ ባካፖች (Local Backups):' : 'Local Backups & Snapshots:',
+                            isAm ? 'የቀደሙ ባካፖች:' : 'Local Backups & Snapshots:',
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           const SizedBox(height: 8),
@@ -1443,7 +1460,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const Divider(),
                         const SizedBox(height: 8),
                         Text(
-                          isAm ? 'ዳታ ወደ CSV ላክ (Export Data):' : 'Export Data (CSV):',
+                          isAm ? 'ዳታ ወደ CSV ላክ:' : 'Export Data (CSV):',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         const SizedBox(height: 8),
@@ -1451,7 +1468,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.inventory_2_outlined, color: Color(0xFF0F766E)),
-                          title: Text(isAm ? 'የዕቃዎች ዝርዝር (Products CSV)' : 'Export Products Catalog CSV'),
+                          title: Text(isAm ? 'የዕቃዎች ዝርዝር (CSV)' : 'Export Products Catalog CSV'),
                           subtitle: Text(isAm ? 'ስቶክ፣ ዋጋ እና መደብ የያዘ' : 'Includes stock levels, costs, and selling prices'),
                           trailing: const Icon(Icons.download_rounded),
                           onTap: _exportProductsCsv,
@@ -1460,7 +1477,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.point_of_sale, color: Colors.green),
-                          title: Text(isAm ? 'የሽያጭ መዝገብ (Sales CSV)' : 'Export Sales Ledger CSV'),
+                          title: Text(isAm ? 'የሽያጭ መዝገብ (CSV)' : 'Export Sales Ledger CSV'),
                           subtitle: Text(isAm ? 'ደንበኞች፣ የገንዘብ መጠን እና ቀን' : 'Customer transactions with quantities and revenue'),
                           trailing: const Icon(Icons.download_rounded),
                           onTap: _exportSalesCsv,
@@ -1469,7 +1486,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.history, color: Colors.blue),
-                          title: Text(isAm ? 'ሙሉ እንቅስቃሴዎች (Movements CSV)' : 'Export All Movements CSV'),
+                          title: Text(isAm ? 'ሙሉ እንቅስቃሴዎች (CSV)' : 'Export All Movements CSV'),
                           subtitle: Text(isAm ? 'ሽያጭ፣ ግዢ፣ ማስተካከያ እና ዝውውር' : 'Full audit ledger (sales, intake, adjustments)'),
                           trailing: const Icon(Icons.download_rounded),
                           onTap: _exportMovementsCsv,
@@ -1483,7 +1500,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 6. ONLINE & TEAM
                 // ==========================================
-                _buildSectionHeader(isAm ? '6. ኦንላይን እና ቡድን (Online & Team)' : '6. Online & Team'),
+                _buildSectionHeader(isAm ? '6. ኦንላይን እና ቡድን' : '6. Online & Team'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
@@ -1504,7 +1521,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _isOnline ? (isAm ? 'ኦንላይን ግንኙነት ይሰራል' : 'Online Sync Active') : (isAm ? 'ኦፍላይን ሁነታ (Offline)' : 'Offline Mode'),
+                                    _isOnline ? (isAm ? 'ኦንላይን ግንኙነት ይሰራል' : 'Online Sync Active') : (isAm ? 'ኦፍላይን ሁነታ' : 'Offline Mode'),
                                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                                   ),
                                   Text(
@@ -1549,7 +1566,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               await _loadAllSettings();
                             },
                             icon: const Icon(Icons.link_rounded),
-                            label: Text(isAm ? 'ቴሌግራም አገናኝ / ኦንላይን ሁን' : 'Go Online / Connect Telegram'),
+                            label: Text(isAm ? 'ቴሌግራም አገናኝ እና ኦንላይን ሁን' : 'Go Online / Connect Telegram'),
                           ),
                         ] else ...[
                           OutlinedButton.icon(
@@ -1578,14 +1595,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 7. SECURITY
                 // ==========================================
-                _buildSectionHeader(isAm ? '7. ደህንነት (Security)' : '7. Security'),
+                _buildSectionHeader(isAm ? '7. ደህንነት' : '7. Security'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     children: [
                       SwitchListTile(
                         secondary: const Icon(Icons.lock_outline),
-                        title: Text(isAm ? 'የመተግበሪያ መቆለፊያ (PIN/Biometric)' : 'PIN / Biometric Lock'),
+                        title: Text(isAm ? 'የመተግበሪያ መቆለፊያ' : 'PIN / Biometric Lock'),
                         subtitle: Text(
                           _appLockEnabled
                               ? (_canUseBiometrics
@@ -1613,7 +1630,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 8. ABOUT
                 // ==========================================
-                _buildSectionHeader(isAm ? '8. ስለ መተግበሪያው (About)' : '8. About'),
+                _buildSectionHeader(isAm ? '8. ስለ መተግበሪያው' : '8. About'),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
@@ -1627,13 +1644,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                           child: const Icon(Icons.inventory_2, color: Color(0xFF0F766E), size: 24),
                         ),
-                        title: Text(isAm ? 'ዕቃ ዝርዝር (Inventory)' : 'Inventory'),
+                        title: Text(isAm ? 'ዕቃ ዝርዝር' : 'Inventory'),
                         subtitle: const Text('Version 1.0.0 (Build 1) • Offline-First'),
                       ),
                       const Divider(height: 1),
                       ListTile(
                         leading: const Icon(Icons.bug_report_outlined, color: Colors.blueGrey),
-                        title: Text(isAm ? 'ስህተቶች እና መረጃ (Diagnostics)' : 'Diagnostics & Error Log'),
+                        title: Text(isAm ? 'ስህተቶች እና መረጃ' : 'Diagnostics & Error Log'),
                         subtitle: Text(
                           isAm
                               ? 'የቅርብ 50 ስህተቶችን ይመልከቱ ወይም ሪፖርት ያጋሩ'
@@ -1662,7 +1679,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onTap: () {
                           showLicensePage(
                             context: context,
-                            applicationName: isAm ? 'ዕቃ ዝርዝር (Inventory)' : 'Inventory',
+                            applicationName: isAm ? 'ዕቃ ዝርዝር' : 'Inventory',
                             applicationVersion: '1.0.0+1',
                             applicationLegalese: 'MIT License • Designed for Ethiopian Retailers',
                           );
@@ -1722,6 +1739,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _showPaymentMethodsDialog() async {
+    final isAm = _language == 'am';
     final available = ['cash', 'bank', 'wallet', 'dube'];
     final selected = List<String>.from(_paymentMethodsEnabled);
 
@@ -1730,16 +1748,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDlgState) {
           return AlertDialog(
-            title: const Text('Payment Methods / የክፍያ ዘዴዎች'),
+            title: Text(isAm ? 'የክፍያ ዘዴዎች' : 'Payment Methods'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: available.map((m) {
                 final isChecked = selected.contains(m);
                 final label = switch (m) {
-                  'cash' => '💵 Cash (ጥሬ ገንዘብ)',
-                  'bank' => '🏦 Bank (ባንክ)',
-                  'wallet' => '📱 Wallet (ዋሌት)',
-                  'dube' => '📝 Dube (ዱቤ)',
+                  'cash' => isAm ? '💵 ጥሬ ገንዘብ' : '💵 Cash',
+                  'bank' => isAm ? '🏦 ባንክ' : '🏦 Bank',
+                  'wallet' => isAm ? '📱 ዋሌት' : '📱 Wallet',
+                  'dube' => isAm ? '📝 ዱቤ' : '📝 Dube',
                   _ => m,
                 };
                 return CheckboxListTile(
@@ -1757,10 +1775,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }).toList(),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(isAm ? 'ይቅር' : 'Cancel')),
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(selected),
-                child: const Text('Save'),
+                child: Text(isAm ? 'አስቀምጥ' : 'Save'),
               ),
             ],
           );
@@ -1775,38 +1793,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _pickDubeDefaultDays() async {
+    final isAm = _language == 'am';
     final ctrl = TextEditingController(text: _dubeDefaultDays.toString());
     final picked = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Default Dube Days / ነባሪ የዱቤ ቀናት'),
+        title: Text(isAm ? 'ነባሪ የዱቤ ቀናት' : 'Default Dube Days'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: ctrl,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Days / ቀናት', border: OutlineInputBorder()),
+              decoration: InputDecoration(
+                labelText: isAm ? 'ቀናት' : 'Days',
+                border: const OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                ActionChip(label: const Text('7 Days'), onPressed: () => Navigator.of(ctx).pop(7)),
-                ActionChip(label: const Text('14 Days'), onPressed: () => Navigator.of(ctx).pop(14)),
-                ActionChip(label: const Text('30 Days'), onPressed: () => Navigator.of(ctx).pop(30)),
+                ActionChip(label: Text('7 ${isAm ? "ቀን" : "Days"}'), onPressed: () => Navigator.of(ctx).pop(7)),
+                ActionChip(label: Text('14 ${isAm ? "ቀን" : "Days"}'), onPressed: () => Navigator.of(ctx).pop(14)),
+                ActionChip(label: Text('30 ${isAm ? "ቀን" : "Days"}'), onPressed: () => Navigator.of(ctx).pop(30)),
               ],
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: Text(isAm ? 'ይቅር' : 'Cancel')),
           FilledButton(
             onPressed: () {
               final d = int.tryParse(ctrl.text);
               if (d != null && d > 0) Navigator.of(ctx).pop(d);
             },
-            child: const Text('Save'),
+            child: Text(isAm ? 'አስቀምጥ' : 'Save'),
           ),
         ],
       ),
@@ -1819,6 +1841,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _manageFavoriteProviders() async {
+    final isAm = _language == 'am';
     final allBanks = await widget.repository.listPaymentProviders(kind: 'bank');
     final allWallets = await widget.repository.listPaymentProviders(kind: 'wallet');
 
@@ -1836,14 +1859,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Favorite Providers / ተመራጭ ባንኮች እና ዋሌቶች', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  isAm ? 'ተመራጭ ባንኮች እና ዋሌቶች' : 'Favorite Providers',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
                 const SizedBox(height: 6),
-                Text('Star your frequent banks and mobile wallets for quick access at checkout.', style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant)),
+                Text(
+                  isAm
+                      ? 'በሽያጭ ወቅት በፍጥነት እንዲገኙ ተደጋጋሚ ባንኮችን እና የሞባይል ዋሌቶችን ኮከብ ያድርጉ።'
+                      : 'Star your frequent banks and mobile wallets for quick access at checkout.',
+                  style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                ),
                 const Divider(height: 16),
                 Expanded(
                   child: ListView(
                     children: [
-                      const Text('Banks / ባንኮች', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                      Text(
+                        isAm ? 'ባንኮች' : 'Banks',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
+                      ),
                       ...allBanks.map((b) => CheckboxListTile(
                         dense: true,
                         secondary: Icon(b.favorite ? Icons.star : Icons.star_border, color: b.favorite ? Colors.amber : Theme.of(ctx).colorScheme.onSurfaceVariant),
@@ -1859,7 +1893,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         },
                       )),
                       const SizedBox(height: 12),
-                      const Text('Wallets / ዋሌቶች', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                      Text(
+                        isAm ? 'ዋሌቶች' : 'Wallets',
+                        style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
+                      ),
                       ...allWallets.map((w) => CheckboxListTile(
                         dense: true,
                         secondary: Icon(w.favorite ? Icons.star : Icons.star_border, color: w.favorite ? Colors.amber : Theme.of(ctx).colorScheme.onSurfaceVariant),

@@ -47,9 +47,14 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
 
       if (mounted) {
         final isSplit = _stockPlacement == 'split_later';
+        final isAm = Localizations.localeOf(context).languageCode == 'am';
         final msg = isSplit
-            ? 'መጋዘን እና ሱቅ ተዘጋጅተዋል! ዕቃው በሙሉ በሱቅ ተቀምጧል፤ በዝውውር ወደ መጋዘን መላክ ይችላሉ።'
-            : 'መጋዘን እና ሱቅ በተሳካ ሁኔታ ተዘጋጅተዋል! / Warehouse & Store enabled!';
+            ? (isAm
+                ? 'መጋዘን እና ሱቅ ተዘጋጅተዋል! ዕቃው በሙሉ በሱቅ ተቀምጧል፤ በዝውውር ወደ መጋዘን መላክ ይችላሉ።'
+                : 'Warehouse & Store enabled! Stock is in Store; use Transfer to move stock.')
+            : (isAm
+                ? 'መጋዘን እና ሱቅ በተሳካ ሁኔታ ተዘጋጅተዋል!'
+                : 'Warehouse & Store enabled!');
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -78,6 +83,8 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
+
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -104,17 +111,17 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             children: [
               Icon(Icons.warehouse_rounded, color: Theme.of(context).colorScheme.primary, size: 28),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'መጋዘን እና ሱቅ ማዘጋጀት\nSet Up Warehouse & Store',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
+                  isAm ? 'መጋዘን እና ሱቅ ማዘጋጀት' : 'Set Up Warehouse & Store',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, height: 1.2),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
-            'አሁን ያለው ዕቃ የት ነው የሚገኘው?\nWhere does your current stock live?',
+            isAm ? 'አሁን ያለው ዕቃ የት ነው የሚገኘው?' : 'Where does your current stock live?',
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -128,8 +135,8 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             value: 'store',
             groupValue: _stockPlacement,
             onChanged: _isLoading ? null : (v) => setState(() => _stockPlacement = v!),
-            title: const Text('ሁሉም በሱቅ ውስጥ / All in Store', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            subtitle: const Text('አሁን ያሉት ዕቃዎች በሙሉ ወደ "Store" ይመደባሉ', style: TextStyle(fontSize: 12)),
+            title: Text(isAm ? 'ሁሉም በሱቅ ውስጥ' : 'All in Store', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            subtitle: Text(isAm ? 'አሁን ያሉት ዕቃዎች በሙሉ ወደ ሱቅ ይመደባሉ' : 'All existing stock goes to Store', style: const TextStyle(fontSize: 12)),
             activeColor: Theme.of(context).colorScheme.primary,
             contentPadding: EdgeInsets.zero,
           ),
@@ -137,8 +144,8 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             value: 'warehouse',
             groupValue: _stockPlacement,
             onChanged: _isLoading ? null : (v) => setState(() => _stockPlacement = v!),
-            title: const Text('ሁሉም በመጋዘን ውስጥ / All in Warehouse', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            subtitle: const Text('አሁን ያሉት ዕቃዎች በሙሉ ወደ "Warehouse" ይመደባሉ', style: TextStyle(fontSize: 12)),
+            title: Text(isAm ? 'ሁሉም በመጋዘን ውስጥ' : 'All in Warehouse', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            subtitle: Text(isAm ? 'አሁን ያሉት ዕቃዎች በሙሉ ወደ መጋዘን ይመደባሉ' : 'All existing stock goes to Warehouse', style: const TextStyle(fontSize: 12)),
             activeColor: Theme.of(context).colorScheme.primary,
             contentPadding: EdgeInsets.zero,
           ),
@@ -146,8 +153,8 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
             value: 'split_later',
             groupValue: _stockPlacement,
             onChanged: _isLoading ? null : (v) => setState(() => _stockPlacement = v!),
-            title: const Text('ቆይቼ እከፍላለሁ / I\'ll split it later', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            subtitle: const Text('ሁሉም ለጊዜው በሱቅ ይቀመጣሉ። በኋላ በዝውውር (Transfer) መክፈል ይችላሉ።', style: TextStyle(fontSize: 12)),
+            title: Text(isAm ? 'ቆይቼ እከፍላለሁ' : "I'll split it later", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+            subtitle: Text(isAm ? 'ሁሉም ለጊዜው በሱቅ ይቀመጣሉ። በኋላ በዝውውር ማስተካከል ይችላሉ።' : 'Keeps stock in Store. Transfer or adjust later.', style: const TextStyle(fontSize: 12)),
             activeColor: Theme.of(context).colorScheme.primary,
             contentPadding: EdgeInsets.zero,
           ),
@@ -170,7 +177,9 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Hint: Everything will stay in Store. Use Transfer or Adjust later to move stock to Warehouse.',
+                        isAm
+                            ? 'ማስታወሻ፡ ሁሉም ዕቃ በሱቅ ውስጥ ይጀምራል። ወደ መጋዘን ለማዘዋወር "ዝውውር" ይጠቀሙ።'
+                            : 'Hint: Everything will stay in Store. Use Transfer or Adjust later to move stock to Warehouse.',
                         style: TextStyle(
                           fontSize: 12,
                           color: Theme.of(ctx).colorScheme.onSurface,
@@ -197,9 +206,9 @@ class _WarehouseSetupSheetContentState extends State<_WarehouseSetupSheetContent
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text(
-                    'አግብር / Enable Warehouse & Store',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                : Text(
+                    isAm ? 'አግብር' : 'Enable Warehouse & Store',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
           ),
         ],

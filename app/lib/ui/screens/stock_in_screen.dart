@@ -137,9 +137,10 @@ class _StockInScreenState extends State<StockInScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stock Intake / ገቢ ዕቃ መዝግብ'),
+        title: Text(isAm ? 'ገቢ ዕቃ መዝግብ' : 'Stock Intake'),
         actions: [
           LocationSelectorChip(
             repository: widget.repository,
@@ -174,17 +175,22 @@ class _StockInScreenState extends State<StockInScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _selectedProduct?.name ?? 'Select Product / ዕቃ ይምረጡ',
+                              _selectedProduct?.name ?? (isAm ? 'ዕቃ ይምረጡ' : 'Select Product'),
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             if (_selectedProduct != null) ...[
                               const SizedBox(height: 4),
                               Text(
-                                'Current Stock: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}',
+                                isAm
+                                    ? 'ያለ ስቶክ: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}'
+                                    : 'Current Stock: ${QuantityFormatter.formatDisplay(_currentStock)} ${_selectedProduct!.unit}',
                                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
                               ),
                             ] else
-                              Text('Tap to choose product from catalog', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                              Text(
+                                isAm ? 'ዕቃ ለመምረጥ ይንኩ' : 'Tap to choose product from catalog',
+                                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                              ),
                           ],
                         ),
                       ),
@@ -198,7 +204,10 @@ class _StockInScreenState extends State<StockInScreen> {
 
             if (_selectedProduct != null) ...[
               // Quick Quantity Buttons
-              Text('Quick Quantity / ፈጣን መጠን:', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+              Text(
+                isAm ? 'ፈጣን መጠን:' : 'Quick Quantity:',
+                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [5, 10, 25, 50, 100].map((n) {
@@ -227,7 +236,9 @@ class _StockInScreenState extends State<StockInScreen> {
                 controller: _qtyController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: 'Quantity to Add / የሚጨመር መጠን (${_selectedProduct!.unit}) *',
+                  labelText: isAm
+                      ? 'የሚጨመር መጠን (${_selectedProduct!.unit}) *'
+                      : 'Quantity to Add (${_selectedProduct!.unit}) *',
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.add_box_outlined),
                 ),
@@ -238,10 +249,10 @@ class _StockInScreenState extends State<StockInScreen> {
               TextField(
                 controller: _costController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'New Unit Cost Price (ETB) / አዲስ የመግዣ ዋጋ',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money),
+                decoration: InputDecoration(
+                  labelText: isAm ? 'አዲስ የመግዣ ዋጋ (ብር)' : 'New Unit Cost Price (ETB)',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.attach_money),
                 ),
               ),
               const SizedBox(height: 16),
@@ -249,10 +260,10 @@ class _StockInScreenState extends State<StockInScreen> {
               // Note Input
               TextField(
                 controller: _noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Supplier / Note / ማስታወሻ (Optional)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.note_alt_outlined),
+                decoration: InputDecoration(
+                  labelText: isAm ? 'አቅራቢ / ማስታወሻ (አስፈላጊ አይደለም)' : 'Supplier / Note (Optional)',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.note_alt_outlined),
                 ),
               ),
               const SizedBox(height: 28),
@@ -271,7 +282,10 @@ class _StockInScreenState extends State<StockInScreen> {
                         child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                       )
                     : const Icon(Icons.check_circle_outline),
-                label: const Text('Confirm Stock Intake / ገቢ መዝግብ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                label: Text(
+                  isAm ? 'ገቢ መዝግብ' : 'Confirm Stock Intake',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ],
           ],
@@ -295,6 +309,7 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final filtered = widget.products.where((p) {
       if (_query.isEmpty) return true;
       final q = _query.toLowerCase();
@@ -316,7 +331,7 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
             TextField(
               autofocus: true,
               decoration: InputDecoration(
-                hintText: 'Search product...',
+                hintText: isAm ? 'ዕቃ ፈልግ...' : 'Search product...',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
@@ -333,7 +348,11 @@ class _ProductSelectionSheetState extends State<_ProductSelectionSheet> {
                   final item = filtered[index];
                   return ListTile(
                     title: Text(item.product.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${item.product.unit}'),
+                    subtitle: Text(
+                      isAm
+                          ? 'ስቶክ: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${item.product.unit}'
+                          : 'Stock: ${QuantityFormatter.formatDisplay(item.stockMilli)} ${item.product.unit}',
+                    ),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                     onTap: () => Navigator.of(ctx).pop(item.product),
                   );

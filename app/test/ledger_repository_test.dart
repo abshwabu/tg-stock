@@ -277,6 +277,7 @@ void main() {
       );
 
       // Physical count reveals only 24 intact eggs (damaged 6)
+      await repo.setLanguage('en');
       final mov = await repo.recordAdjustment(
         productId: product.id,
         countedQtyMilli: 24000,

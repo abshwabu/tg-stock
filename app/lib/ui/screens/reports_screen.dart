@@ -182,45 +182,52 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  String _getRangeLabel() {
+  String _getRangeLabel(bool isAm) {
     switch (_selectedRange) {
       case ReportRange.today:
-        return 'Today / ዛሬ';
+        return isAm ? 'ዛሬ' : 'Today';
       case ReportRange.yesterday:
-        return 'Yesterday / ትላንት';
+        return isAm ? 'ትላንት' : 'Yesterday';
       case ReportRange.week:
-        return 'Past 7 Days / ያለፉት 7 ቀናት';
+        return isAm ? 'ያለፉት 7 ቀናት' : 'Past 7 Days';
       case ReportRange.month:
-        return 'This Month / በዚህ ወር';
+        return isAm ? 'በዚህ ወር' : 'This Month';
       case ReportRange.custom:
         if (_customDateRange != null) {
           final f = DateFormat('MMM d');
           return '${f.format(_customDateRange!.start)} – ${f.format(_customDateRange!.end)}';
         }
-        return 'Custom';
+        return isAm ? 'ምረጥ' : 'Custom';
     }
   }
 
   Future<void> _exportSalesReport() async {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final (fromMs, toMs) = _calculateTimeWindow();
     final file = await _exportService.exportSalesCsv(
       fromMs: fromMs,
       toMs: toMs,
       locationId: _selectedLocationId,
     );
-    await _exportService.shareFile(file, subject: 'Sales Report (${_getRangeLabel()})');
+    await _exportService.shareFile(
+      file,
+      subject: isAm
+          ? 'የሽያጭ ሪፖርት (${_getRangeLabel(isAm)})'
+          : 'Sales Report (${_getRangeLabel(isAm)})',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reports & Analytics / ሪፖርቶች'),
+        title: Text(isAm ? 'ሪፖርቶች እና ትንታኔ' : 'Reports & Analytics'),
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
-            tooltip: 'Export Sales CSV',
+            tooltip: isAm ? 'የሽያጭ CSV አውርድ' : 'Export Sales CSV',
             onPressed: _salesReport == null ? null : _exportSalesReport,
           ),
           IconButton(
@@ -237,19 +244,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               children: [
-                _filterChip('Today (ዛሬ)', ReportRange.today),
+                _filterChip(isAm ? 'ዛሬ' : 'Today', ReportRange.today),
                 const SizedBox(width: 6),
-                _filterChip('Yesterday (ትላንት)', ReportRange.yesterday),
+                _filterChip(isAm ? 'ትላንት' : 'Yesterday', ReportRange.yesterday),
                 const SizedBox(width: 6),
-                _filterChip('Week (ሳምንት)', ReportRange.week),
+                _filterChip(isAm ? 'ሳምንት' : 'Week', ReportRange.week),
                 const SizedBox(width: 6),
-                _filterChip('Month (ወር)', ReportRange.month),
+                _filterChip(isAm ? 'ወር' : 'Month', ReportRange.month),
                 const SizedBox(width: 6),
                 ActionChip(
                   avatar: const Icon(Icons.calendar_month, size: 16),
                   label: Text(_selectedRange == ReportRange.custom && _customDateRange != null
-                      ? _getRangeLabel()
-                      : 'Custom (ምረጥ)'),
+                      ? _getRangeLabel(isAm)
+                      : (isAm ? 'ምረጥ' : 'Custom')),
                   backgroundColor: _selectedRange == ReportRange.custom ? const Color(0xFF0F766E).withValues(alpha: 0.15) : null,
                   onPressed: _pickCustomRange,
                 ),
@@ -265,7 +272,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 children: [
                   const Icon(Icons.location_on_outlined, size: 18, color: Color(0xFF0F766E)),
                   const SizedBox(width: 8),
-                  const Text('ቦታ / Location:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(isAm ? 'ቦታ:' : 'Location:', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButton<String?>(
@@ -273,9 +280,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       value: _selectedLocationId,
                       underline: const SizedBox(),
                       items: [
-                        const DropdownMenuItem<String?>(
+                        DropdownMenuItem<String?>(
                           value: null,
-                          child: Text('ሁሉም ቦታዎች (All Locations)', style: TextStyle(fontSize: 13)),
+                          child: Text(isAm ? 'ሁሉም ቦታዎች' : 'All Locations', style: const TextStyle(fontSize: 13)),
                         ),
                         ..._locations.map((l) => DropdownMenuItem<String?>(
                           value: l.id,
@@ -300,13 +307,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 : ((_salesReport?.salesCount ?? 0) == 0 && (_stockReport?.totalProductsCount ?? 0) == 0)
                     ? EmptyStateWidget(
                         icon: Icons.insights_outlined,
-                        title: 'ሪፖርት የሚሰራ ዳታ የለም / No Report Data',
-                        description:
-                            'ሽያጭ በማካሄድ ወይም ዕቃዎችን በማስገባት የእለት፣ የሳምንት እና የወር የንግድ ሪፖርቶችዎን እዚህ ይመልከቱ።\nStart selling or adding products to view business performance reports.',
-                        primaryButtonLabel: 'ወደ ኋላ ተመለስ / Go Back',
+                        title: isAm ? 'ሪፖርት የሚሰራ ዳታ የለም' : 'No Report Data',
+                        description: isAm
+                            ? 'ሽያጭ በማካሄድ ወይም ዕቃዎችን በማስገባት የእለት፣ የሳምንት እና የወር የንግድ ሪፖርቶችዎን እዚህ ይመልከቱ።'
+                            : 'Start selling or adding products to view business performance reports.',
+                        primaryButtonLabel: isAm ? 'ወደ ኋላ ተመለስ' : 'Go Back',
                         primaryButtonIcon: Icons.arrow_back,
                         onPrimaryPressed: () => Navigator.of(context).pop(),
-                        secondaryButtonLabel: 'የሙከራ ዕቃዎች ጫን / Load Demo Data',
+                        secondaryButtonLabel: isAm ? 'የሙከራ ዕቃዎች ጫን' : 'Load Demo Data',
                         secondaryButtonIcon: Icons.auto_awesome,
                         onSecondaryPressed: () async {
                           final demoService = DemoDataService(repository: widget.repository);
@@ -332,7 +340,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Viewing: ${_getRangeLabel()}',
+                                  isAm ? 'ሪፖርት: ${_getRangeLabel(isAm)}' : 'Viewing: ${_getRangeLabel(isAm)}',
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
                               ),
@@ -359,7 +367,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                         // Section 2: Top Products by Revenue
                         _buildTopProductsSection(
-                          title: '🏆 Top Products by Revenue / በገቢ ቀዳሚ',
+                          title: isAm ? '🏆 በገቢ ቀዳሚ ዕቃዎች' : '🏆 Top Products by Revenue',
                           items: _salesReport?.topByRevenue ?? [],
                           isRevenue: true,
                         ),
@@ -367,7 +375,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
                         // Section 3: Top Products by Quantity
                         _buildTopProductsSection(
-                          title: '📦 Top Products by Quantity / በብዛት ቀዳሚ',
+                          title: isAm ? '📦 በብዛት ቀዳሚ ዕቃዎች' : '📦 Top Products by Quantity',
                           items: _salesReport?.topByQuantity ?? [],
                           isRevenue: false,
                         ),
@@ -415,6 +423,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildSalesKpiCards() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final report = _salesReport;
     final revCents = report?.totalRevenueCents ?? 0;
     final count = report?.salesCount ?? 0;
@@ -442,7 +451,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Total Revenue / ጠቅላላ ገቢ',
+                          isAm ? 'ጠቅላላ ገቢ' : 'Total Revenue',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: tokens.fg),
@@ -458,7 +467,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '$count items sold',
+                          isAm ? '$count የተሸጡ ዕቃዎች' : '$count items sold',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -492,7 +501,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Estimated Profit / ትርፍ',
+                          isAm ? 'የተገመተ ትርፍ' : 'Estimated Profit',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -517,8 +526,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           profitCents != null
-                              ? '${report?.itemsWithCostCount ?? 0} items with cost'
-                              : 'Set cost price to see',
+                              ? (isAm ? '${report?.itemsWithCostCount ?? 0} መግዣ ያላቸው' : '${report?.itemsWithCostCount ?? 0} items with cost')
+                              : (isAm ? 'ለማየት የመግዣ ዋጋ ያስገቡ' : 'Set cost price to see'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -539,7 +548,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Text(
-              '* Profit based on current raw material costs, not a historical cost snapshot / * ትርፉ አሁን ባለው የጥሬ ዕቃዎች መግዣ ዋጋ ላይ የተመሠረተ ነው።',
+              isAm
+                  ? '* ትርፉ አሁን ባለው የጥሬ ዕቃዎች መግዣ ዋጋ ላይ የተመሠረተ ነው።'
+                  : '* Profit based on current raw material costs, not a historical cost snapshot.',
               style: TextStyle(
                 fontSize: 10.5,
                 fontStyle: FontStyle.italic,
@@ -553,6 +564,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildSalesByTypeSection() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final stockRev = _salesByKind['stockable']?.totalRevenueCents ?? 0;
     final servRev = _salesByKind['service']?.totalRevenueCents ?? 0;
     final consRev = _salesByKind['consumable']?.totalRevenueCents ?? 0;
@@ -569,14 +581,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.category_outlined, color: Color(0xFF0F766E), size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.category_outlined, color: Color(0xFF0F766E), size: 20),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Sales by Type / ሽያጭ በዓይነት',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    isAm ? 'ሽያጭ በዓይነት' : 'Sales by Type',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ],
@@ -709,6 +721,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildMaterialsUsedSection() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -717,14 +730,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.inventory_2_outlined, color: Color(0xFF0F766E), size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.inventory_2_outlined, color: Color(0xFF0F766E), size: 20),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Materials Used / ጥቅም ላይ የዋሉ ጥሬ ዕቃዎች',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    isAm ? 'ጥቅም ላይ የዋሉ ጥሬ ዕቃዎች' : 'Materials Used',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ],
@@ -734,7 +747,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'No raw materials consumed in this period / በዚህ ወቅት ጥቅም ላይ የዋለ ጥሬ ዕቃ የለም',
+                  isAm
+                      ? 'በዚህ ወቅት ጥቅም ላይ የዋለ ጥሬ ዕቃ የለም'
+                      : 'No raw materials consumed in this period',
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
@@ -784,6 +799,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildPaymentsAndDubeSection() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final cashRec = _receivedByMethod['cash'] ?? 0;
     final bankRec = _receivedByMethod['bank'] ?? 0;
     final walletRec = _receivedByMethod['wallet'] ?? 0;
@@ -800,14 +816,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.payments_outlined, color: Color(0xFF0F766E), size: 20),
-                SizedBox(width: 8),
+                const Icon(Icons.payments_outlined, color: Color(0xFF0F766E), size: 20),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Payments & Cash Drawer / ክፍያዎች እና ካዝና',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    isAm ? 'ክፍያዎች እና ካዝና' : 'Payments & Cash Drawer',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ],
@@ -1065,6 +1081,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildStockValuationCard() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final stock = _stockReport;
     final totalCost = stock?.totalValueCostCents ?? 0;
     final totalSell = stock?.totalValueSellCents ?? 0;
@@ -1080,14 +1097,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.inventory_2_outlined, size: 20, color: Color(0xFF0F766E)),
-                SizedBox(width: 8),
+                const Icon(Icons.inventory_2_outlined, size: 20, color: Color(0xFF0F766E)),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Inventory Stock Valuation / የስቶክ ዋጋ',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    isAm ? 'የስቶክ ዋጋ' : 'Inventory Stock Valuation',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ],
@@ -1111,7 +1128,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Total Value (Cost) / በመግዣ',
+                            isAm ? 'ጠቅላላ ዋጋ (በመግዣ)' : 'Total Value (Cost)',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(fontSize: 11, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
@@ -1142,7 +1159,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Total Value (Retail) / በመሸጫ',
+                            isAm ? 'ጠቅላላ ዋጋ (በመሸጫ)' : 'Total Value (Retail)',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -1180,12 +1197,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 runSpacing: 6,
                 children: [
                   Text(
-                    'Total Products: $totalCount',
+                    isAm ? 'ጠቅላላ ዕቃዎች: $totalCount' : 'Total Products: $totalCount',
                     style: TextStyle(fontSize: 12, color: Theme.of(ctx).colorScheme.onSurfaceVariant),
                   ),
                   if (lowCount > 0)
                     Text(
-                      '⚠️ $lowCount low stock',
+                      isAm ? '⚠️ $lowCount ያለቀባቸው' : '⚠️ $lowCount low stock',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -1194,7 +1211,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   if (outCount > 0)
                     Text(
-                      '🔴 $outCount out of stock',
+                      isAm ? '🔴 $outCount ያለቁ' : '🔴 $outCount out of stock',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -1211,6 +1228,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildStockByLocationCard() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final report = _stockByLocationReport ?? [];
 
     // Aggregate stock by location
@@ -1233,14 +1251,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.warehouse_rounded, size: 20, color: Color(0xFF0F766E)),
-                SizedBox(width: 8),
+                const Icon(Icons.warehouse_rounded, size: 20, color: Color(0xFF0F766E)),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Stock by Location / የስቶክ ክፍፍል በቦታ',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    isAm ? 'የስቶክ ክፍፍል በቦታ' : 'Stock by Location',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
               ],
@@ -1248,7 +1266,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 12),
             if (locTotals.isEmpty)
               Text(
-                'No location stock data available.',
+                isAm ? 'ምንም የስቶክ መረጃ የለም።' : 'No location stock data available.',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               )
             else
@@ -1271,7 +1289,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '${QuantityFormatter.formatDisplay(e.value.unitsMilli)} units',
+                        isAm
+                            ? '${QuantityFormatter.formatDisplay(e.value.unitsMilli)} ፍሬ'
+                            : '${QuantityFormatter.formatDisplay(e.value.unitsMilli)} units',
                         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F766E)),
                       ),
                     ],
@@ -1285,6 +1305,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildInTransitCard() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final warningTokens = AppColors.warningTokens(isDark);
     final inTransit = _inTransitTransfers;
@@ -1301,10 +1322,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
               children: [
                 const Icon(Icons.local_shipping_outlined, size: 20, color: Color(0xFF0F766E)),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'In Transit / በመንገድ ላይ ያሉ ዝውውሮች',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    isAm ? 'በመንገድ ላይ ያሉ ዝውውሮች' : 'In Transit',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
                 if (inTransit.isNotEmpty) ...[
@@ -1327,7 +1348,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 12),
             if (inTransit.isEmpty)
               Text(
-                'No shipments currently in transit / ምንም በመንገድ ላይ ያለ ዝውውር የለም',
+                isAm
+                    ? 'ምንም በመንገድ ላይ ያለ ዝውውር የለም'
+                    : 'No shipments currently in transit',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               )
             else
@@ -1375,6 +1398,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Widget _buildDiscrepanciesCard() {
+    final isAm = Localizations.localeOf(context).languageCode == 'am';
     final disc = _discrepancies;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -1396,10 +1420,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Transfer Discrepancies / የዝውውር ልዩነቶች',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                    isAm ? 'የዝውውር ልዩነቶች' : 'Transfer Discrepancies',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                 ),
                 if (disc.isNotEmpty) ...[
@@ -1425,7 +1449,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 12),
             if (disc.isEmpty)
               Text(
-                'No discrepancies reported / ምንም የዝውውር ልዩነት አልተመዘገበም',
+                isAm
+                    ? 'ምንም የዝውውር ልዩነት አልተመዘገበም'
+                    : 'No discrepancies reported',
                 style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 13),
               )
             else

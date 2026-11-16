@@ -68,25 +68,30 @@ class NotificationService {
       final availableDisplay = QuantityFormatter.formatDisplay(currentStockMilli);
       final thresholdDisplay = QuantityFormatter.formatDisplay(threshold);
       final id = (product.id.hashCode & 0x7FFFFFFF) % 100000;
+      final isAm = (await repository.getLanguage()) == 'am';
 
-      const androidDetails = AndroidNotificationDetails(
+      final androidDetails = AndroidNotificationDetails(
         lowStockChannelId,
-        'Low Stock Alerts / የአነስተኛ ክምችት ማስጠንቀቂያ',
+        isAm ? 'የአነስተኛ ክምችት ማስጠንቀቂያ' : 'Low Stock Alerts',
         channelDescription: 'Alerts when inventory levels drop to or below threshold',
         importance: Importance.high,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
       );
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       );
 
-      final locSuffix = (locationName != null && locationName.isNotEmpty) ? ' at $locationName' : '';
+      final locSuffix = (locationName != null && locationName.isNotEmpty) ? ' ($locationName)' : '';
       await _plugin.show(
         id: id,
-        title: '⚠️ Low Stock Alert: ${product.name}$locSuffix',
-        body: 'Only $availableDisplay ${product.unit} remaining$locSuffix (Threshold: $thresholdDisplay ${product.unit}).',
+        title: isAm
+            ? '⚠️ የአነስተኛ ክምችት ማስጠንቀቂያ: ${product.name}$locSuffix'
+            : '⚠️ Low Stock Alert: ${product.name}$locSuffix',
+        body: isAm
+            ? 'በቂ ክምችት የለም: $availableDisplay ${product.unit} ብቻ ቀርቷል (ዝቅተኛ መጠን: $thresholdDisplay ${product.unit})'
+            : 'Only $availableDisplay ${product.unit} remaining$locSuffix (Threshold: $thresholdDisplay ${product.unit}).',
         notificationDetails: details,
       );
     } catch (_) {}
@@ -104,23 +109,27 @@ class NotificationService {
       final masterEnabled = await repository.isNotificationsEnabled();
       if (!masterEnabled) return;
 
-      const androidDetails = AndroidNotificationDetails(
+      final isAm = (await repository.getLanguage()) == 'am';
+
+      final androidDetails = AndroidNotificationDetails(
         dailySummaryChannelId,
-        'Daily Summary / የቀን ማጠቃለያ',
+        isAm ? 'የቀን ማጠቃለያ' : 'Daily Summary',
         channelDescription: 'Daily evening reminder to review sales and inventory',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         icon: '@mipmap/ic_launcher',
       );
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       );
 
       await _plugin.periodicallyShow(
         id: 99999,
-        title: '📊 Daily Sales Summary / የቀን ማጠቃለያ',
-        body: 'Review your shop\'s daily performance and low stock items in Inventory.',
+        title: isAm ? '📊 የቀን ሽያጭ ማጠቃለያ' : '📊 Daily Sales Summary',
+        body: isAm
+            ? 'የሱቅዎን የቀን ገቢ እና የአነስተኛ ዕቃዎችን ሁኔታ በኢንቬንቶሪ ይመልከቱ።'
+            : 'Review your shop\'s daily performance and low stock items in Inventory.',
         repeatInterval: RepeatInterval.daily,
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.inexact,
@@ -134,23 +143,26 @@ class NotificationService {
       final totalCents = await repository.todaySalesTotalCents();
       final lowCount = await repository.lowStockCount();
       final formattedTotal = MoneyFormatter.formatCents(totalCents);
+      final isAm = (await repository.getLanguage()) == 'am';
 
-      const androidDetails = AndroidNotificationDetails(
+      final androidDetails = AndroidNotificationDetails(
         dailySummaryChannelId,
-        'Daily Summary / የቀን ማጠቃለያ',
+        isAm ? 'የቀን ማጠቃለያ' : 'Daily Summary',
         importance: Importance.high,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
       );
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       );
 
       await _plugin.show(
         id: 99998,
-        title: '📊 Today\'s Summary / የዛሬ ማጠቃለያ',
-        body: 'Total sales: $formattedTotal. Low stock items: $lowCount.',
+        title: isAm ? '📊 የዛሬ ማጠቃለያ' : '📊 Today\'s Summary',
+        body: isAm
+            ? 'ጠቅላላ ሽያጭ: $formattedTotal። ያለቀባቸው ዕቃዎች: $lowCount።'
+            : 'Total sales: $formattedTotal. Low stock items: $lowCount.',
         notificationDetails: details,
       );
     } catch (_) {}
@@ -188,26 +200,32 @@ class NotificationService {
 
       if (dueTodayCount == 0 && overdueCount == 0) return;
 
-      const androidDetails = AndroidNotificationDetails(
+      final isAm = (await repository.getLanguage()) == 'am';
+
+      final androidDetails = AndroidNotificationDetails(
         dubeReminderChannelId,
-        'Dube Reminders / የዱቤ ማስታወሻ',
+        isAm ? 'የዱቤ ማስታወሻ' : 'Dube Reminders',
         channelDescription: 'Reminders for dube payments due today or overdue',
         importance: Importance.high,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
       );
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       );
 
-      final msg = dueTodayCount > 0
-          ? '$dueTodayCount customers have dube due today${overdueCount > 0 ? " ($overdueCount overdue)" : ""}.'
-          : '$overdueCount customers have overdue dube.';
+      final msg = isAm
+          ? (dueTodayCount > 0
+              ? '$dueTodayCount ደንበኞች ዛሬ የሚከፍሉት ዱቤ አለ${overdueCount > 0 ? " ($overdueCount ያለፈባቸው)" : ""}።'
+              : '$overdueCount ደንበኞች ክፍያቸው ያለፈበት ዱቤ አለ።')
+          : (dueTodayCount > 0
+              ? '$dueTodayCount customers have dube due today${overdueCount > 0 ? " ($overdueCount overdue)" : ""}.'
+              : '$overdueCount customers have overdue dube.');
 
       await _plugin.show(
         id: 99997,
-        title: '⏰ Dube Due Reminder / የዱቤ ማስታወሻ',
+        title: isAm ? '⏰ የዱቤ ማስታወሻ' : '⏰ Dube Due Reminder',
         body: msg,
         notificationDetails: details,
       );
@@ -226,23 +244,27 @@ class NotificationService {
       final masterEnabled = await repository.isNotificationsEnabled();
       if (!masterEnabled) return;
 
-      const androidDetails = AndroidNotificationDetails(
+      final isAm = (await repository.getLanguage()) == 'am';
+
+      final androidDetails = AndroidNotificationDetails(
         dubeReminderChannelId,
-        'Dube Reminders / የዱቤ ማስታወሻ',
+        isAm ? 'የዱቤ ማስታወሻ' : 'Dube Reminders',
         channelDescription: 'Daily reminder for customer dube due today',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
         icon: '@mipmap/ic_launcher',
       );
-      const details = NotificationDetails(
+      final details = NotificationDetails(
         android: androidDetails,
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       );
 
       await _plugin.periodicallyShow(
         id: 99997,
-        title: '⏰ Dube Reminders / የዱቤ ማስታወሻ',
-        body: 'Check customers with dube due today or overdue.',
+        title: isAm ? '⏰ የዱቤ ማስታወሻ' : '⏰ Dube Reminders',
+        body: isAm
+            ? 'ዛሬ የሚከፍሉ ወይም ክፍያቸው ያለፈባቸውን የዱቤ ደንበኞች ይመልከቱ።'
+            : 'Check customers with dube due today or overdue.',
         repeatInterval: RepeatInterval.daily,
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.inexact,

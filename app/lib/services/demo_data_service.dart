@@ -24,10 +24,12 @@ class DemoDataService {
     final alreadyLoaded = await isDemoProductsLoaded();
     if (alreadyLoaded) return;
 
+    final isAm = (await repository.getLanguage()) == 'am';
+
     // 1. Stockable item: White Teff
     await repository.createProduct(
       id: demoProductIds[0],
-      name: 'ጤፍ (ማኛ) / White Teff',
+      name: isAm ? 'ጤፍ (ማኛ)' : 'White Teff',
       sku: 'TEFF-01',
       unit: 'kg',
       kind: 'stockable',
@@ -40,7 +42,7 @@ class DemoDataService {
     // 2. Stockable item: Sugar 1kg
     await repository.createProduct(
       id: demoProductIds[1],
-      name: 'ስኳር / Sugar (1kg)',
+      name: isAm ? 'ስኳር (1 ኪ.ግ)' : 'Sugar (1kg)',
       sku: 'SUGAR-01',
       unit: 'pcs',
       kind: 'stockable',
@@ -53,7 +55,7 @@ class DemoDataService {
     // 3. Stockable item: Sunflower Oil 3L
     await repository.createProduct(
       id: demoProductIds[2],
-      name: 'የሱፍ ዘይት / Sunflower Oil 3L',
+      name: isAm ? 'የሱፍ ዘይት (3 ሊትር)' : 'Sunflower Oil 3L',
       sku: 'OIL-3L',
       unit: 'pcs',
       kind: 'stockable',
@@ -66,7 +68,7 @@ class DemoDataService {
     // 4. Service item: Coffee Service (no stock)
     await repository.createProduct(
       id: demoProductIds[3],
-      name: 'የቡና ቁርስ ማዘጋጀት / Coffee Service',
+      name: isAm ? 'የቡና አገልግሎት' : 'Coffee Service',
       sku: 'SRV-COFFEE',
       unit: 'service',
       kind: 'service',
@@ -78,7 +80,7 @@ class DemoDataService {
     // 5. Consumable item: Injera Pack (10 pcs)
     await repository.createProduct(
       id: demoProductIds[4],
-      name: 'የእንጀራ ማሸጊያ / Injera Pack (10 pcs)',
+      name: isAm ? 'የእንጀራ ማሸጊያ (10 ፍሬ)' : 'Injera Pack (10 pcs)',
       sku: 'CNS-INJERA',
       unit: 'pcs',
       kind: 'consumable',
