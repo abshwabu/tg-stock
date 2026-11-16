@@ -45,3 +45,7 @@ key.properties
 *~
 .DS_Store
 Thumbs.db
+
+# Native shared library binaries
+*.so
+/scripts/ext/
