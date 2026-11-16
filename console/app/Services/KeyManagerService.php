@@ -73,6 +73,12 @@ class KeyManagerService
      */
     public function initializeRootKey(int $kid = 1, ?string $seed = null): Keypair
     {
+        if ($seed === null && $kid === 1) {
+            $seed = env('LICENSE_ROOT_SEED_1', 'tgstock-offline-licensing-test-key-1');
+        } elseif ($seed === null && $kid === 2) {
+            $seed = env('LICENSE_ROOT_SEED_2', 'tgstock-offline-licensing-test-key-2');
+        }
+
         if ($seed !== null) {
             $seedBytes = hash('sha256', $seed, true);
             $kp = sodium_crypto_sign_seed_keypair($seedBytes);
