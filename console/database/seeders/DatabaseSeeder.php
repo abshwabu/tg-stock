@@ -21,18 +21,16 @@ class DatabaseSeeder extends Seeder
         // 1. Seed Root Keypair (kid = 1)
         $keyManager->initializeRootKey(1);
 
-        // 2. Seed Super Admin User
-        $adminSecret = $totp->generateSecret();
-        $adminBackup = $totp->generateBackupCodes(8);
+        // 2. Seed Super Admin User (totp_enabled_at = null prompts initial 2FA setup on first login)
         User::updateOrCreate(
             ['email' => 'admin@tgstock.et'],
             [
                 'name' => 'Owner Super Admin',
                 'password' => Hash::make('password123'),
                 'role' => 'super_admin',
-                'totp_secret' => $adminSecret,
-                'totp_enabled_at' => now(),
-                'backup_codes' => $adminBackup['hashed'],
+                'totp_secret' => null,
+                'totp_enabled_at' => null,
+                'backup_codes' => null,
             ]
         );
 
