@@ -44,6 +44,8 @@ class PermissionService
         'payment.collect',
         'customers.manage',
         'dube.view',
+        'cash_flow.view',
+        'cash_flow.create',
     ];
 
     public const PRESETS = [

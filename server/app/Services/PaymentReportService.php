@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\CashFlowEntry;
 use App\Models\Customer;
 use App\Models\Movement;
 use App\Models\Payment;
@@ -417,13 +418,31 @@ class PaymentReportService
             }
         }
 
-        $expected = $cashSales + $cashRepayments - $cashReversals;
+        $extraCashIncome = (int) CashFlowEntry::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('type', 'income')
+            ->where('payment_method', 'cash')
+            ->whereNull('deleted_at_ms')
+            ->whereBetween('created_at_ms', [$startMs, $endMs])
+            ->sum('amount_cents');
+
+        $extraCashExpense = (int) CashFlowEntry::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('type', 'expense')
+            ->where('payment_method', 'cash')
+            ->whereNull('deleted_at_ms')
+            ->whereBetween('created_at_ms', [$startMs, $endMs])
+            ->sum('amount_cents');
+
+        $expected = $cashSales + $cashRepayments - $cashReversals + $extraCashIncome - $extraCashExpense;
 
         return [
             'expected_cash_cents' => $expected,
             'cash_sales_cents' => $cashSales,
             'cash_repayments_cents' => $cashRepayments,
             'cash_reversals_cents' => $cashReversals,
+            'extra_cash_income_cents' => $extraCashIncome,
+            'extra_cash_expense_cents' => $extraCashExpense,
             'count' => $payments->count(),
         ];
     }

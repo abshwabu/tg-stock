@@ -82,6 +82,7 @@
   "search_no_results": "🔍 ለ \"<b>:query</b>\" የተገኘ ዕቃ የለም።",
   "menu_transfer": "🚚 ማስተላለፍ",
   "menu_review_queue": "📥 ማረጋገጫ የሚጠብቁ",
+  "menu_cash_flow": "💸 ገቢና ወጪ",
   "transfer_title": "🚚 የዕቃ ዝውውር",
   "transfer_success": "✅ ዝውውሩ በተሳካ ሁኔታ ተጠናቋል!",
   "transfer_discrepancy_alert": "⚠️ የዝውውር ልዩነት ማስጠንቀቂያ!",

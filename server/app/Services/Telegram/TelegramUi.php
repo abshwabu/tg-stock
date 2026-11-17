@@ -57,14 +57,14 @@ class TelegramUi
                 return self::replyKeyboard([
                     ['📦 Products', '➕ Stock In'],
                     ['🛒 Sale', '📊 Reports'],
-                    ['⚙️ Settings'],
+                    ['💸 Income & Expense', '⚙️ Settings'],
                 ]);
             }
 
             return self::replyKeyboard([
                 ['📦 ዕቃዎች', '➕ ገቢ ዕቃ'],
                 ['🛒 ሽያጭ', '📊 ሪፖርት'],
-                ['⚙️ ቅንብሮች'],
+                ['💸 ገቢና ወጪ', '⚙️ ቅንብሮች'],
             ]);
         }
 
@@ -87,6 +87,7 @@ class TelegramUi
         $canReports = $perm->can($user, 'reports.view') || $perm->can($user, 'reports.own_sales');
         $canTransfer = $perm->can($user, 'transfer.create') && ($allowedLocations->count() > 1);
         $canDube = $perm->can($user, 'dube.view');
+        $canCashFlow = $user->role === 'owner' || $perm->can($user, 'cash_flow.view') || $perm->can($user, 'sale.create') || $perm->can($user, 'reports.view');
 
         $row1 = [];
         if ($canProducts) {
@@ -114,11 +115,15 @@ class TelegramUi
         if ($canDube) {
             $row3[] = $locale === 'en' ? '📒 Dube' : '📒 ዱቤ';
         }
-        if ($canTransfer) {
-            $row3[] = $locale === 'en' ? '🚚 Transfer' : '🚚 ማስተላለፍ';
+        if ($canCashFlow) {
+            $row3[] = $locale === 'en' ? '💸 Income & Expense' : '💸 ገቢና ወጪ';
         }
         if (!empty($row3)) {
             $rows[] = $row3;
+        }
+
+        if ($canTransfer) {
+            $rows[] = [$locale === 'en' ? '🚚 Transfer' : '🚚 ማስተላለፍ'];
         }
 
         // 3. Settings is always available
@@ -159,11 +164,12 @@ class TelegramUi
         ];
         $rows[] = $row2;
 
+        $row3 = [];
         if ($user !== null && app(\App\Services\PermissionService::class)->can($user, 'dube.view')) {
-            $rows[] = [
-                ['text' => $locale === 'en' ? '📒 Dube' : '📒 ዱቤ', 'callback_data' => 'menu:dube:0'],
-            ];
+            $row3[] = ['text' => $locale === 'en' ? '📒 Dube' : '📒 ዱቤ', 'callback_data' => 'menu:dube:0'];
         }
+        $row3[] = ['text' => $locale === 'en' ? '💸 Income & Expense' : '💸 ገቢና ወጪ', 'callback_data' => 'menu:cashflow:0'];
+        $rows[] = $row3;
 
         $row3 = [];
         if ($user !== null && $user->role === 'owner') {

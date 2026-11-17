@@ -1943,6 +1943,28 @@ class AppDatabase extends _$AppDatabase {
       'VALUES (?, ?, ?, ?, ?, ?, ?);',
       [entryId, type, amountCents, category, paymentMethod, note, nowMs],
     );
+
+    await into(outboxEntries).insert(
+      OutboxEntriesCompanion.insert(
+        id: UuidGenerator.v7(),
+        entity: 'cash_flow',
+        entityId: entryId,
+        op: 'upsert',
+        payloadJson: jsonEncode({
+          'id': entryId,
+          'type': type,
+          'amount_cents': amountCents,
+          'category': category,
+          'payment_method': paymentMethod,
+          'note': note,
+          'created_at_ms': nowMs,
+        }),
+        clientTs: nowMs,
+        status: const Value('pending'),
+        createdAt: nowMs,
+      ),
+    );
+
     return CashFlowEntry(
       id: entryId,
       type: type,
@@ -1954,11 +1976,38 @@ class AppDatabase extends _$AppDatabase {
     );
   }
 
-  Future<void> deleteCashFlowEntry(String id) async {
+  Future<void> insertCashFlowEntry(CashFlowEntry entry) async {
+    await customStatement(
+      'INSERT OR REPLACE INTO cash_flow_entries (id, type, amount_cents, category, payment_method, note, created_at_ms) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?);',
+      [entry.id, entry.type, entry.amountCents, entry.category, entry.paymentMethod, entry.note, entry.createdAtMs],
+    );
+  }
+
+  Future<void> deleteCashFlowEntry(String id, {bool recordOutbox = true}) async {
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
     await customStatement(
       'DELETE FROM cash_flow_entries WHERE id = ?;',
       [id],
     );
+
+    if (recordOutbox) {
+      await into(outboxEntries).insert(
+        OutboxEntriesCompanion.insert(
+          id: UuidGenerator.v7(),
+          entity: 'cash_flow',
+          entityId: id,
+          op: 'delete',
+          payloadJson: jsonEncode({
+            'id': id,
+            'deleted_at_ms': nowMs,
+          }),
+          clientTs: nowMs,
+          status: const Value('pending'),
+          createdAt: nowMs,
+        ),
+      );
+    }
   }
 
   Future<List<CashFlowEntry>> getCashFlowEntries({

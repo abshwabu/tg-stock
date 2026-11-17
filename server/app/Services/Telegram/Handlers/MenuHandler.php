@@ -23,6 +23,7 @@ class MenuHandler
         protected TransferHandler $transferHandler,
         protected ReviewQueueHandler $reviewQueueHandler,
         protected DubeHandler $dubeHandler,
+        protected CashFlowHandler $cashFlowHandler,
         protected \App\Services\LicenseEnforcer $licenseEnforcer,
         protected LicenseBotHandler $licenseBotHandler
     ) {}
@@ -120,6 +121,20 @@ class MenuHandler
         // 5.5 Dube
         if (in_array($clean, ['📒 Dube', '📒 ዱቤ', '/dube', 'dube', 'ዱቤ'], true)) {
             $this->dubeHandler->start($chatId, $user);
+            return;
+        }
+
+        // 5.6 Cash Flow (Income & Expense)
+        if (in_array($clean, ['💸 Income & Expense', '💸 ገቢና ወጪ', '/cashflow', '/expense', '/income', 'ገቢና ወጪ', 'ወጪ', 'ገቢ'], true)) {
+            if ($clean === '/income' || $clean === 'ገቢ') {
+                $this->cashFlowHandler->startAdd($chatId, 'income', $user);
+                return;
+            }
+            if ($clean === '/expense' || $clean === 'ወጪ') {
+                $this->cashFlowHandler->startAdd($chatId, 'expense', $user);
+                return;
+            }
+            $this->cashFlowHandler->handleMenu($chatId, $user);
             return;
         }
 

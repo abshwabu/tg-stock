@@ -82,6 +82,7 @@
   "search_no_results": "🔍 No products found for \"<b>:query</b>\".",
   "menu_transfer": "🚚 Transfer",
   "menu_review_queue": "📥 Needs Review",
+  "menu_cash_flow": "💸 Income & Expense",
   "transfer_title": "🚚 Inventory Transfer",
   "transfer_success": "✅ Transfer completed successfully!",
   "transfer_discrepancy_alert": "⚠️ Transfer Discrepancy Alert!",

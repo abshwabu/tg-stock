@@ -814,6 +814,38 @@ class SyncEngine {
         }
       }
     }
+
+    if (entity == 'cash_flow') {
+      final cfId = (data['id'] ?? change['id']) as String;
+      if (op == 'delete' || data['deleted_at_ms'] != null) {
+        await db.deleteCashFlowEntry(cfId, recordOutbox: false);
+        return;
+      }
+      final type = data['type'] as String? ?? 'expense';
+      final amountCents = data['amount_cents'] is int
+          ? data['amount_cents'] as int
+          : int.tryParse(data['amount_cents']?.toString() ?? '0') ?? 0;
+      final category = data['category'] as String? ?? 'General';
+      final paymentMethod = data['payment_method'] as String? ?? 'cash';
+      final note = data['note'] as String?;
+      final createdAt = data['created_at_ms'] is int
+          ? data['created_at_ms'] as int
+          : (data['created_at'] is int
+              ? data['created_at'] as int
+              : DateTime.now().millisecondsSinceEpoch);
+
+      final entry = CashFlowEntry(
+        id: cfId,
+        type: type,
+        amountCents: amountCents,
+        category: category,
+        paymentMethod: paymentMethod,
+        note: note,
+        createdAtMs: createdAt,
+      );
+      await db.insertCashFlowEntry(entry);
+      return;
+    }
   }
 
   /// Calculates exponential backoff with random jitter.

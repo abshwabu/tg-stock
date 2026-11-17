@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Scopes\ShopScope;
 use App\Services\PermissionService;
 use App\Services\Telegram\Handlers\AdjustHandler;
+use App\Services\Telegram\Handlers\CashFlowHandler;
 use App\Services\Telegram\Handlers\LocationHandler;
 use App\Services\Telegram\Handlers\MenuHandler;
 use App\Services\Telegram\Handlers\PairingHandler;
@@ -58,6 +59,7 @@ class TelegramRouter
         protected TransferHandler $transferHandler,
         protected ReviewQueueHandler $reviewQueueHandler,
         protected DubeHandler $dubeHandler,
+        protected CashFlowHandler $cashFlowHandler,
         protected PermissionService $permissionService,
         protected \App\Services\LicenseEnforcer $licenseEnforcer,
         protected \App\Services\Telegram\Handlers\LicenseBotHandler $licenseBotHandler
@@ -335,6 +337,12 @@ class TelegramRouter
             return;
         }
 
+        // 10. Cash Flow
+        if ($module === 'cf' || $module === 'cashflow') {
+            $this->handleCashFlowCallback($cqId, $chatId, $messageId, $action, $id, $parts, $user);
+            return;
+        }
+
         // Default: acknowledge callback query
         $this->telegram->answerCallbackQuery($cqId);
     }
@@ -359,6 +367,7 @@ class TelegramRouter
             'stockin' => $this->stockInHandler->start($chatId, null, $user),
             'sale' => $this->saleHandler->start($chatId, null, $user),
             'dube' => $this->dubeHandler->start($chatId, $user),
+            'cashflow' => $this->cashFlowHandler->handleMenu($chatId, $user),
             'reports' => $this->reportHandler->handleMenu($chatId, $user),
             'settings' => $this->settingsHandler->handleSettings($chatId, $user),
             'team' => $this->teamHandler->handleTeamMenu($chatId, $user),
@@ -988,6 +997,34 @@ class TelegramRouter
         }
 
         $this->telegram->answerCallbackQuery($cqId);
+    }
+
+    /**
+     * Dispatch cash flow callbacks.
+     */
+    protected function handleCashFlowCallback(
+        string $cqId,
+        int|string $chatId,
+        int $messageId,
+        string $action,
+        string $id,
+        array $parts,
+        ?User $user
+    ): void {
+        match ($action) {
+            'menu' => $this->cashFlowHandler->handleMenu($chatId, $user, $cqId, $messageId),
+            'add' => $this->cashFlowHandler->startAdd($chatId, $id, $user, $cqId),
+            'cat' => $this->cashFlowHandler->handleCategoryChosen($chatId, $id, $user, $cqId, $messageId),
+            'meth' => $this->cashFlowHandler->handleMethodChosen($chatId, $id, $user, $cqId, $messageId),
+            'skip_note' => $this->cashFlowHandler->finalize($chatId, null, $user, $cqId),
+            'list' => $this->cashFlowHandler->handleList($chatId, $id, $user, $cqId, $messageId),
+            'p' => $this->cashFlowHandler->handleList($chatId, $id, $user, $cqId, $messageId, (int) ($parts[3] ?? 1)),
+            'del' => $this->cashFlowHandler->promptDelete($cqId, $chatId, $messageId, $id, $user),
+            'del_conf' => $this->cashFlowHandler->executeDelete($cqId, $chatId, $messageId, $id, $user),
+            'cancel' => $this->cashFlowHandler->cancel($chatId, $user, $cqId),
+            'noop' => $this->telegram->answerCallbackQuery($cqId),
+            default => $this->telegram->answerCallbackQuery($cqId),
+        };
     }
 
     /**
@@ -1659,6 +1696,32 @@ class TelegramRouter
         if ($state->flow === 'dube_search' && $state->step === 'await_query') {
             $this->dubeHandler->handleCustomerSearch($chatId, $text, $user);
             return;
+        }
+
+        // 4.6 Cash Flow
+        if ($state->flow === 'cash_flow') {
+            if ($state->step === 'await_amount') {
+                $this->cashFlowHandler->handleAmountEntered($chatId, $text, $user);
+                return;
+            }
+            if ($state->step === 'await_category') {
+                $this->cashFlowHandler->handleCategoryChosen($chatId, $text, $user);
+                return;
+            }
+            if ($state->step === 'await_method') {
+                $method = match (strtolower(trim($text))) {
+                    'cash', 'ጥሬ ገንዘብ', 'ጥሬ' => 'cash',
+                    'bank', 'ባንክ', 'የባንክ ሂሳብ' => 'bank',
+                    'wallet', 'telebirr', 'ቴሌብር', 'ዋሌት' => 'wallet',
+                    default => 'cash',
+                };
+                $this->cashFlowHandler->handleMethodChosen($chatId, $method, $user);
+                return;
+            }
+            if ($state->step === 'await_note') {
+                $this->cashFlowHandler->finalize($chatId, $text, $user);
+                return;
+            }
         }
 
         // 5. Adjust

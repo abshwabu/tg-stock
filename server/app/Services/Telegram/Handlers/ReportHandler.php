@@ -80,7 +80,7 @@ class ReportHandler
             ],
             [
                 ['text' => '💳 ' . ($locale === 'en' ? 'Payments & Cash Drawer' : 'ክፍያዎችና ካዝና'), 'callback_data' => 'rep:pay:today'],
-                ['text' => '⚠️ ' . ($locale === 'en' ? 'Transfer Discrepancies' : 'የዝውውር ልዩነቶች'), 'callback_data' => 'rep:loc:discrepancies'],
+                ['text' => '💸 ' . ($locale === 'en' ? 'Income & Expense' : 'ገቢና ወጪ'), 'callback_data' => 'cf:menu:0'],
             ],
         ];
 
@@ -337,6 +337,43 @@ class ReportHandler
                     . "  • በካዝና ውስጥ ያለ ጥሬ ገንዘብ: <b>{$cashExpF}</b>\n"
                     . "  • አዲስ የተሰጠ ዱቤ: <b>{$newDubeF}</b>\n"
                     . "  • ያልተከፈለ ዱቤ: <b>{$outDubeF}</b> ({$overdueCount} ጊዜው ያለፈበት)";
+            }
+        }
+
+        // Extra Cash Flow (non-inventory income/expenses)
+        $cfEntries = \App\Models\CashFlowEntry::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->whereNull('deleted_at_ms')
+            ->whereBetween('created_at_ms', [$startMs, $endMs])
+            ->get();
+
+        if ($cfEntries->isNotEmpty()) {
+            $cfIncome = 0;
+            $cfExpense = 0;
+            foreach ($cfEntries as $cfe) {
+                if ($cfe->type === 'income') {
+                    $cfIncome += (int) $cfe->amount_cents;
+                } else {
+                    $cfExpense += (int) $cfe->amount_cents;
+                }
+            }
+
+            $cfIncF = number_format($cfIncome / 100, 2) . ' ETB';
+            $cfExpF = number_format($cfExpense / 100, 2) . ' ETB';
+            $cfNet = $cfIncome - $cfExpense;
+            $cfNetSign = $cfNet >= 0 ? '+' : '-';
+            $cfNetF = $cfNetSign . number_format(abs($cfNet) / 100, 2) . ' ETB';
+
+            if ($locale === 'en') {
+                $text .= "\n\n💸 <b>Other Cash Flow:</b>\n"
+                    . "  • Extra Income: <b>+{$cfIncF}</b>\n"
+                    . "  • Extra Expense: <b>-{$cfExpF}</b>\n"
+                    . "  • Net Cash Flow: <b>{$cfNetF}</b>";
+            } else {
+                $text .= "\n\n💸 <b>ተጨማሪ የገቢና ወጪ እንቅስቃሴ:</b>\n"
+                    . "  • ተጨማሪ ገቢ: <b>+{$cfIncF}</b>\n"
+                    . "  • ተጨማሪ ወጪ: <b>-{$cfExpF}</b>\n"
+                    . "  • የተጣራ: <b>{$cfNetF}</b>";
             }
         }
 

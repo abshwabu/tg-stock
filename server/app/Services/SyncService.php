@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\CashFlowEntry;
 use App\Models\Change;
 use App\Models\Customer;
 use App\Models\Device;
@@ -103,6 +104,7 @@ class SyncService
         $saleItems = [];
         $movementItems = [];
         $paymentItems = [];
+        $cashFlowItems = [];
         $otherItems = [];
 
         foreach ($incomingChanges as $item) {
@@ -121,6 +123,8 @@ class SyncService
                 $movementItems[] = $item;
             } elseif ($entity === 'payment') {
                 $paymentItems[] = $item;
+            } elseif ($entity === 'cash_flow' || $entity === 'cash_flow_entry') {
+                $cashFlowItems[] = $item;
             } else {
                 $otherItems[] = $item;
             }
@@ -134,6 +138,7 @@ class SyncService
             $saleItems,
             $movementItems,
             $paymentItems,
+            $cashFlowItems,
             $otherItems
         );
 
@@ -361,6 +366,8 @@ class SyncService
             $this->processPaymentChange($device, $user, $shopId, $id, $op, $data, $clientTs, $nowMs, $item, $accepted, $rejected);
         } elseif ($entity === 'payment_provider') {
             $this->processPaymentProviderChange($device, $user, $shopId, $id, $op, $data, $clientTs, $nowMs, $item, $accepted, $rejected);
+        } elseif ($entity === 'cash_flow' || $entity === 'cash_flow_entry') {
+            $this->processCashFlowChange($device, $user, $shopId, $id, $op, $data, $clientTs, $nowMs, $item, $accepted, $rejected);
         } else {
             $rejected[] = ['id' => $id, 'reason' => "Unsupported entity [{$entity}]."];
         }
@@ -439,6 +446,118 @@ class SyncService
         $note = isset($data['note']) ? (string) $data['note'] : null;
 
         $this->customerService->upsertCustomer($shopId, $id, $name, $phone, $note, $updatedMs, $device->id);
+        $accepted[] = $id;
+    }
+
+    /**
+     * Ingest an incoming cash flow change.
+     */
+    protected function processCashFlowChange(
+        Device $device,
+        ?User $user,
+        string $shopId,
+        string $id,
+        string $op,
+        array $data,
+        int $clientTs,
+        int $nowMs,
+        array $fullItem,
+        array &$accepted,
+        array &$rejected
+    ): void {
+        $allowedFields = [
+            'id', 'type', 'amount_cents', 'category', 'payment_method', 'note',
+            'created_at', 'created_at_ms', 'updated_at', 'updated_at_ms', 'deleted_at', 'deleted_at_ms',
+        ];
+        $unknown = array_diff(array_keys($data), $allowedFields);
+        if (!empty($unknown)) {
+            $rejected[] = ['id' => $id, 'reason' => 'Unknown field(s) in cash flow data: ' . implode(', ', $unknown)];
+            return;
+        }
+
+        // Permission check
+        if ($user !== null && $user->role !== 'owner'
+            && !$this->permissionService->can($user, 'cash_flow.create', null, $clientTs)
+            && !$this->permissionService->can($user, 'sale.create', null, $clientTs)
+        ) {
+            $this->recordRejectedChange($shopId, $device, $id, 'cash_flow', $op, $fullItem, $clientTs, 'forbidden_permission', "User lacks permission to record cash flow.");
+            $rejected[] = ['id' => $id, 'reason' => 'forbidden_permission'];
+            return;
+        }
+
+        /** @var CashFlowEntry|null $existing */
+        $existing = CashFlowEntry::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->where('id', $id)
+            ->first();
+
+        $isDelete = $op === 'delete' || !empty($data['deleted_at']) || !empty($data['deleted_at_ms']);
+        if ($isDelete) {
+            if ($existing !== null) {
+                $existing->deleted_at_ms = $nowMs;
+                $existing->updated_at_ms = $nowMs;
+                $existing->save();
+            }
+            Change::withoutGlobalScope(ShopScope::class)->create([
+                'shop_id' => $shopId,
+                'device_id' => $device->id,
+                'entity' => 'cash_flow',
+                'entity_id' => $id,
+            ]);
+            $accepted[] = $id;
+            return;
+        }
+
+        $type = (string) ($data['type'] ?? 'expense');
+        if (!in_array($type, ['income', 'expense'], true)) {
+            $type = 'expense';
+        }
+
+        $amountCents = (int) ($data['amount_cents'] ?? 0);
+        if ($amountCents <= 0) {
+            $rejected[] = ['id' => $id, 'reason' => 'Cash flow amount must be greater than zero.'];
+            return;
+        }
+
+        $category = (string) ($data['category'] ?? ($type === 'income' ? 'Other Income' : 'Other Expense'));
+        $paymentMethod = (string) ($data['payment_method'] ?? 'cash');
+        if (!in_array($paymentMethod, ['cash', 'bank', 'wallet'], true)) {
+            $paymentMethod = 'cash';
+        }
+
+        $note = isset($data['note']) ? (string) $data['note'] : null;
+        $createdMs = (int) ($data['created_at_ms'] ?? ($data['created_at'] ?? $clientTs));
+
+        if ($existing === null) {
+            CashFlowEntry::withoutGlobalScope(ShopScope::class)->create([
+                'id' => $id,
+                'shop_id' => $shopId,
+                'user_id' => $user?->id,
+                'device_id' => $device->id,
+                'type' => $type,
+                'amount_cents' => $amountCents,
+                'category' => $category,
+                'payment_method' => $paymentMethod,
+                'note' => $note,
+                'created_at_ms' => $createdMs,
+            ]);
+        } else {
+            $existing->type = $type;
+            $existing->amount_cents = $amountCents;
+            $existing->category = $category;
+            $existing->payment_method = $paymentMethod;
+            $existing->note = $note;
+            $existing->updated_at_ms = $nowMs;
+            $existing->save();
+        }
+
+        Change::withoutGlobalScope(ShopScope::class)->create([
+            'shop_id' => $shopId,
+            'device_id' => $device->id,
+            'entity' => 'cash_flow',
+            'entity_id' => $id,
+        ]);
+
         $accepted[] = $id;
     }
 
@@ -1864,6 +1983,38 @@ class SyncService
                     'enabled' => (bool) $prov->enabled,
                     'favorite' => (bool) $prov->favorite,
                     'updated_at' => (int) $prov->updated_at_ms,
+                ],
+                'cursor' => $change->seq,
+            ];
+        }
+
+        if ($change->entity === 'cash_flow') {
+            /** @var CashFlowEntry|null $cf */
+            $cf = CashFlowEntry::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $change->entity_id)
+                ->first();
+
+            if ($cf === null) {
+                return null;
+            }
+
+            $isDeleted = $cf->deleted_at_ms !== null;
+
+            return [
+                'id' => $cf->id,
+                'entity' => 'cash_flow',
+                'op' => $isDeleted ? 'delete' : 'upsert',
+                'data' => [
+                    'id' => $cf->id,
+                    'type' => $cf->type,
+                    'amount_cents' => (int) $cf->amount_cents,
+                    'category' => $cf->category,
+                    'payment_method' => $cf->payment_method,
+                    'note' => $cf->note,
+                    'created_at_ms' => (int) $cf->created_at_ms,
+                    'updated_at_ms' => $cf->updated_at_ms ? (int) $cf->updated_at_ms : null,
+                    'deleted_at_ms' => $cf->deleted_at_ms ? (int) $cf->deleted_at_ms : null,
                 ],
                 'cursor' => $change->seq,
             ];
