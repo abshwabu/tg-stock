@@ -157,9 +157,9 @@ class ApiController extends Controller
     public function claimTrial(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'telegram_id' => 'required|string|max:100',
-            'name' => 'required|string|max:255',
-            'phone' => 'required|string|max:50',
+            'telegram_id' => 'required',
+            'name' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:50',
             'code' => 'required|string',
         ]);
 
@@ -175,7 +175,7 @@ class ApiController extends Controller
         }
 
         $bindHex = bin2hex($bindBytes);
-        $telegramId = $validated['telegram_id'];
+        $telegramId = (string) $validated['telegram_id'];
 
         // Enforce Trial Uniqueness (Task 8: Trial: one per Telegram id and per device code)
         if (Trial::where('telegram_id', $telegramId)->exists()) {
@@ -199,8 +199,8 @@ class ApiController extends Controller
                 'name' => '14-Day Free Trial',
                 'kind' => 'trial',
                 'duration_days' => 14,
-                'seats' => 1,
-                'features' => Plan::FEATURE_ONLINE_SYNC | Plan::FEATURE_TELEGRAM_BOT | Plan::FEATURE_EXPORT,
+                'seats' => 3,
+                'features' => Plan::FEATURE_ONLINE_SYNC | Plan::FEATURE_TELEGRAM_BOT | Plan::FEATURE_TEAM_ROLES | Plan::FEATURE_EXPORT,
                 'grace_days' => 3,
                 'price_etb' => 0.00,
                 'active' => true,
@@ -211,8 +211,8 @@ class ApiController extends Controller
         $customer = Customer::firstOrCreate(
             ['telegram_id' => $telegramId],
             [
-                'name' => $validated['name'],
-                'phone' => $validated['phone'],
+                'name' => $validated['name'] ?? ('Telegram User ' . $telegramId),
+                'phone' => $validated['phone'] ?? 'N/A',
             ]
         );
 

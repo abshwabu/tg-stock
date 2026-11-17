@@ -120,7 +120,7 @@ class HmacService
                 'X-TGStock-Timestamp' => (string) $timestamp,
                 'X-TGStock-Nonce' => $nonce,
                 'X-TGStock-Signature' => $signature,
-            ])->timeout(10);
+            ])->connectTimeout(4)->timeout(6);
 
             if (strtoupper($method) === 'GET') {
                 $response = $req->get($url, $data);

@@ -386,7 +386,9 @@ class LicenseBotHandler
 
         // Call console API /api/v1/trials
         $res = HmacService::sendToConsole('POST', '/api/v1/trials', [
-            'telegram_id' => $chatId,
+            'telegram_id' => (string) $chatId,
+            'name' => $user?->name ?? 'Shop Owner',
+            'phone' => $user?->phone ?? 'N/A',
             'code' => $targetCode,
         ]);
 

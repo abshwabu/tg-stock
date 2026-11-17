@@ -11,7 +11,7 @@ return [
     | Configuration for interacting with the standalone super-admin License Console.
     |
     */
-    'console_url' => env('LICENSE_CONSOLE_URL', 'http://127.0.0.1:8000'),
+    'console_url' => env('LICENSE_CONSOLE_URL', 'https://console.yenesuq.com'),
 
     'hmac_secret' => env('LICENSE_HMAC_SECRET', 'tgstock-console-shared-api-hmac-secret-v1'),
 
