@@ -547,7 +547,11 @@ class LedgerRepository {
       }
     }
 
+    // Filter out system products unless explicitly queried
     final queryClean = query?.trim().toLowerCase();
+    if (queryClean == null || queryClean != 'instant_sale') {
+      q = q..where((p) => p.sku.isNull() | p.sku.equals('INSTANT_SALE').not());
+    }
     if (queryClean != null && queryClean.isNotEmpty) {
       q = q
         ..where((p) =>
@@ -2383,6 +2387,57 @@ class LedgerRepository {
       await clockService?.advanceFromMovementTimestamp(DateTime.now());
       return sale;
     });
+  }
+
+  /// Gets or creates a service product used for instant/quick price-only sales.
+  Future<Product> getOrCreateInstantSaleProduct() async {
+    final existing = await (db.select(db.products)
+          ..where((p) => p.sku.equals('INSTANT_SALE') & p.deletedAtMs.isNull()))
+        .getSingleOrNull();
+    if (existing != null) return existing;
+
+    return db.createProduct(
+      name: 'ቅጽበታዊ ሽያጭ',
+      sku: 'INSTANT_SALE',
+      kind: 'service',
+      unit: 'pcs',
+      sellPriceCents: 0,
+      costPriceCents: 0,
+    );
+  }
+
+  /// Directly records a fast sale by price only without requiring a product or quantity.
+  /// Automatically completes the sale with cash payment (or specified method) and records the transaction.
+  Future<Sale> recordInstantSale({
+    required int priceCents,
+    String paymentMethod = 'cash',
+    String? providerKey,
+    String? reference,
+    String? note,
+    String? locationId,
+    int? createdAtMs,
+  }) async {
+    await licenseGate?.assertCanWriteSale();
+    if (priceCents <= 0) {
+      throw ArgumentError('Price must be greater than zero.');
+    }
+
+    final instantProd = await getOrCreateInstantSaleProduct();
+    final item = SaleLineItem(
+      product: instantProd,
+      qtyMilli: 1000, // 1 unit
+      unitPriceCents: priceCents,
+    );
+
+    return recordSaleWithPayment(
+      items: [item],
+      paymentMethod: paymentMethod,
+      providerKey: providerKey,
+      reference: reference,
+      note: note ?? 'Instant Sale',
+      locationId: locationId,
+      createdAtMs: createdAtMs,
+    );
   }
 
   /// Directly registers a Dube (credit sale) for a customer from the Dube screen.

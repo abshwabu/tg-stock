@@ -11,6 +11,7 @@ import 'package:app/services/api_client.dart';
 import 'package:app/services/auth_storage.dart';
 import 'package:app/services/sync_engine.dart';
 import 'package:app/ui/screens/dube_screen.dart';
+import 'package:app/ui/widgets/instant_sale_sheet.dart';
 import 'package:app/ui/widgets/register_dube_sheet.dart';
 import 'package:app/utils/phone_validator.dart';
 
@@ -861,6 +862,92 @@ void main() {
       // Verify Register Dube Sheet appears
       expect(find.byType(RegisterDubeSheet), findsOneWidget);
       expect(find.textContaining('Amount (ETB)'), findsOneWidget);
+    });
+  });
+
+  group('12. Instant Fast Sale (recordInstantSale & UI)', () {
+    test('records instant sale by price only with cash payment and outbox entries', () async {
+      final sale = await repo.recordInstantSale(
+        priceCents: 25000, // 250 ETB
+        note: 'Quick coffee & bread',
+      );
+
+      expect(sale.id, isNotEmpty);
+      expect(sale.totalCents, equals(25000));
+      expect(sale.note, equals('Quick coffee & bread'));
+      expect(sale.legacy, isFalse);
+
+      // Verify payment was recorded atomically
+      final payments = await (db.select(db.payments)..where((p) => p.saleId.equals(sale.id))).get();
+      expect(payments.length, equals(1));
+      expect(payments.first.amountCents, equals(25000));
+      expect(payments.first.method, equals('cash'));
+
+      // Verify movement was created with service kind (tracksStock == false)
+      final movements = await (db.select(db.movements)..where((m) => m.saleId.equals(sale.id))).get();
+      expect(movements.length, equals(1));
+      expect(movements.first.tracksStock, isFalse);
+      expect(movements.first.type, equals('sale'));
+
+      // Verify outbox has sale, payment, and movement entries
+      final outbox = await db.select(db.outboxEntries).get();
+      expect(outbox.any((o) => o.entity == 'sale' && o.entityId == sale.id), isTrue);
+      expect(outbox.any((o) => o.entity == 'payment' && o.entityId == payments.first.id), isTrue);
+    });
+
+    test('rejects zero or negative instant sale price', () async {
+      expect(
+        () => repo.recordInstantSale(priceCents: 0),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => repo.recordInstantSale(priceCents: -500),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    testWidgets('InstantSaleSheet UI: allows entering price and finishes sale instantly', (WidgetTester tester) async {
+      bool completed = false;
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => showInstantSaleSheet(
+                ctx,
+                repository: repo,
+                onComplete: () => completed = true,
+              ),
+              child: const Text('Open Instant Sale'),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      // Open sheet
+      await tester.tap(find.text('Open Instant Sale'));
+      await tester.pumpAndSettle();
+
+      // Check sheet presence
+      expect(find.byType(InstantSaleSheet), findsOneWidget);
+      expect(find.textContaining('Instant Sale'), findsWidgets);
+
+      // Enter price directly in the price field
+      await tester.enterText(find.byType(TextField).first, '150');
+      await tester.pumpAndSettle();
+
+      // Tap finish sale button
+      await tester.tap(find.textContaining('Finish Sale'));
+      await tester.pumpAndSettle();
+
+      // Verify sheet popped and callback executed
+      expect(find.byType(InstantSaleSheet), findsNothing);
+      expect(completed, isTrue);
+
+      // Verify sale recorded in database (150 ETB = 15000 cents)
+      final sales = await db.select(db.sales).get();
+      expect(sales.any((s) => s.totalCents == 15000), isTrue);
     });
   });
 }

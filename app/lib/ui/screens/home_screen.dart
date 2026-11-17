@@ -13,6 +13,7 @@ import '../../services/licensing/license_gate.dart';
 import '../../services/sync_engine.dart';
 import '../../utils/money_formatter.dart';
 import '../theme.dart';
+import '../widgets/instant_sale_sheet.dart';
 import '../widgets/license_banner.dart';
 import '../widgets/location_selector_chip.dart';
 import '../widgets/sync_status_header.dart';
@@ -1093,34 +1094,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ],
                 const SizedBox(height: 10),
 
-                // Dube & Customers Button
+                // Instant Sale Button (Fast sale by price only)
                 Builder(builder: (ctx) {
                   final isDark = Theme.of(ctx).brightness == Brightness.dark;
-                  final tokens = AppColors.warningTokens(isDark);
-                  return FilledButton.tonalIcon(
+                  return FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: tokens.bg,
-                      foregroundColor: tokens.fg,
-                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: isDark ? const Color(0xFFD97706) : Colors.amber.shade800,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: tokens.border, width: 0.8),
                       ),
+                      elevation: 1,
                     ),
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (ctx) => DubeScreen(
-                            repository: widget.repository,
-                            onMutation: _notifyMutation,
-                          ),
-                        ),
+                      showInstantSaleSheet(
+                        context,
+                        repository: widget.repository,
+                        onComplete: _notifyMutation,
                       );
                     },
-                    icon: const Icon(Icons.edit_note, size: 22),
+                    icon: const Icon(Icons.bolt_rounded, size: 24),
                     label: Text(
-                      isAm ? '📝 ዱቤ እና ደንበኞች' : '📝 Dube & Customers',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      isAm ? '⚡ ቅጽበታዊ ሽያጭ' : '⚡ Instant Sale',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   );
                 }),
