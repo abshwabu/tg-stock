@@ -643,35 +643,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
                             ),
                             color: tokens.bg,
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.point_of_sale_rounded, size: 18, color: tokens.fg),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isAm ? 'የዛሬ ሽያጭ' : "Today's Sales",
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: tokens.fg,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    MoneyFormatter.formatCents(cents),
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: tokens.fg,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (ctx) => HistoryScreen(
+                                      repository: widget.repository,
+                                      onMutation: _notifyMutation,
                                     ),
                                   ),
-                                ],
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(Icons.point_of_sale_rounded, size: 18, color: tokens.fg),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            isAm ? 'የዛሬ ሽያጭ' : "Today's Sales",
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: tokens.fg,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        Icon(Icons.chevron_right_rounded, size: 16, color: tokens.fg.withValues(alpha: 0.6)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      MoneyFormatter.formatCents(cents),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: tokens.fg,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );

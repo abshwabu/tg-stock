@@ -12,6 +12,7 @@ import 'package:app/services/demo_data_service.dart';
 import 'package:app/services/error_logger.dart';
 import 'package:app/services/sync_engine.dart';
 import 'package:app/ui/screens/first_run_screen.dart';
+import 'package:app/ui/screens/history_screen.dart';
 import 'package:app/ui/screens/home_screen.dart';
 import 'package:app/ui/screens/products_screen.dart';
 import 'package:app/ui/screens/settings_screen.dart';
@@ -423,6 +424,51 @@ void main() {
       expect(find.byType(ProductsScreen), findsOneWidget);
       expect(find.text('No low level stocks'), findsOneWidget);
       expect(find.text('All products currently have sufficient stock levels.'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 5));
+      syncEngine.dispose();
+      await db.close();
+    });
+
+    testWidgets("HomeScreen today's sales card navigates to HistoryScreen on tap", (tester) async {
+      final db = AppDatabase.inMemory();
+      final repository = LedgerRepository(db);
+      final authStorage = InMemoryAuthStorage();
+      final syncEngine = SyncEngine(
+        db: db,
+        api: ApiClient(),
+        storage: authStorage,
+      );
+
+      await repository.setShopName('Test Shop');
+      await repository.setLanguage('en');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: HomeScreen(
+            db: db,
+            repository: repository,
+            apiClient: ApiClient(),
+            authStorage: authStorage,
+            syncEngine: syncEngine,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      // Verify Today's Sales text is displayed
+      expect(find.text("Today's Sales"), findsOneWidget);
+
+      // Tap on Today's Sales card
+      await tester.tap(find.text("Today's Sales"));
+      await tester.pumpAndSettle();
+
+      // HistoryScreen should now be opened
+      expect(find.byType(HistoryScreen), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 5));
