@@ -817,4 +817,184 @@ class BotLedgerFlowsTest extends TestCase
         $this->assertSame(9000, $this->ledger->stockOf($prod));
         $this->assertSame(1, Movement::withoutGlobalScope(ShopScope::class)->where('shop_id', $this->shop->id)->where('type', 'sale')->count());
     }
+
+    public function test_add_product_warns_when_selling_price_is_less_than_cost(): void
+    {
+        $chatId = $this->owner->telegram_id;
+
+        // Step 1: Start add product
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 601,
+                'callback_query' => [
+                    'id' => 'cq_add',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 10],
+                    'data' => 'prod:add:start',
+                ],
+            ])->assertStatus(200);
+
+        // Step 2: Name
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 602,
+                'message' => ['chat' => ['id' => $chatId], 'text' => 'Discount Milk'],
+            ])->assertStatus(200);
+
+        // Step 3: Selling Price = 50 ETB
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 603,
+                'message' => ['chat' => ['id' => $chatId], 'text' => '50'],
+            ])->assertStatus(200);
+
+        // Step 4: Skip opening stock
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 604,
+                'callback_query' => [
+                    'id' => 'cq_skip_opening',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 11],
+                    'data' => 'prod:add:skip_opening',
+                ],
+            ])->assertStatus(200);
+
+        // Step 5: Unit pcs
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 605,
+                'callback_query' => [
+                    'id' => 'cq_unit',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 12],
+                    'data' => 'prod:add:unit:pcs',
+                ],
+            ])->assertStatus(200);
+
+        // Step 6: Enter Cost Price = 80 ETB (which is GREATER than selling price of 50 ETB)
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 606,
+                'message' => ['chat' => ['id' => $chatId], 'text' => '80'],
+            ])->assertStatus(200);
+
+        // State should now be in 'warn_price'
+        $state = $this->botState->get($chatId);
+        $this->assertNotNull($state);
+        $this->assertSame('warn_price', $state->step);
+        $this->assertSame(8000, $state->data['pending_cost_cents']);
+
+        // Step 7: Confirm loss
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 607,
+                'callback_query' => [
+                    'id' => 'cq_confirm_loss',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 13],
+                    'data' => 'prod:add:confirm_loss',
+                ],
+            ])->assertStatus(200);
+
+        // Verify product was created with sell = 5000 and cost = 8000
+        $prod = Product::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('name', 'Discount Milk')
+            ->first();
+
+        $this->assertNotNull($prod);
+        $this->assertSame(5000, $prod->sell_price_cents);
+        $this->assertSame(8000, $prod->cost_price_cents);
+        $this->assertNull($this->botState->get($chatId));
+    }
+
+    public function test_add_product_warn_price_retry_cost(): void
+    {
+        $chatId = $this->owner->telegram_id;
+
+        // Step 1: Start add product
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 610,
+                'callback_query' => [
+                    'id' => 'cq_add2',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 10],
+                    'data' => 'prod:add:start',
+                ],
+            ])->assertStatus(200);
+
+        // Step 2: Name
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 611,
+                'message' => ['chat' => ['id' => $chatId], 'text' => 'Corrected Product'],
+            ])->assertStatus(200);
+
+        // Step 3: Selling Price = 100 ETB
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 612,
+                'message' => ['chat' => ['id' => $chatId], 'text' => '100'],
+            ])->assertStatus(200);
+
+        // Step 4: Skip opening stock
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 613,
+                'callback_query' => [
+                    'id' => 'cq_skip_op2',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 11],
+                    'data' => 'prod:add:skip_opening',
+                ],
+            ])->assertStatus(200);
+
+        // Step 5: Unit pcs
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 614,
+                'callback_query' => [
+                    'id' => 'cq_unit2',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 12],
+                    'data' => 'prod:add:unit:pcs',
+                ],
+            ])->assertStatus(200);
+
+        // Step 6: Enter Cost Price = 120 ETB (too high)
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 615,
+                'message' => ['chat' => ['id' => $chatId], 'text' => '120'],
+            ])->assertStatus(200);
+
+        $state = $this->botState->get($chatId);
+        $this->assertSame('warn_price', $state->step);
+
+        // Step 7: Click retry_cost
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 616,
+                'callback_query' => [
+                    'id' => 'cq_retry',
+                    'message' => ['chat' => ['id' => $chatId], 'message_id' => 13],
+                    'data' => 'prod:add:retry_cost',
+                ],
+            ])->assertStatus(200);
+
+        $state = $this->botState->get($chatId);
+        $this->assertSame('cost_price', $state->step);
+
+        // Step 8: Enter new reasonable cost = 75 ETB
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 617,
+                'message' => ['chat' => ['id' => $chatId], 'text' => '75'],
+            ])->assertStatus(200);
+
+        $prod = Product::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('name', 'Corrected Product')
+            ->first();
+
+        $this->assertNotNull($prod);
+        $this->assertSame(10000, $prod->sell_price_cents);
+        $this->assertSame(7500, $prod->cost_price_cents);
+        $this->assertNull($this->botState->get($chatId));
+    }
 }

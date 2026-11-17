@@ -230,6 +230,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
             estimatedMatCostCents += ((m.qtyMilli * m.materialProduct.costPriceCents) + 500) ~/ 1000;
           }
           final sellPriceCents = MoneyFormatter.parseCents(sellPriceCtrl.text);
+          final costPriceCents = MoneyFormatter.parseCents(costPriceCtrl.text);
+          final effectiveCostCents = isConsumable ? estimatedMatCostCents : costPriceCents;
+          final isSellingLessThanCost = effectiveCostCents > 0 && sellPriceCents > 0 && sellPriceCents < effectiveCostCents;
+
           final marginCents = sellPriceCents - estimatedMatCostCents;
           final marginPct = sellPriceCents > 0
               ? ((marginCents * 100.0) / sellPriceCents).toStringAsFixed(1)
@@ -336,6 +340,50 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           labelText: isService
                               ? (dlgIsAm ? 'የወጪ ዋጋ (አስፈላጊ አይደለም)' : 'Cost Price ETB (Optional)')
                               : (dlgIsAm ? 'መግዣ ዋጋ (ብር)' : 'Cost Price ETB'),
+                        ),
+                        onChanged: (_) => setDialogState(() {}),
+                      ),
+                    ],
+                    if (isSellingLessThanCost) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF78350F).withValues(alpha: 0.35)
+                              : Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFF59E0B)
+                                : Colors.amber.shade700,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFFF59E0B)
+                                  : Colors.amber.shade900,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                dlgIsAm
+                                    ? 'ማስጠንቀቂያ፡ የመሸጫ ዋጋ (${MoneyFormatter.formatCents(sellPriceCents)}) ከመግዣ ዋጋ (${MoneyFormatter.formatCents(effectiveCostCents)}) ያነሰ ነው!'
+                                    : 'Warning: Selling price (${MoneyFormatter.formatCents(sellPriceCents)}) is less than cost price (${MoneyFormatter.formatCents(effectiveCostCents)})!',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? const Color(0xFFFDE68A)
+                                      : Colors.amber.shade950,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -511,8 +559,41 @@ class _ProductsScreenState extends State<ProductsScreen> {
             actions: [
               TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: Text(dlgIsAm ? 'ሰርዝ' : 'Cancel')),
               FilledButton(
-                onPressed: () {
+                onPressed: () async {
                   if (nameCtrl.text.trim().isEmpty) return;
+                  if (isSellingLessThanCost) {
+                    final proceed = await showDialog<bool>(
+                      context: ctx,
+                      builder: (warnCtx) => AlertDialog(
+                        title: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 26),
+                            const SizedBox(width: 8),
+                            Text(dlgIsAm ? 'የዋጋ ማስጠንቀቂያ' : 'Price Warning'),
+                          ],
+                        ),
+                        content: Text(
+                          dlgIsAm
+                              ? 'የመሸጫ ዋጋው (${MoneyFormatter.formatCents(sellPriceCents)}) ከመግዣ ዋጋው (${MoneyFormatter.formatCents(effectiveCostCents)}) ያነሰ ነው። ዕቃው በኪሳራ ይሸጣል።\n\nእርግጠኛ ነዎት መመዝገብ ይፈልጋሉ?'
+                              : 'Selling price (${MoneyFormatter.formatCents(sellPriceCents)}) is less than cost price (${MoneyFormatter.formatCents(effectiveCostCents)}). This item will be sold at a loss.\n\nAre you sure you want to proceed?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(warnCtx).pop(false),
+                            child: Text(dlgIsAm ? 'ተመለስ' : 'Go Back'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.amber.shade800,
+                            ),
+                            onPressed: () => Navigator.of(warnCtx).pop(true),
+                            child: Text(dlgIsAm ? 'ቀጥል' : 'Proceed Anyway'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (proceed != true) return;
+                  }
                   Navigator.of(ctx).pop(true);
                 },
                 child: Text(isEdit ? (dlgIsAm ? 'አሻሽል' : 'Update') : (dlgIsAm ? 'መዝግብ' : 'Save')),

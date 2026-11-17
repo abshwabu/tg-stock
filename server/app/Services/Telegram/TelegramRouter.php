@@ -491,6 +491,28 @@ class TelegramRouter
                 if ($state !== null) {
                     $this->productHandler->finalizeProductCreation($chatId, 0, $state->data, $user);
                 }
+            } elseif ($id === 'confirm_loss') {
+                $state = $this->botState->get($chatId);
+                if ($state !== null && isset($state->data['pending_cost_cents'])) {
+                    $costCents = (int) $state->data['pending_cost_cents'];
+                    $this->productHandler->finalizeProductCreation($chatId, $costCents, $state->data, $user);
+                }
+            } elseif ($id === 'retry_cost') {
+                $state = $this->botState->get($chatId);
+                if ($state !== null) {
+                    $this->botState->set($chatId, 'add_product', 'cost_price', $state->data);
+                    $skipBtn = TelegramUi::inlineKeyboard([
+                        [['text' => __('btn_skip'), 'callback_data' => 'prod:add:skip_cost']],
+                    ]);
+                    $this->telegram->sendMessage($chatId, __('add_product_cost_price'), [
+                        'reply_markup' => $skipBtn,
+                    ]);
+                }
+            } elseif ($id === 'cancel') {
+                $this->botState->clear($chatId);
+                $this->telegram->sendMessage($chatId, __('action_cancelled'), [
+                    'reply_markup' => TelegramUi::mainMenuKeyboard($user?->language ?? 'am'),
+                ]);
             }
             return;
         }

@@ -428,9 +428,48 @@ class ProductHandler
             return;
         }
 
-        if ($step === 'cost_price') {
+        if ($step === 'cost_price' || $step === 'warn_price') {
             $cost = TelegramUi::parseNumber($text);
-            $costCents = $cost !== null ? (int) round($cost * 100) : 0;
+            if ($cost === null || $cost < 0) {
+                $this->telegram->sendMessage($chatId, __('invalid_number'), [
+                    'reply_markup' => TelegramUi::cancelKeyboard($locale),
+                ]);
+                return;
+            }
+
+            $costCents = (int) round($cost * 100);
+            $sellPriceCents = (int) ($data['sell_price_cents'] ?? 0);
+
+            if ($costCents > 0 && $sellPriceCents > 0 && $sellPriceCents < $costCents) {
+                $data['pending_cost_cents'] = $costCents;
+                $this->botState->set($chatId, 'add_product', 'warn_price', $data);
+
+                $sellFmt = number_format($sellPriceCents / 100, 2);
+                $costFmt = number_format($costCents / 100, 2);
+                $lossFmt = number_format(($costCents - $sellPriceCents) / 100, 2);
+
+                $msg = __('warn_selling_less_than_cost', [
+                    'sell' => $sellFmt,
+                    'cost' => $costFmt,
+                    'loss' => $lossFmt,
+                ]);
+
+                $keyboard = TelegramUi::inlineKeyboard([
+                    [
+                        ['text' => __('btn_confirm_loss'), 'callback_data' => 'prod:add:confirm_loss'],
+                        ['text' => __('btn_reenter_cost'), 'callback_data' => 'prod:add:retry_cost'],
+                    ],
+                    [
+                        ['text' => __('btn_cancel'), 'callback_data' => 'prod:add:cancel'],
+                    ],
+                ]);
+
+                $this->telegram->sendMessage($chatId, $msg, [
+                    'reply_markup' => $keyboard,
+                ]);
+                return;
+            }
+
             $this->finalizeProductCreation($chatId, $costCents, $data, $user);
         }
     }
@@ -771,6 +810,13 @@ class ProductHandler
         $msg = $locale === 'en'
             ? "✅ Price updated for <b>{$product->name}</b>: <b>{$newFormatted} ETB</b>"
             : "✅ ለ <b>{$product->name}</b> አዲስ ዋጋ ተመዝግቧል: <b>{$newFormatted} ብር</b>";
+
+        if ($product->cost_price_cents > 0 && $newPriceCents < $product->cost_price_cents) {
+            $costFormatted = number_format($product->cost_price_cents / 100, 2);
+            $msg .= $locale === 'en'
+                ? "\n\n⚠️ <i>Warning: Selling price ({$newFormatted} ETB) is lower than cost price ({$costFormatted} ETB).</i>"
+                : "\n\n⚠️ <i>ማስጠንቀቂያ፡ አዲሱ የመሸጫ ዋጋ ({$newFormatted} ብር) ከመግዣ ዋጋው ({$costFormatted} ብር) ያነሰ ነው።</i>";
+        }
 
         $this->telegram->sendMessage($chatId, $msg, [
             'reply_markup' => TelegramUi::mainMenuKeyboard($locale),
