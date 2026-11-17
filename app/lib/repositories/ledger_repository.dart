@@ -628,20 +628,22 @@ class LedgerRepository {
 
   /// Returns a map of productId -> ProductPopularity (sales frequency and total quantity sold).
   Future<Map<String, ProductPopularity>> getProductPopularityMap({String? locationId}) async {
-    final locClause = locationId != null ? 'AND location_id = ?' : '';
+    final locClause = locationId != null ? 'AND m.location_id = ?' : '';
     final vars = <Variable<Object>>[];
     if (locationId != null) {
       vars.add(Variable.withString(locationId));
     }
     final rows = await db.customSelect(
       '''
-      SELECT product_id, COUNT(*) as sale_count, SUM(ABS(qty_milli)) as total_qty_milli
-      FROM movements
-      WHERE type = 'sale' $locClause
-      GROUP BY product_id
+      SELECT m.product_id, COUNT(*) as sale_count, SUM(ABS(m.qty_milli)) as total_qty_milli
+      FROM movements m
+      LEFT JOIN sales s ON m.sale_id = s.id
+      WHERE m.type = 'sale'
+        AND (s.id IS NULL OR s.voided_at_ms IS NULL) $locClause
+      GROUP BY m.product_id
       ''',
       variables: vars,
-      readsFrom: {db.movements},
+      readsFrom: {db.movements, db.sales},
     ).get();
 
     final map = <String, ProductPopularity>{};
@@ -1217,24 +1219,37 @@ class LedgerRepository {
     return sum;
   }
 
-  /// Calculates total sales in ETB cents for today (midnight local time to now).
+  /// Calculates total sales in ETB cents for today (midnight local time to now),
+  /// strictly excluding any sales that have been voided/undone.
   Future<int> todaySalesTotalCents() async {
     final now = DateTime.now();
     final startOfDayMs = DateTime(now.year, now.month, now.day).toUtc().millisecondsSinceEpoch;
 
-    final sales = await (db.select(db.movements)
-          ..where((m) => m.type.equals('sale') & m.createdAtMs.isBiggerOrEqualValue(startOfDayMs)))
-        .get();
+    final row = await db.customSelect(
+      '''
+      SELECT 
+        COALESCE(SUM((ABS(m.qty_milli) * m.unit_price_cents) / 1000), 0) AS total_cents
+      FROM movements m
+      LEFT JOIN sales s ON m.sale_id = s.id
+      WHERE m.type = 'sale'
+        AND (s.id IS NULL OR s.voided_at_ms IS NULL)
+        AND m.created_at_ms >= ?
+      ''',
+      variables: [Variable.withInt(startOfDayMs)],
+      readsFrom: {db.movements, db.sales},
+    ).getSingle();
 
-    int totalCents = 0;
-    for (final s in sales) {
-      totalCents += (s.qtyMilli.abs() * s.unitPriceCents) ~/ 1000;
-    }
-    return totalCents;
+    return (row.data['total_cents'] as num?)?.toInt() ?? 0;
   }
 
   Stream<int> watchTodaySalesTotalCents() {
-    return db.select(db.movements).watch().asyncMap((_) => todaySalesTotalCents());
+    return db
+        .customSelect(
+          'SELECT 1',
+          readsFrom: {db.movements, db.sales},
+        )
+        .watch()
+        .asyncMap((_) => todaySalesTotalCents());
   }
 
   /// Count of active products where stock is at or below their low stock threshold.
@@ -1735,7 +1750,10 @@ class LedgerRepository {
         COUNT(*) AS sale_item_count
       FROM movements m
       JOIN products p ON m.product_id = p.id
-      WHERE m.type = 'sale' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
+      LEFT JOIN sales s ON m.sale_id = s.id
+      WHERE m.type = 'sale'
+        AND (s.id IS NULL OR s.voided_at_ms IS NULL)
+        AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
       GROUP BY m.product_id, p.name, p.unit, p.kind, p.cost_price_cents
     ''';
 
@@ -1747,7 +1765,7 @@ class LedgerRepository {
     final rows = await db.customSelect(
       sql,
       variables: vars,
-      readsFrom: {db.movements, db.products},
+      readsFrom: {db.movements, db.products, db.sales},
     ).get();
 
     int totalRevenueCents = 0;
@@ -1797,13 +1815,16 @@ class LedgerRepository {
         SUM(ABS(m.qty_milli)) AS consumed_qty_milli
       FROM movements m
       JOIN products p ON m.product_id = p.id
-      WHERE m.type = 'consume' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
+      LEFT JOIN sales s ON m.sale_id = s.id
+      WHERE m.type = 'consume'
+        AND (s.id IS NULL OR s.voided_at_ms IS NULL)
+        AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
       GROUP BY m.product_id, p.cost_price_cents
     ''';
     final consumeRows = await db.customSelect(
       consumeSql,
       variables: vars,
-      readsFrom: {db.movements, db.products},
+      readsFrom: {db.movements, db.products, db.sales},
     ).get();
 
     int totalConsumedMaterialCost = 0;
@@ -1855,7 +1876,10 @@ class LedgerRepository {
         COUNT(*) AS sales_count
       FROM movements m
       JOIN products p ON m.product_id = p.id
-      WHERE m.type = 'sale' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
+      LEFT JOIN sales s ON m.sale_id = s.id
+      WHERE m.type = 'sale'
+        AND (s.id IS NULL OR s.voided_at_ms IS NULL)
+        AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
       GROUP BY COALESCE(p.kind, 'stockable')
     ''';
 
@@ -1867,7 +1891,7 @@ class LedgerRepository {
     final rows = await db.customSelect(
       sql,
       variables: vars,
-      readsFrom: {db.movements, db.products},
+      readsFrom: {db.movements, db.products, db.sales},
     ).get();
 
     final result = {
@@ -1905,7 +1929,10 @@ class LedgerRepository {
         SUM(ABS(m.qty_milli)) AS total_consumed_milli
       FROM movements m
       JOIN products p ON m.product_id = p.id
-      WHERE m.type = 'consume' AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
+      LEFT JOIN sales s ON m.sale_id = s.id
+      WHERE m.type = 'consume'
+        AND (s.id IS NULL OR s.voided_at_ms IS NULL)
+        AND m.created_at_ms >= ? AND m.created_at_ms <= ? $locClause
       GROUP BY m.product_id, p.name, p.unit, p.cost_price_cents
       ORDER BY SUM(ABS(m.qty_milli)) DESC
     ''';
@@ -1918,7 +1945,7 @@ class LedgerRepository {
     final rows = await db.customSelect(
       sql,
       variables: vars,
-      readsFrom: {db.movements, db.products},
+      readsFrom: {db.movements, db.products, db.sales},
     ).get();
 
     final result = <MaterialUsedReportItem>[];
@@ -2007,6 +2034,9 @@ class LedgerRepository {
   }
 
   Future<List<MovementWithProduct>> getSalesMovementsWithProduct({int? fromMs, int? toMs, String? locationId}) async {
+    final voidedSales = await (db.select(db.sales)..where((s) => s.voidedAtMs.isNotNull())).get();
+    final voidedSaleIds = voidedSales.map((s) => s.id).toSet();
+
     var q = db.select(db.movements)..where((m) => m.type.equals('sale'));
     if (locationId != null) {
       q = q..where((m) => m.locationId.equals(locationId));
@@ -2022,6 +2052,9 @@ class LedgerRepository {
 
     final result = <MovementWithProduct>[];
     for (final m in movs) {
+      if (m.saleId != null && voidedSaleIds.contains(m.saleId)) {
+        continue;
+      }
       final p = await getProduct(m.productId);
       final l = m.locationId != null ? await getLocation(m.locationId!) : null;
       result.add(MovementWithProduct(movement: m, product: p, location: l));

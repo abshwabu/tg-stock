@@ -417,6 +417,80 @@ void main() {
       expect(revPayments.first.amountCents, equals(-80000));
     });
 
+    test('Undoing a sale immediately reduces todaySalesTotalCents, sales stream, and reports', () async {
+      final p1 = await repo.createProduct(name: 'Bread', sellPriceCents: 3000);
+      final p2 = await repo.createProduct(name: 'Milk', sellPriceCents: 5000);
+      await repo.recordStockIn(productId: p1.id, qtyMilli: 10000, unitPriceCents: 2000);
+      await repo.recordStockIn(productId: p2.id, qtyMilli: 10000, unitPriceCents: 3500);
+
+      // Listen to watchTodaySalesTotalCents stream
+      final emissions = <int>[];
+      final subscription = repo.watchTodaySalesTotalCents().listen(emissions.add);
+
+      // Sale 1: 2 Breads @ 3000 = 6,000 cents
+      final sale1 = await repo.recordSaleWithPayment(
+        items: [SaleLineItem(product: p1, qtyMilli: 2000, unitPriceCents: 3000)],
+        paymentMethod: 'cash',
+      );
+
+      // Sale 2: 3 Milks @ 5000 = 15,000 cents
+      final sale2 = await repo.recordSaleWithPayment(
+        items: [SaleLineItem(product: p2, qtyMilli: 3000, unitPriceCents: 5000)],
+        paymentMethod: 'cash',
+      );
+
+      // Total today should be 6000 + 15000 = 21,000 cents
+      expect(await repo.todaySalesTotalCents(), equals(21000));
+
+      final now = DateTime.now();
+      final startTodayMs = DateTime(now.year, now.month, now.day).toUtc().millisecondsSinceEpoch;
+      final endTodayMs = DateTime(now.year, now.month, now.day, 23, 59, 59).toUtc().millisecondsSinceEpoch;
+      var report = await repo.getSalesReport(fromMs: startTodayMs, toMs: endTodayMs);
+      expect(report.totalRevenueCents, equals(21000));
+      expect(report.salesCount, equals(2));
+
+      // Undo Sale 1 (6,000 cents)
+      await repo.undoSale(sale1.id);
+
+      // Total today must immediately drop down by 6,000 cents to 15,000 cents
+      expect(await repo.todaySalesTotalCents(), equals(15000));
+
+      // Report should also exclude the voided sale
+      report = await repo.getSalesReport(fromMs: startTodayMs, toMs: endTodayMs);
+      expect(report.totalRevenueCents, equals(15000));
+      expect(report.salesCount, equals(1));
+
+      // Undo Sale 2 (15,000 cents)
+      await repo.undoSale(sale2.id);
+
+      // Total today must now be 0
+      expect(await repo.todaySalesTotalCents(), equals(0));
+      report = await repo.getSalesReport(fromMs: startTodayMs, toMs: endTodayMs);
+      expect(report.totalRevenueCents, equals(0));
+      expect(report.salesCount, equals(0));
+
+      // Allow stream emissions to deliver
+      await Future.delayed(const Duration(milliseconds: 50));
+      await subscription.cancel();
+
+      // Check stream witnessed the updates down to 0
+      expect(emissions.last, equals(0));
+      expect(emissions.contains(21000), isTrue);
+      expect(emissions.contains(15000), isTrue);
+    });
+
+    test('Undoing an instant fast sale reduces todaySalesTotalCents', () async {
+      // Record instant sale for 150 ETB (15,000 cents)
+      final instantSale = await repo.recordInstantSale(priceCents: 15000);
+      expect(await repo.todaySalesTotalCents(), equals(15000));
+
+      // Undo the instant sale
+      await repo.undoSale(instantSale.id);
+
+      // Today's sales total must immediately be 0
+      expect(await repo.todaySalesTotalCents(), equals(0));
+    });
+
     test('Undoing a sale older than 10 minutes throws UndoExpiredException', () async {
       final product = await repo.createProduct(name: 'Tea', sellPriceCents: 20000);
       await repo.recordStockIn(productId: product.id, qtyMilli: 5000, unitPriceCents: 10000);
