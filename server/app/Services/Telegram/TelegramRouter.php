@@ -239,8 +239,13 @@ class TelegramRouter
         // License enforcement and feature gating for shop operations
         $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
         if ($shop !== null) {
-            if (!$this->licenseEnforcer->hasFeature($shop, 'telegram_bot')) {
-                $this->telegram->answerCallbackQuery($cqId, 'Telegram Bot feature is not included in current license plan.', showAlert: true);
+            $shopLicense = \App\Models\ShopLicense::where('shop_id', $shop->id)->first();
+            $hasToken = ($shopLicense !== null && !empty($shopLicense->token));
+
+            // If a token is installed but lacks telegram_bot feature (e.g. offline terminal only token)
+            if ($hasToken && !$this->licenseEnforcer->hasFeature($shop, 'telegram_bot')) {
+                $this->telegram->answerCallbackQuery($cqId);
+                $this->licenseBotHandler->sendFeatureRequiredNotice($chatId, $user, 'telegram_bot', $messageId);
                 return;
             }
 
@@ -254,12 +259,14 @@ class TelegramRouter
             }
 
             if ($module === 'team' && !$this->licenseEnforcer->hasFeature($shop, 'team_roles')) {
-                $this->telegram->answerCallbackQuery($cqId, 'Team roles feature is not included in current license plan.', showAlert: true);
+                $this->telegram->answerCallbackQuery($cqId);
+                $this->licenseBotHandler->sendFeatureRequiredNotice($chatId, $user, 'team_roles', $messageId);
                 return;
             }
 
             if (in_array($module, ['loc', 'trans'], true) && !$this->licenseEnforcer->hasFeature($shop, 'multi_location')) {
-                $this->telegram->answerCallbackQuery($cqId, 'Multi-location feature is not included in current license plan.', showAlert: true);
+                $this->telegram->answerCallbackQuery($cqId);
+                $this->licenseBotHandler->sendFeatureRequiredNotice($chatId, $user, 'multi_location', $messageId);
                 return;
             }
         }
@@ -1176,7 +1183,7 @@ class TelegramRouter
     {
         if ($action === 'menu') {
             $this->telegram->answerCallbackQuery($cqId);
-            $this->teamHandler->handleTeamMenu($chatId, $user);
+            $this->teamHandler->handleTeamMenu($chatId, $user, $messageId);
             return;
         }
 

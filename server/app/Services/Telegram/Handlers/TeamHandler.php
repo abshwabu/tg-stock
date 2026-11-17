@@ -55,7 +55,7 @@ class TeamHandler
     /**
      * Show team management menu (Requires team.manage).
      */
-    public function handleTeamMenu(int|string $chatId, ?User $user): void
+    public function handleTeamMenu(int|string $chatId, ?User $user, ?int $messageId = null): void
     {
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
@@ -102,13 +102,24 @@ class TeamHandler
             ['text' => '📜 ' . ($locale === 'en' ? 'Activity Log (Last 30)' : 'የእንቅስቃሴ መዝገብ'), 'callback_data' => 'team:log:view'],
         ];
 
-        $text = $locale === 'en'
-            ? "👥 <b>Team Management — {$shop->name}</b>\n• Team Members: <b>{$members->count()}</b>\n• Staff May Adjust: <b>{$adjustSetting}</b>\nTap any member below to manage permissions:"
-            : "👥 <b>የቡድን አስተዳደር — {$shop->name}</b>\n• የቡድን አባላት ብዛት: <b>{$members->count()}</b>\n• ሠራተኞች ስቶክ ማስተካከል: <b>{$adjustSetting}</b>\nአባል ለማስተዳደር ከታች ይምረጡ:";
+        $rows[] = [
+            ['text' => '◀️ ' . ($locale === 'en' ? 'Back to Settings' : 'ወደ ቅንብሮች ተመለስ'), 'callback_data' => 'settings:back:0'],
+        ];
 
-        $this->telegram->sendMessage($chatId, $text, [
-            'reply_markup' => TelegramUi::inlineKeyboard($rows),
-        ]);
+        $shopName = $shop?->name ?? 'Shop';
+        $text = $locale === 'en'
+            ? "👥 <b>Team Management — {$shopName}</b>\n• Team Members: <b>{$members->count()}</b>\n• Staff May Adjust: <b>{$adjustSetting}</b>\nTap any member below to manage permissions:"
+            : "👥 <b>የቡድን አስተዳደር — {$shopName}</b>\n• የቡድን አባላት ብዛት: <b>{$members->count()}</b>\n• ሠራተኞች ስቶክ ማስተካከል: <b>{$adjustSetting}</b>\nአባል ለማስተዳደር ከታች ይምረጡ:";
+
+        if ($messageId !== null) {
+            $this->telegram->editMessageText($chatId, $messageId, $text, [
+                'reply_markup' => TelegramUi::inlineKeyboard($rows),
+            ]);
+        } else {
+            $this->telegram->sendMessage($chatId, $text, [
+                'reply_markup' => TelegramUi::inlineKeyboard($rows),
+            ]);
+        }
     }
 
     /**
@@ -914,9 +925,11 @@ class TeamHandler
             );
 
             $this->telegram->answerCallbackQuery($callbackId, "{$staffName} removed from team.");
+        } else {
+            $this->telegram->answerCallbackQuery($callbackId);
         }
 
-        $this->handleTeamMenu($chatId, $user);
+        $this->handleTeamMenu($chatId, $user, $messageId);
     }
 
     /**
@@ -942,7 +955,8 @@ class TeamHandler
             );
         }
 
-        $this->handleTeamMenu($chatId, $user);
+        $this->telegram->answerCallbackQuery($callbackId);
+        $this->handleTeamMenu($chatId, $user, $messageId);
     }
 
     /**

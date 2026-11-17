@@ -517,4 +517,61 @@ class LicenseBotHandler
             'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
     }
+
+    /**
+     * Send notice explaining that a specific premium feature requires an upgraded license or trial.
+     */
+    public function sendFeatureRequiredNotice(int|string $chatId, ?User $user, string $feature, ?int $messageId = null): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        $featureLabel = match ($feature) {
+            'team_roles' => ($locale === 'en' ? 'Team & Staff Management' : 'የቡድን እና ሠራተኞች አስተዳደር'),
+            'multi_location' => ($locale === 'en' ? 'Multi-Location & Transfers' : 'የቦታዎች እና ዝውውር አስተዳደር'),
+            'online_sync' => ($locale === 'en' ? 'Online Cloud Sync' : 'የመስመር ላይ ማመሳሰል'),
+            'export' => ($locale === 'en' ? 'PDF/Excel Export' : 'መረጃ ኤክስፖርት ማድረግ'),
+            'telegram_bot' => ($locale === 'en' ? 'Telegram Bot Access' : 'የቴሌግራም ቦት አገልግሎት'),
+            default => ($locale === 'en' ? 'Premium Feature' : 'ልዩ አገልግሎት'),
+        };
+
+        if ($locale === 'en') {
+            $text = "👥 <b>{$featureLabel}</b>\n\n"
+                  . "This feature is not included in your shop's current license plan or status.\n\n"
+                  . "To unlock team management, staff permissions, and role assignment:\n"
+                  . "• Start a <b>14-Day Free Trial</b> (includes all features)\n"
+                  . "• Or upgrade to a <b>Pro / Master Plan</b>\n\n"
+                  . "<i>Staff devices are covered under your shop license at no extra cost.</i>";
+        } else {
+            $text = "👥 <b>{$featureLabel}</b>\n\n"
+                  . "ይህ አገልግሎት አሁን ባለው የሱቅዎ ፈቃድ ውስጥ አልተካተተም ወይም ፈቃድ አልነቃም።\n\n"
+                  . "የሠራተኞች አስተዳደር፣ ፈቃዶችን መቆጣጠር እና ሚናዎችን ለመመደብ፦\n"
+                  . "• የ <b>14 ቀን ነጻ ሙከራ</b> ይጀምሩ (ሁሉንም ያካትታል)\n"
+                  . "• ወይም የ <b>Pro / Master</b> ፈቃድ ያግኙ\n\n"
+                  . "<i>የሠራተኞች ስልኮች በሱቁ ፈቃድ ያለምንም ተጨማሪ ክፍያ ይሸፈናሉ።</i>";
+        }
+
+        $buttons = [
+            [
+                ['text' => $locale === 'en' ? '🎁 Start 14-Day Free Trial' : '🎁 የ14 ቀን ነጻ ሙከራ ጀምር', 'callback_data' => 'license:trial:0'],
+            ],
+            [
+                ['text' => $locale === 'en' ? '💳 Buy / Upgrade' : '💳 ፈቃድ ግዛ / አሻሽል', 'callback_data' => 'license:buy:0'],
+                ['text' => $locale === 'en' ? '🔑 Enter Token' : '🔑 ፈቃድ አስገባ', 'callback_data' => 'license:enter:0'],
+            ],
+            [
+                ['text' => $locale === 'en' ? '◀️ Back to Settings' : '◀️ ወደ ቅንብሮች ተመለስ', 'callback_data' => 'settings:back:0'],
+            ],
+        ];
+
+        if ($messageId !== null) {
+            $this->telegram->editMessageText($chatId, $messageId, $text, [
+                'reply_markup' => TelegramUi::inlineKeyboard($buttons),
+            ]);
+        } else {
+            $this->telegram->sendMessage($chatId, $text, [
+                'reply_markup' => TelegramUi::inlineKeyboard($buttons),
+            ]);
+        }
+    }
 }

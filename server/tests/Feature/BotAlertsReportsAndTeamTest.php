@@ -748,6 +748,55 @@ class BotAlertsReportsAndTeamTest extends TestCase
         $this->assertNotNull($log);
     }
 
+    public function test_team_menu_renders_team_members_and_settings_back_button(): void
+    {
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 965,
+                'callback_query' => [
+                    'id' => 'cq_team_menu',
+                    'from' => ['id' => $this->owner->telegram_id],
+                    'message' => ['chat' => ['id' => $this->owner->telegram_id], 'message_id' => 30],
+                    'data' => 'team:menu:0',
+                ],
+            ])->assertStatus(200);
+
+        Http::assertSent(function ($request) {
+            $data = $request->data();
+            $keyboard = is_array($data['reply_markup'] ?? null)
+                ? $data['reply_markup']
+                : json_decode($data['reply_markup'] ?? '{}', true);
+            $buttons = collect($keyboard['inline_keyboard'] ?? [])->flatten(1)->pluck('callback_data')->all();
+
+            return in_array('team:invite:create', $buttons, true)
+                && in_array('settings:back:0', $buttons, true);
+        });
+    }
+
+    public function test_team_callback_shows_feature_required_notice_when_plan_lacks_team_roles(): void
+    {
+        $mockEnforcer = \Mockery::mock(\App\Services\LicenseEnforcer::class);
+        $mockEnforcer->shouldReceive('hasFeature')->with(\Mockery::any(), 'telegram_bot')->andReturn(true);
+        $mockEnforcer->shouldReceive('hasFeature')->with(\Mockery::any(), 'team_roles')->andReturn(false);
+        $this->app->instance(\App\Services\LicenseEnforcer::class, $mockEnforcer);
+
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 966,
+                'callback_query' => [
+                    'id' => 'cq_team_gated',
+                    'from' => ['id' => $this->owner->telegram_id],
+                    'message' => ['chat' => ['id' => $this->owner->telegram_id], 'message_id' => 31],
+                    'data' => 'team:menu:0',
+                ],
+            ])->assertStatus(200);
+
+        Http::assertSent(function ($request) {
+            $text = $request->data()['text'] ?? '';
+            return str_contains($text, 'Team & Staff Management') || str_contains($text, 'የቡድን እና ሠራተኞች አስተዳደር');
+        });
+    }
+
     public function test_price_change_updates_product_and_logs_activity(): void
     {
         $product = Product::withoutGlobalScope(ShopScope::class)->create([

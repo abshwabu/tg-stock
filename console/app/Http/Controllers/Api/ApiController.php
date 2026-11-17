@@ -229,7 +229,7 @@ class ApiController extends Controller
                 nbfDay: $nbfDay,
                 expDay: $expDay,
                 graceDays: $trialPlan->grace_days,
-                seats: 1,
+                seats: $trialPlan->seats ?? 3,
                 features: $trialPlan->features,
                 maxMajor: 0
             );
@@ -270,7 +270,7 @@ class ApiController extends Controller
                 'nbf_day' => $nbfDay,
                 'exp_day' => $expDay,
                 'grace_days' => $trialPlan->grace_days,
-                'seats' => 1,
+                'seats' => $trialPlan->seats ?? 3,
                 'features' => $trialPlan->features,
                 'max_major' => 0,
                 'raw_payload_hex' => $tokenResult['raw_payload_hex'],
