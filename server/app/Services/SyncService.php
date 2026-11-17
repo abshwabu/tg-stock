@@ -1484,6 +1484,10 @@ class SyncService
             $existing->deleted_at_ms = null;
             $existing->save();
 
+            if ($existing->isStockable() && array_key_exists('low_stock_at', $data)) {
+                $this->ledger->checkLowStockAlert($existing, null, $shopId);
+            }
+
             Change::withoutGlobalScope(ShopScope::class)->create([
                 'shop_id' => $shopId,
                 'device_id' => $device->id,
@@ -1513,6 +1517,11 @@ class SyncService
             'is_active' => isset($data['is_active']) ? (bool) $data['is_active'] : true,
             'updated_at_ms' => $updatedMs,
         ]);
+
+        $createdProduct = Product::withoutGlobalScope(ShopScope::class)->where('id', $id)->first();
+        if ($createdProduct !== null && $createdProduct->isStockable() && isset($data['low_stock_at'])) {
+            $this->ledger->checkLowStockAlert($createdProduct, null, $shopId);
+        }
 
         Change::withoutGlobalScope(ShopScope::class)->create([
             'shop_id' => $shopId,

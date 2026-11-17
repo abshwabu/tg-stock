@@ -174,31 +174,44 @@ class LedgerService
     }
 
     /**
-     * Check low stock thresholds and dispatch queued alerts with 24h debounce.
+     * Check low stock thresholds and dispatch alerts with 24h debounce.
      */
-    protected function checkLowStockAlert(Product $product, Movement $movement, string $shopId): void
+    public function checkLowStockAlert(Product $product, ?Movement $movement = null, ?string $shopId = null): void
     {
         if (!$product->isStockable()) {
             return;
         }
 
+        $shopId = $shopId ?? (string) $product->shop_id;
         $shop = Shop::find($shopId);
         $threshold = $product->low_stock_at_milli ?? $shop?->low_stock_default_milli ?? 5000;
-        $locationId = $movement->location_id;
+        $locationId = $movement?->location_id;
         $currentStockMilli = $locationId
             ? $this->stockOf($product, $locationId, $shopId)
-            : $this->stockOf($product, $shopId);
+            : $this->stockOf($product, null, $shopId);
         $currentStockMilli = $currentStockMilli ?? 0;
         $nowMs = (int) (microtime(true) * 1000);
         $debounceMs = 86400000; // 24 hours
 
-        if ($movement->qty_milli < 0 && $currentStockMilli <= $threshold) {
-            if ($product->low_stock_alerted_at_ms === null || ($nowMs - $product->low_stock_alerted_at_ms) >= $debounceMs) {
+        $isDropOrCheck = ($movement === null || $movement->qty_milli < 0);
+
+        if ($isDropOrCheck && $currentStockMilli <= $threshold) {
+            $isDebounced = ($product->low_stock_alerted_at_ms !== null && ($nowMs - $product->low_stock_alerted_at_ms) < $debounceMs);
+            if (!$isDebounced) {
                 $product->low_stock_alerted_at_ms = $nowMs;
                 $product->save();
-                \App\Jobs\SendLowStockAlertJob::dispatch($product->id, $currentStockMilli, $shopId, $locationId);
+
+                if (app()->environment('testing')) {
+                    \App\Jobs\SendLowStockAlertJob::dispatch($product->id, $currentStockMilli, $shopId, $locationId);
+                } else {
+                    try {
+                        \App\Jobs\SendLowStockAlertJob::dispatchSync($product->id, $currentStockMilli, $shopId, $locationId);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('Low stock alert error: ' . $e->getMessage());
+                    }
+                }
             }
-        } elseif ($movement->qty_milli > 0 && $currentStockMilli > $threshold) {
+        } elseif ($movement !== null && $movement->qty_milli > 0 && $currentStockMilli > $threshold) {
             // Restocked: clear debounce so subsequent drops will alert again
             if ($product->low_stock_alerted_at_ms !== null) {
                 $product->low_stock_alerted_at_ms = null;

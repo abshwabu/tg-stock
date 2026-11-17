@@ -79,7 +79,10 @@ class ReportHandler
                 ['text' => '🚚 ' . ($locale === 'en' ? 'In Transit' : 'በመንገድ ላይ'), 'callback_data' => 'rep:loc:transit'],
             ],
             [
+                ['text' => '⚠️ ' . ($locale === 'en' ? 'Low Stock' : 'ያነሱ ዕቃዎች'), 'callback_data' => 'rep:lowstock:1'],
                 ['text' => '💳 ' . ($locale === 'en' ? 'Payments & Cash Drawer' : 'ክፍያዎችና ካዝና'), 'callback_data' => 'rep:pay:today'],
+            ],
+            [
                 ['text' => '💸 ' . ($locale === 'en' ? 'Income & Expense' : 'ገቢና ወጪ'), 'callback_data' => 'cf:menu:0'],
             ],
         ];
@@ -859,5 +862,14 @@ class ReportHandler
         $this->telegram->editMessageText($chatId, $messageId, $text, [
             'reply_markup' => TelegramUi::inlineKeyboard($buttons),
         ]);
+    }
+
+    /**
+     * Show low stock products report.
+     */
+    public function handleLowStockReport(string $callbackId, int|string $chatId, int $messageId, ?User $user, int $page = 1): void
+    {
+        $this->telegram->answerCallbackQuery($callbackId);
+        app(ProductHandler::class)->handleLowStock($chatId, $user, $page, $messageId);
     }
 }

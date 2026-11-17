@@ -99,12 +99,13 @@ class ProductHandler
             ];
         }
 
-        // Action row: Add Product
+        // Action row: Add Product and Low Stock filter
+        $actionRow = [];
         if ($this->permissionService->can($user, 'products.create')) {
-            $rows[] = [
-                ['text' => __('btn_add_product'), 'callback_data' => 'prod:add:start'],
-            ];
+            $actionRow[] = ['text' => __('btn_add_product'), 'callback_data' => 'prod:add:start'];
         }
+        $actionRow[] = ['text' => '⚠️ ' . ($locale === 'en' ? 'Low Stock' : 'ያነሱ ዕቃዎች'), 'callback_data' => 'prod:lowstock:1'];
+        $rows[] = $actionRow;
 
         // Pagination row
         if ($totalPages > 1) {
@@ -207,11 +208,19 @@ class ProductHandler
             $transitText = "\n🚚 " . ($locale === 'en' ? "In transit: <b>{$transitFormatted} {$product->unit}</b>" : "በመንገድ ላይ: <b>{$transitFormatted} {$product->unit}</b>");
         }
 
+        $thresholdLineEn = $totalStockMilli !== null
+            ? "• Low Stock Limit: <b>" . LedgerService::formatQty($threshold) . " {$product->unit}</b>\n"
+            : "";
+        $thresholdLineAm = $totalStockMilli !== null
+            ? "• ዝቅተኛ ገደብ: <b>" . LedgerService::formatQty($threshold) . " {$product->unit}</b>\n"
+            : "";
+
         if ($locale === 'en') {
             $cardText = "📦 <b>Product Card: {$product->name}</b> {$badge}\n"
                 . "• Selling Price: <b>{$sellPriceStr}</b>\n"
                 . "• Cost Price: <b>{$costPriceStr}</b>\n"
                 . "• Total Stock: <b>{$totalStockFormatted} {$product->unit}</b>\n"
+                . $thresholdLineEn
                 . "• SKU: <code>" . ($product->sku ?? '—') . "</code>\n\n"
                 . "📍 <b>Stock by Location:</b>\n"
                 . ($locStockText ?: "• (No locations configured)")
@@ -221,6 +230,7 @@ class ProductHandler
                 . "• የመሸጫ ዋጋ: <b>{$sellPriceStr}</b>\n"
                 . "• የግዢ ዋጋ: <b>{$costPriceStr}</b>\n"
                 . "• ጠቅላላ ስቶክ: <b>{$totalStockFormatted} {$product->unit}</b>\n"
+                . $thresholdLineAm
                 . "• ባርኮድ/SKU: <code>" . ($product->sku ?? '—') . "</code>\n\n"
                 . "📍 <b>ስቶክ በቦታ:</b>\n"
                 . ($locStockText ?: "• (የተመዘገበ ቦታ የለም)")
@@ -821,5 +831,122 @@ class ProductHandler
         $this->telegram->sendMessage($chatId, $msg, [
             'reply_markup' => TelegramUi::mainMenuKeyboard($locale),
         ]);
+    }
+
+    /**
+     * Display paginated list of low stock or out-of-stock products.
+     */
+    public function handleLowStock(int|string $chatId, ?User $user, int $page = 1, ?int $messageId = null): void
+    {
+        $locale = $user?->language ?? 'am';
+        app()->setLocale($locale);
+
+        if ($user === null || empty($user->shop_id)) {
+            $this->telegram->sendMessage($chatId, __('unknown_command'));
+            return;
+        }
+
+        $shopId = (string) $user->shop_id;
+        $shop = Shop::find($shopId);
+        $defaultThreshold = $shop?->low_stock_default_milli ?? 5000;
+
+        $products = Product::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->whereNull('deleted_at_ms')
+            ->where(function ($q): void {
+                $q->whereNull('kind')->orWhere('kind', 'stockable');
+            })
+            ->orderBy('name', 'asc')
+            ->get();
+
+        $lowItems = [];
+        foreach ($products as $prod) {
+            $stockMilli = $this->ledger->stockOf($prod, null, $shopId) ?? 0;
+            $threshold = $prod->low_stock_at_milli ?? $defaultThreshold;
+            if ($stockMilli <= $threshold) {
+                $lowItems[] = [
+                    'product' => $prod,
+                    'stockMilli' => $stockMilli,
+                    'threshold' => $threshold,
+                ];
+            }
+        }
+
+        if (empty($lowItems)) {
+            $emptyText = $locale === 'en'
+                ? "✅ <b>No low level stocks!</b>\n\nAll items in your shop have sufficient inventory above their minimum thresholds."
+                : "✅ <b>ዝቅተኛ ክምችት የለም!</b>\n\nበሱቅዎ ውስጥ ያሉ ሁሉም ዕቃዎች ከዝቅተኛው ገደብ በላይ በቂ ክምችት አላቸው።";
+
+            $buttons = [
+                [['text' => $locale === 'en' ? '📦 All Products' : '📦 ሁሉም ዕቃዎች', 'callback_data' => 'prod:page:1']],
+            ];
+
+            if ($messageId !== null) {
+                $this->telegram->editMessageText($chatId, $messageId, $emptyText, [
+                    'reply_markup' => TelegramUi::inlineKeyboard($buttons),
+                ]);
+            } else {
+                $this->telegram->sendMessage($chatId, $emptyText, [
+                    'reply_markup' => TelegramUi::inlineKeyboard($buttons),
+                ]);
+            }
+            return;
+        }
+
+        $totalLow = count($lowItems);
+        $totalPages = (int) ceil($totalLow / self::PER_PAGE);
+        $page = max(1, min($page, $totalPages));
+        $offset = ($page - 1) * self::PER_PAGE;
+        $pageItems = array_slice($lowItems, $offset, self::PER_PAGE);
+
+        $rows = [];
+        foreach ($pageItems as $item) {
+            /** @var Product $p */
+            $p = $item['product'];
+            $stockQty = LedgerService::formatQty($item['stockMilli']);
+            $limitQty = LedgerService::formatQty($item['threshold']);
+            $outMark = $item['stockMilli'] <= 0 ? '🚨 ' : '⚠️ ';
+            $priceEtb = number_format($p->sell_price_cents / 100, 2);
+
+            $rows[] = [
+                [
+                    'text' => "{$outMark}{$p->name} — {$stockQty} / {$limitQty} {$p->unit} ({$priceEtb} ETB)",
+                    'callback_data' => "prod:view:{$p->id}",
+                ],
+            ];
+        }
+
+        // Pagination row
+        if ($totalPages > 1) {
+            $pagRow = [];
+            if ($page > 1) {
+                $prev = $page - 1;
+                $pagRow[] = ['text' => '◀️ ' . ($locale === 'en' ? 'Prev' : 'ወደኋላ'), 'callback_data' => "prod:lowstock:{$prev}"];
+            }
+            $pagRow[] = ['text' => "{$page} / {$totalPages}", 'callback_data' => 'noop:none:0'];
+            if ($page < $totalPages) {
+                $next = $page + 1;
+                $pagRow[] = ['text' => ($locale === 'en' ? 'Next' : 'ወደፊት') . ' ▶️', 'callback_data' => "prod:lowstock:{$next}"];
+            }
+            $rows[] = $pagRow;
+        }
+
+        $rows[] = [
+            ['text' => $locale === 'en' ? '📦 All Products' : '📦 ሁሉም ዕቃዎች', 'callback_data' => 'prod:page:1'],
+        ];
+
+        $headerText = $locale === 'en'
+            ? "⚠️ <b>Low Stock Products ({$totalLow})</b>\nThe following items have reached or fallen below their minimum threshold:"
+            : "⚠️ <b>ዝቅተኛ ክምችት ላይ ያሉ ዕቃዎች ({$totalLow})</b>\nየሚከተሉት ዕቃዎች አነስተኛ የክምችት ገደብ ላይ ደርሰዋል ወይም አልቀዋል፦";
+
+        if ($messageId !== null) {
+            $this->telegram->editMessageText($chatId, $messageId, $headerText, [
+                'reply_markup' => TelegramUi::inlineKeyboard($rows),
+            ]);
+        } else {
+            $this->telegram->sendMessage($chatId, $headerText, [
+                'reply_markup' => TelegramUi::inlineKeyboard($rows),
+            ]);
+        }
     }
 }

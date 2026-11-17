@@ -96,6 +96,12 @@ class MenuHandler
             return;
         }
 
+        // 3.5 Low Stock
+        if (in_array($clean, ['⚠️ Low Stock', '⚠️ ያነሱ ዕቃዎች', '/lowstock', 'lowstock', 'ዝቅተኛ ክምችት', 'ያነሱ ዕቃዎች'], true)) {
+            $this->productHandler->handleLowStock($chatId, $user, 1);
+            return;
+        }
+
         // 4. Stock In
         if (in_array($clean, ['➕ Stock In', '➕ ገቢ ዕቃ', '/stockin'], true)) {
             $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;

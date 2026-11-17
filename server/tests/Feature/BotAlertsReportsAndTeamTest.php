@@ -895,4 +895,150 @@ class BotAlertsReportsAndTeamTest extends TestCase
         $this->staff->refresh();
         $this->assertFalse($this->staff->is_active);
     }
+
+    public function test_low_stock_command_and_callbacks_show_empty_and_populated_states(): void
+    {
+        $this->owner->language = 'en';
+        $this->owner->save();
+
+        // 1. Initially no products, or only products with enough stock -> "No low level stocks"
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 980,
+                'message' => [
+                    'chat' => ['id' => $this->owner->telegram_id],
+                    'from' => ['id' => $this->owner->telegram_id],
+                    'text' => '/lowstock',
+                ],
+            ])->assertStatus(200);
+
+        Http::assertSent(function ($request) {
+            return (str_contains($request->url(), 'sendMessage') || str_contains($request->url(), 'editMessageText'))
+                && str_contains($request['text'] ?? '', 'No low level stocks');
+        });
+
+        // 2. Create product with low stock
+        $product = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Low Salt',
+            'unit' => 'pcs',
+            'cost_price_cents' => 500,
+            'sell_price_cents' => 1000,
+            'low_stock_at_milli' => 5000,
+            'is_active' => true,
+            'updated_at_ms' => 1000,
+        ]);
+
+        $this->ledger->record(new Movement([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'product_id' => $product->id,
+            'type' => 'in',
+            'qty_milli' => 2000, // 2 pcs <= 5 pcs threshold
+            'created_at_ms' => 1000,
+        ]));
+
+        // 3. Callback prod:lowstock:1 shows the low stock item
+        $res = $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 981,
+                'callback_query' => [
+                    'id' => 'cq_low_1',
+                    'from' => ['id' => $this->owner->telegram_id],
+                    'message' => ['chat' => ['id' => $this->owner->telegram_id], 'message_id' => 77],
+                    'data' => 'prod:lowstock:1',
+                ],
+            ]);
+        $res->assertStatus(200);
+
+        Http::assertSent(function ($request) {
+            return (str_contains($request->url(), 'sendMessage') || str_contains($request->url(), 'editMessageText'))
+                && str_contains($request['text'] ?? '', 'Low Stock Products')
+                && str_contains(json_encode($request->data()), 'Low Salt');
+        });
+
+        // 4. Report menu callback rep:lowstock:1 also routes to low stock list
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $this->secretToken)
+            ->postJson('/api/telegram/webhook', [
+                'update_id' => 982,
+                'callback_query' => [
+                    'id' => 'cq_rep_low',
+                    'from' => ['id' => $this->owner->telegram_id],
+                    'message' => ['chat' => ['id' => $this->owner->telegram_id], 'message_id' => 78],
+                    'data' => 'rep:lowstock:1',
+                ],
+            ])->assertStatus(200);
+
+        Http::assertSent(function ($request) {
+            return (str_contains($request->url(), 'sendMessage') || str_contains($request->url(), 'editMessageText'))
+                && str_contains($request['text'] ?? '', 'Low Stock Products');
+        });
+    }
+
+    public function test_product_sync_triggers_low_stock_alert_when_threshold_is_met(): void
+    {
+        Queue::fake([SendLowStockAlertJob::class]);
+
+        // Create a product with existing stock of 3 units
+        $prodId = (string) Str::uuid7();
+        $product = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => $prodId,
+            'shop_id' => $this->shop->id,
+            'name' => 'Existing Stock Product',
+            'unit' => 'pcs',
+            'cost_price_cents' => 1000,
+            'sell_price_cents' => 1500,
+            'low_stock_at_milli' => 1000, // old threshold: 1 unit
+            'is_active' => true,
+            'updated_at_ms' => 1000,
+        ]);
+
+        $this->ledger->record(new Movement([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'product_id' => $product->id,
+            'type' => 'in',
+            'qty_milli' => 3000, // 3 units
+            'created_at_ms' => 1000,
+        ]));
+
+        Queue::assertNotPushed(SendLowStockAlertJob::class);
+
+        // Client on phone updates product threshold to 5 units (low_stock_at = '5.000')
+        // Current stock (3 units) is now <= threshold (5 units)
+        $device = \App\Models\Device::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'user_id' => $this->owner->id,
+            'name' => 'Phone',
+            'token_hash' => hash('sha256', 'test_dev_tok'),
+        ]);
+
+        $syncService = app(\App\Services\SyncService::class);
+        $payload = [
+            'cursor' => 0,
+            'changes' => [
+                [
+                    'id' => (string) Str::uuid7(),
+                    'entity' => 'product',
+                    'op' => 'upsert',
+                    'data' => [
+                        'id' => $prodId,
+                        'name' => 'Existing Stock Product',
+                        'unit' => 'pcs',
+                        'cost_price_cents' => 1000,
+                        'sell_price_cents' => 1500,
+                        'low_stock_at' => '5.000',
+                        'is_active' => true,
+                        'updated_at' => 2000,
+                    ],
+                    'client_ts' => 2000,
+                ],
+            ],
+        ];
+        $syncService->sync($device, $payload, strlen(json_encode($payload)));
+
+        Queue::assertPushed(SendLowStockAlertJob::class, 1);
+    }
 }

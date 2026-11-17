@@ -252,7 +252,7 @@ class TelegramRouter
             }
 
             if (in_array($module, ['prod', 'qadd', 'stockin', 'sale', 'adj', 'trans'], true)) {
-                $isReadOnlyProd = ($module === 'prod' && in_array($action, ['view', 'list', 'page', 'search'], true));
+                $isReadOnlyProd = ($module === 'prod' && in_array($action, ['view', 'list', 'page', 'search', 'lowstock'], true));
                 if (!$isReadOnlyProd && !$this->licenseEnforcer->canWrite($shop)) {
                     $this->telegram->answerCallbackQuery($cqId);
                     $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
@@ -471,6 +471,12 @@ class TelegramRouter
         if ($action === 'page') {
             $this->telegram->answerCallbackQuery($cqId);
             $this->productHandler->handleList($chatId, $user, (int) $id);
+            return;
+        }
+
+        if ($action === 'lowstock') {
+            $this->telegram->answerCallbackQuery($cqId);
+            $this->productHandler->handleLowStock($chatId, $user, (int) ($id ?: 1), $messageId);
             return;
         }
 
@@ -1195,6 +1201,11 @@ class TelegramRouter
             return;
         }
 
+        if ($action === 'lowstock') {
+            $this->reportHandler->handleLowStockReport($cqId, $chatId, $messageId, $user, (int) ($id ?: 1));
+            return;
+        }
+
         if ($action === 'loc') {
             if ($id === 'stock') {
                 $this->reportHandler->handleStockByLocation($cqId, $chatId, $messageId, $user);
@@ -1413,6 +1424,13 @@ class TelegramRouter
         if (in_array(strtolower($text), ['/license', 'license', 'ፈቃድ', 'የፈቃድ ሁኔታ'], true)) {
             $this->botState->clear($chatId);
             $this->licenseBotHandler->handleViewLicense($chatId, $user);
+            return;
+        }
+
+        // Handle /lowstock command
+        if (in_array(strtolower($text), ['/lowstock', 'lowstock', 'ያነሱ ዕቃዎች', 'ዝቅተኛ ክምችት', '⚠️ low stock', '⚠️ ያነሱ ዕቃዎች'], true)) {
+            $this->botState->clear($chatId);
+            $this->productHandler->handleLowStock($chatId, $user, 1);
             return;
         }
 
