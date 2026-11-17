@@ -2385,6 +2385,146 @@ class LedgerRepository {
     });
   }
 
+  /// Directly registers a Dube (credit sale) for a customer from the Dube screen.
+  /// Supports direct credit amount with optional note, as well as optional itemized products.
+  /// Also supports optional upfront partial payment.
+  Future<Sale> recordDirectDube({
+    required String customerId,
+    required int totalCents,
+    required String dueDate,
+    String? note,
+    String? locationId,
+    List<SaleLineItem> items = const [],
+    int paidAmountCents = 0,
+    String? paidMethod,
+    String? paidProviderKey,
+    String? reference,
+    int? createdAtMs,
+  }) async {
+    await licenseGate?.assertCanWriteSale();
+    if (customerId.trim().isEmpty) {
+      throw ArgumentError('Customer is required to register Dube.');
+    }
+    final customer = await getCustomer(customerId);
+    if (customer == null) {
+      throw ArgumentError('Customer not found: $customerId');
+    }
+    if (totalCents <= 0) {
+      throw ArgumentError('Dube total amount must be greater than zero.');
+    }
+    if (paidAmountCents >= totalCents) {
+      throw ArgumentError('Upfront payment cannot equal or exceed total amount for Dube.');
+    }
+    if (paidAmountCents < 0) {
+      throw ArgumentError('Upfront payment cannot be negative.');
+    }
+    final targetLocId = locationId ?? await getActiveLocationId();
+    final nowMs = createdAtMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.fromMillisecondsSinceEpoch(nowMs));
+    if (dueDate.trim().isEmpty || dueDate.compareTo(todayStr) < 0) {
+      throw ArgumentError('Due date cannot be before today.');
+    }
+
+    // If items are provided, validate stock constraints
+    if (items.isNotEmpty) {
+      final allowNegative = await getAllowNegativeStock();
+      final blockWhenShort = await getBlockSaleWhenMaterialShort();
+      for (final item in items) {
+        if (item.product.kind == 'stockable' && !allowNegative) {
+          final currentStock = await stockOf(item.product.id, locationId: targetLocId);
+          if (currentStock < item.qtyMilli) {
+            throw InsufficientStockException(
+              productId: item.product.id,
+              productName: item.product.name,
+              currentStockMilli: currentStock,
+              requestedQtyMilli: item.qtyMilli,
+            );
+          }
+        } else if (item.product.kind == 'consumable') {
+          final mats = await getProductMaterials(item.product.id);
+          for (final mat in mats) {
+            final requiredQty = ((mat.qtyMilli * item.qtyMilli) / 1000.0).round();
+            final matStock = await stockOf(mat.materialProductId, locationId: targetLocId);
+            if (blockWhenShort && matStock < requiredQty) {
+              final matProd = await getProduct(mat.materialProductId);
+              throw InsufficientStockException(
+                productId: mat.materialProductId,
+                productName: matProd?.name ?? 'Raw Material',
+                currentStockMilli: matStock,
+                requestedQtyMilli: requiredQty,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    return db.transaction(() async {
+      // 1. Create Sale header
+      final sale = await db.createSale(
+        locationId: targetLocId,
+        customerId: customerId,
+        totalCents: totalCents,
+        dueDate: dueDate,
+        note: note,
+        legacy: false,
+        createdAtMs: nowMs,
+      );
+
+      // 2. Record inventory movements if items provided
+      for (final item in items) {
+        final isStockable = item.product.kind == 'stockable';
+        final saleMov = await db.recordMovement(
+          productId: item.product.id,
+          type: 'sale',
+          qtyMilli: -item.qtyMilli.abs(),
+          unitPriceCents: item.unitPriceCents,
+          tracksStock: isStockable,
+          note: note ?? 'Dube Sale',
+          locationId: targetLocId,
+          saleId: sale.id,
+          createdAtMs: nowMs,
+        );
+
+        if (item.product.kind == 'consumable') {
+          final mats = await getProductMaterials(item.product.id);
+          for (final mat in mats) {
+            final consumedQty = ((mat.qtyMilli * item.qtyMilli) / 1000.0).round();
+            await db.recordMovement(
+              productId: mat.materialProductId,
+              type: 'consume',
+              qtyMilli: -consumedQty.abs(),
+              unitPriceCents: 0,
+              tracksStock: true,
+              sourceMovementId: saleMov.id,
+              note: 'Consumed for ${item.product.name}',
+              locationId: targetLocId,
+              saleId: sale.id,
+              createdAtMs: nowMs,
+            );
+          }
+        }
+      }
+
+      // 3. Record upfront partial payment if provided
+      if (paidAmountCents > 0) {
+        await db.recordPayment(
+          saleId: sale.id,
+          customerId: customerId,
+          locationId: targetLocId,
+          method: paidMethod ?? 'cash',
+          providerKey: paidProviderKey,
+          amountCents: paidAmountCents,
+          reference: reference,
+          receivedAtMs: nowMs,
+        );
+      }
+
+      await clockService?.advanceFromMovementTimestamp(DateTime.now());
+      return sale;
+    });
+  }
+
   // ==========================================
   // DUBE FIFO BALANCE & ALLOCATION ENGINE
   // ==========================================

@@ -9,6 +9,7 @@ import '../../utils/money_formatter.dart';
 import '../../utils/phone_validator.dart';
 import '../theme.dart';
 import '../widgets/empty_state_widget.dart';
+import '../widgets/register_dube_sheet.dart';
 
 class DubeScreen extends StatefulWidget {
   final LedgerRepository repository;
@@ -69,6 +70,18 @@ class _DubeScreenState extends State<DubeScreen> {
         _profiles = profiles;
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _openRegisterDubeSheet({String? initialCustomerId}) async {
+    final created = await showRegisterDubeSheet(
+      context,
+      repository: widget.repository,
+      initialCustomerId: initialCustomerId,
+    );
+    if (created != null) {
+      widget.onMutation?.call();
+      await _loadDubeData();
     }
   }
 
@@ -189,6 +202,11 @@ class _DubeScreenState extends State<DubeScreen> {
         title: Text(isAm ? 'ዱቤ እና ደንበኞች' : 'Dube & Customers'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.note_add_rounded),
+            tooltip: isAm ? 'ዱቤ መዝግብ' : 'Register Dube',
+            onPressed: () => _openRegisterDubeSheet(),
+          ),
+          IconButton(
             icon: const Icon(Icons.person_add),
             tooltip: isAm ? 'ደንበኛ መዝግብ' : 'Add Customer',
             onPressed: _addNewCustomer,
@@ -292,11 +310,14 @@ class _DubeScreenState extends State<DubeScreen> {
                         icon: Icons.menu_book_rounded,
                         title: isAm ? 'ምንም የዱቤ ወይም የደንበኛ መዝገብ የለም' : 'No Credit Records Yet',
                         description: isAm
-                            ? 'በዱቤ ሲሸጡ የደንበኞችን ስም፣ ስልክ፣ የመክፈያ ቀነ-ገደብ እና የቀሪ እዳ መጠን እዚህ በቀላሉ መከታተል ይችላሉ።'
-                            : 'Track customer credit balances, payment deadlines, and overdue amounts with 1-tap reminders.',
-                        primaryButtonLabel: isAm ? 'አዲስ ደንበኛ መዝግብ' : 'Add Customer',
-                        primaryButtonIcon: Icons.person_add_alt_1_rounded,
-                        onPrimaryPressed: _addNewCustomer,
+                            ? 'በዱቤ ሲሸጡ የደንበኞችን ስም፣ ስልክ፣ የመክፈያ ቀነ-ገደብ እና የቀሪ እዳ መጠን እዚህ በቀላሉ መመዝገብ እና መከታተል ይችላሉ።'
+                            : 'Register customer credit, track payment deadlines, and record payments with 1-tap reminders.',
+                        primaryButtonLabel: isAm ? 'ዱቤ መዝግብ' : 'Register Dube',
+                        primaryButtonIcon: Icons.note_add_rounded,
+                        onPrimaryPressed: () => _openRegisterDubeSheet(),
+                        secondaryButtonLabel: isAm ? 'አዲስ ደንበኛ' : 'Add Customer',
+                        secondaryButtonIcon: Icons.person_add_alt_1_rounded,
+                        onSecondaryPressed: _addNewCustomer,
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -403,6 +424,13 @@ class _DubeScreenState extends State<DubeScreen> {
                       ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openRegisterDubeSheet(),
+        icon: const Icon(Icons.note_add_rounded),
+        label: Text(isAm ? 'ዱቤ መዝግብ' : 'Register Dube'),
+        backgroundColor: const Color(0xFF0F766E),
+        foregroundColor: Colors.white,
       ),
     );
   }
@@ -607,6 +635,18 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
     );
 
     if (confirmed == true) {
+      widget.onChanged();
+      _loadStatement();
+    }
+  }
+
+  Future<void> _registerDubeForThisCustomer() async {
+    final created = await showRegisterDubeSheet(
+      context,
+      repository: widget.repository,
+      initialCustomerId: widget.profile.customerId,
+    );
+    if (created != null) {
       widget.onChanged();
       _loadStatement();
     }
@@ -847,9 +887,21 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
           }),
           const SizedBox(height: 12),
 
-          // Action Buttons: Receive Payment & Share Reminder
+          // Action Buttons: Register Dube, Receive Payment & Share Reminder
           Row(
             children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF0F766E),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  onPressed: _registerDubeForThisCustomer,
+                  icon: const Icon(Icons.note_add_rounded),
+                  label: Text(isAm ? 'ዱቤ መዝግብ' : 'Add Dube'),
+                ),
+              ),
+              const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
@@ -862,13 +914,10 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                ),
+              IconButton.outlined(
+                tooltip: isAm ? 'ማስታወሻ ላክ' : 'Share Reminder',
                 onPressed: _shareReminder,
-                icon: const Icon(Icons.share, size: 18),
-                label: Text(isAm ? 'ማስታወሻ ላክ' : 'Share Reminder'),
+                icon: const Icon(Icons.share, size: 20),
               ),
             ],
           ),

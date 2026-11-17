@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNotNull;
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:app/database/app_database.dart';
@@ -9,6 +10,8 @@ import 'package:app/repositories/ledger_repository.dart';
 import 'package:app/services/api_client.dart';
 import 'package:app/services/auth_storage.dart';
 import 'package:app/services/sync_engine.dart';
+import 'package:app/ui/screens/dube_screen.dart';
+import 'package:app/ui/widgets/register_dube_sheet.dart';
 import 'package:app/utils/phone_validator.dart';
 
 void main() {
@@ -685,6 +688,179 @@ void main() {
       expect(ingestedSaleBal, equals(0)); // Paid by pay-server-1
 
       syncEngine.dispose();
+    });
+  });
+
+  group('10. Direct Dube Registration (recordDirectDube)', () {
+    test('registers direct dube balance on customer without line items', () async {
+      final cust = await repo.upsertCustomer(name: 'Alemayehu', phone: '0912345678');
+      final futureDue = DateTime.now().add(const Duration(days: 10)).toIso8601String().substring(0, 10);
+
+      final sale = await repo.recordDirectDube(
+        customerId: cust.id,
+        totalCents: 150000, // 1,500 ETB
+        dueDate: futureDue,
+        note: 'Direct loan for shop goods',
+      );
+
+      expect(sale.id, isNotEmpty);
+      expect(sale.customerId, equals(cust.id));
+      expect(sale.totalCents, equals(150000));
+      expect(sale.dueDate, equals(futureDue));
+      expect(sale.note, equals('Direct loan for shop goods'));
+
+      // Check customer credit statement
+      final credit = await repo.customerCredit(cust.id);
+      expect(credit.totalDebtCents, equals(150000));
+      expect(credit.netBalanceCents, equals(150000));
+      expect(credit.openSalesCount, equals(1));
+
+      // Outbox must contain sale event
+      final outbox = await db.select(db.outboxEntries).get();
+      final saleEvents = outbox.where((o) => o.entity == 'sale' && o.entityId == sale.id);
+      expect(saleEvents, isNotEmpty);
+    });
+
+    test('registers direct dube with upfront partial payment', () async {
+      final cust = await repo.upsertCustomer(name: 'Taye', phone: '0922334455');
+      final futureDue = DateTime.now().add(const Duration(days: 20)).toIso8601String().substring(0, 10);
+
+      final sale = await repo.recordDirectDube(
+        customerId: cust.id,
+        totalCents: 200000, // 2,000 ETB
+        dueDate: futureDue,
+        paidAmountCents: 50000, // 500 ETB upfront
+        paidMethod: 'bank',
+        paidProviderKey: 'bank.cbe',
+        reference: 'FT12345678',
+      );
+
+      final credit = await repo.customerCredit(cust.id);
+      expect(credit.totalDebtCents, equals(150000)); // 2,000 - 500 = 1,500 ETB
+      expect(credit.netBalanceCents, equals(150000));
+
+      final payments = await (db.select(db.payments)..where((p) => p.saleId.equals(sale.id))).get();
+      expect(payments.length, equals(1));
+      expect(payments.first.amountCents, equals(50000));
+      expect(payments.first.method, equals('bank'));
+      expect(payments.first.providerKey, equals('bank.cbe'));
+      expect(payments.first.reference, equals('FT12345678'));
+
+      // Outbox must have both sale and payment
+      final outbox = await db.select(db.outboxEntries).get();
+      expect(outbox.any((o) => o.entity == 'sale' && o.entityId == sale.id), isTrue);
+      expect(outbox.any((o) => o.entity == 'payment' && o.entityId == payments.first.id), isTrue);
+    });
+
+    test('registers direct dube with itemized products and decrements inventory', () async {
+      final cust = await repo.upsertCustomer(name: 'Selam', phone: '0933445566');
+      final prod = await repo.createProduct(name: 'Teff 25kg', sellPriceCents: 350000);
+      await repo.recordStockIn(
+        productId: prod.id,
+        qtyMilli: 10000, // 10 sacks
+        unitPriceCents: 300000,
+      );
+
+      final futureDue = DateTime.now().add(const Duration(days: 7)).toIso8601String().substring(0, 10);
+      final sale = await repo.recordDirectDube(
+        customerId: cust.id,
+        totalCents: 700000, // 2 sacks @ 3,500 = 7,000 ETB
+        dueDate: futureDue,
+        items: [
+          SaleLineItem(product: prod, qtyMilli: 2000, unitPriceCents: 350000),
+        ],
+      );
+
+      // Verify stock decreased by 2000 milli (2 sacks)
+      final prods = await repo.listProducts(query: 'Teff');
+      expect(prods.first.stockMilli, equals(8000));
+
+      // Verify movement recorded
+      final movements = await (db.select(db.movements)..where((m) => m.saleId.equals(sale.id))).get();
+      expect(movements.length, equals(1));
+      expect(movements.first.type, equals('sale'));
+      expect(movements.first.qtyMilli, equals(-2000));
+
+      final credit = await repo.customerCredit(cust.id);
+      expect(credit.totalDebtCents, equals(700000));
+    });
+
+    test('validation: rejects non-existent customer, zero total, past due date, and invalid upfront', () async {
+      final futureDue = DateTime.now().add(const Duration(days: 7)).toIso8601String().substring(0, 10);
+      final pastDue = DateTime.now().subtract(const Duration(days: 3)).toIso8601String().substring(0, 10);
+
+      // 1. Non-existent customer
+      expect(
+        () => repo.recordDirectDube(
+          customerId: 'non-existent-cust',
+          totalCents: 10000,
+          dueDate: futureDue,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      final cust = await repo.upsertCustomer(name: 'Valid Cust', phone: '0944556677');
+
+      // 2. Zero or negative total
+      expect(
+        () => repo.recordDirectDube(
+          customerId: cust.id,
+          totalCents: 0,
+          dueDate: futureDue,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // 3. Past due date
+      expect(
+        () => repo.recordDirectDube(
+          customerId: cust.id,
+          totalCents: 10000,
+          dueDate: pastDue,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      // 4. Upfront payment >= total
+      expect(
+        () => repo.recordDirectDube(
+          customerId: cust.id,
+          totalCents: 10000,
+          dueDate: futureDue,
+          paidAmountCents: 10000,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+  });
+
+  group('11. DubeScreen and RegisterDubeSheet UI Flow', () {
+    testWidgets('renders Register Dube button and FAB on DubeScreen', (WidgetTester tester) async {
+      final cust = await repo.upsertCustomer(name: 'Dawit Test', phone: '0911002233');
+      final futureDue = DateTime.now().add(const Duration(days: 14)).toIso8601String().substring(0, 10);
+      await repo.recordDirectDube(
+        customerId: cust.id,
+        totalCents: 50000,
+        dueDate: futureDue,
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        home: DubeScreen(repository: repo),
+      ));
+      await tester.pumpAndSettle();
+
+      // Verify FAB and AppBar actions
+      expect(find.byType(FloatingActionButton), findsOneWidget);
+      expect(find.byIcon(Icons.note_add_rounded), findsWidgets);
+      expect(find.text('Dawit Test'), findsOneWidget);
+
+      // Tap the FAB to open the Register Dube Sheet
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+
+      // Verify Register Dube Sheet appears
+      expect(find.byType(RegisterDubeSheet), findsOneWidget);
+      expect(find.textContaining('Amount (ETB)'), findsOneWidget);
     });
   });
 }
