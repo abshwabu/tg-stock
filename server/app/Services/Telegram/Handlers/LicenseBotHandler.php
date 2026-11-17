@@ -177,7 +177,7 @@ class LicenseBotHandler
             : $targetCode;
 
         // Stage bot state
-        $this->botState->set((int)$chatId, 'awaiting_payment_proof', [
+        $this->botState->set((int)$chatId, 'awaiting_payment_proof', 'proof', [
             'plan_id' => $planId,
             'code' => $resolvedCode,
             'price_etb' => $plan['price_etb'] ?? 500,
@@ -275,7 +275,7 @@ class LicenseBotHandler
         $locale = $user?->language ?? 'am';
         app()->setLocale($locale);
 
-        $this->botState->set((int)$chatId, 'awaiting_license_token', []);
+        $this->botState->set((int)$chatId, 'awaiting_license_token', 'prompt', []);
 
         $text = $locale === 'en'
             ? "✏️ <b>Enter License Token:</b>\n\nPlease paste your <code>LIC1-XXXXX-...</code> license token string into the chat:"
@@ -319,6 +319,8 @@ class LicenseBotHandler
             return;
         }
 
+        $tokenString = trim($tokenString);
+
         $verification = LicenseVerifier::verify(
             tokenString: $tokenString,
             expectedType: 2, // Must be shop-bound
@@ -326,9 +328,18 @@ class LicenseBotHandler
         );
 
         if ($verification['state'] === LicenseVerifier::STATE_WRONG_BIND) {
-            $msg = $locale === 'en'
-                ? "❌ <b>Wrong Shop:</b> This license token is bound to a different shop code."
-                : "❌ <b>ስህተት፦</b> ይህ የፈቃድ ቁጥር ለሌላ ሱቅ የተሰጠ ነው።";
+            $isDeviceToken = (($verification['payload']['type'] ?? null) === 1);
+            $shopCode = $shop->getShopCode();
+
+            if ($isDeviceToken) {
+                $msg = $locale === 'en'
+                    ? "❌ <b>Device Token Detected:</b>\nThis token is bound to an individual phone (Type 1). To license your Telegram bot and cloud shop, please issue a <b>Shop-bound token</b> (Type 2).\n\n🏪 <b>Your Shop Code:</b> <code>{$shopCode}</code>"
+                    : "❌ <b>የስልክ ፈቃድ ተገኝቷል፦</b>\nይህ ቶከን ለአንድ ስልክ ብቻ የሚሰራ (Device-bound) ነው። የቴሌግራም ቦቱን እና ሱቁን ለማንቃት የሱቅ ፈቃድ (Shop-bound) ያስፈልጋል።\n\n🏪 <b>የሱቅዎ ኮድ፦</b> <code>{$shopCode}</code>";
+            } else {
+                $msg = $locale === 'en'
+                    ? "❌ <b>Wrong Shop:</b> This license token is bound to a different shop code.\n\n🏪 <b>Your Shop Code:</b> <code>{$shopCode}</code>"
+                    : "❌ <b>ስህተት፦</b> ይህ የፈቃድ ቁጥር ለሌላ ሱቅ የተሰጠ ነው።\n\n🏪 <b>የሱቅዎ ኮድ፦</b> <code>{$shopCode}</code>";
+            }
             $this->telegram->sendMessage($chatId, $msg);
             return;
         }

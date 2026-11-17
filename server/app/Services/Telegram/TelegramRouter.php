@@ -1304,6 +1304,12 @@ class TelegramRouter
             return;
         }
 
+        // Direct license token paste without prior prompt (e.g. "LIC1-XXXXX-...")
+        if (str_starts_with(strtoupper(trim($text)), 'LIC1-')) {
+            $this->licenseBotHandler->handleTokenSubmitted($chatId, $user, trim($text));
+            return;
+        }
+
         // Universal Cancel: "❌ Cancel", "❌ ሰርዝ", "/cancel"
         if (in_array($text, ['❌ Cancel', '❌ ሰርዝ', '/cancel'], true)) {
             $this->botState->clear($chatId);
