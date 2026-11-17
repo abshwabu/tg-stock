@@ -2100,8 +2100,7 @@ class ProductWithStock {
   bool get isNegative => isStockable && stockMilli < 0;
   bool get isLow =>
       isStockable &&
-      product.lowStockAtMilli != null &&
-      stockMilli <= product.lowStockAtMilli!;
+      stockMilli <= (product.lowStockAtMilli ?? 5000);
 }
 
 LazyDatabase _openConnection() {

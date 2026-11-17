@@ -75,12 +75,12 @@ class SendLowStockAlertJob implements ShouldQueue
 
         if ($this->currentStockMilli <= 0) {
             $text = $locale === 'en'
-                ? "🚨 <b>OUT OF STOCK ALERT!</b>\n{$locLineEn}Product <b>{$product->name}</b> has run out of stock (<b>0 {$product->unit}</b>)!\nTap below to add stock."
-                : "🚨 <b>ዕቃው አልቋል!</b>\n{$locLineAm}<b>{$product->name}</b> ሙሉ በሙሉ አልቋል (<b>0 {$product->unit}</b>)!\nእባክዎ አዲስ ገቢ ዕቃ ይመዝግቡ።";
+                ? "🚨 <b>OUT OF STOCK ALERT!</b>\n{$locLineEn}You are out of stock on <b>{$product->name}</b> (<b>0 {$product->unit}</b>)!\n<i>በ <b>{$product->name}</b> ላይ ያለው ክምችት ሙሉ በሙሉ አልቋል!</i>\nTap below to add stock."
+                : "🚨 <b>ዕቃው አልቋል! (OUT OF STOCK ALERT)</b>\n{$locLineAm}በ <b>{$product->name}</b> ላይ ያለው ክምችት ሙሉ በሙሉ አልቋል (<b>0 {$product->unit}</b>)!\n<i>You are out of stock on <b>{$product->name}</b>.</i>\nእባክዎ አዲስ ገቢ ዕቃ ይመዝግቡ።";
         } else {
             $text = $locale === 'en'
-                ? "⚠️ <b>LOW STOCK WARNING!</b>\n{$locLineEn}Product <b>{$product->name}</b> is low on stock: <b>{$stockFormatted} {$product->unit}</b> (Threshold: {$thresholdFormatted} {$product->unit})."
-                : "⚠️ <b>አነስተኛ ስቶክ ማስጠንቀቂያ!</b>\n{$locLineAm}<b>{$product->name}</b> ሊያልቅ ተቃርቧል: <b>{$stockFormatted} {$product->unit}</b> (ዝቅተኛ ገደብ: {$thresholdFormatted} {$product->unit})።";
+                ? "⚠️ <b>LOW STOCK WARNING!</b>\n{$locLineEn}You are low on <b>{$product->name}</b>: <b>{$stockFormatted} {$product->unit}</b> remaining (Threshold: {$thresholdFormatted} {$product->unit}).\n<i>በ <b>{$product->name}</b> ላይ ዝቅተኛ ክምችት አለብዎት።</i>"
+                : "⚠️ <b>የአነስተኛ ክምችት ማስጠንቀቂያ! (LOW STOCK WARNING)</b>\n{$locLineAm}በ <b>{$product->name}</b> ላይ ዝቅተኛ ክምችት አለብዎት: <b>{$stockFormatted} {$product->unit}</b> ብቻ ቀርቷል (ዝቅተኛ ገደብ: {$thresholdFormatted} {$product->unit})።\n<i>You are low on <b>{$product->name}</b>: {$stockFormatted} {$product->unit} remaining.</i>";
         }
 
         $buttons = TelegramUi::inlineKeyboard([

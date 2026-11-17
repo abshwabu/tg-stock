@@ -695,39 +695,62 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               side: BorderSide(color: isDark ? tokens.border : AppColors.outlineLight, width: 0.8),
                             ),
                             color: tokens.bg,
-                            child: Padding(
-                              padding: const EdgeInsets.all(14),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.warning_amber_rounded,
-                                        size: 18,
-                                        color: tokens.fg,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        isAm ? 'ያነሱ ዕቃዎች' : 'Low Stock',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: tokens.fg,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    isWarning ? '$count items' : 'All good',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: tokens.fg,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (ctx) => ProductsScreen(
+                                      repository: widget.repository,
+                                      onMutation: _notifyMutation,
+                                      initialFilterLowStock: true,
                                     ),
                                   ),
-                                ],
+                                );
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.warning_amber_rounded,
+                                          size: 18,
+                                          color: tokens.fg,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            isAm ? 'ያነሱ ዕቃዎች' : 'Low Stock',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 12,
+                                              color: tokens.fg,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right,
+                                          size: 16,
+                                          color: tokens.fg.withOpacity(0.7),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      isWarning
+                                          ? (isAm ? '$count ዕቃዎች' : '$count items')
+                                          : (isAm ? 'ዝቅተኛ ክምችት የለም' : 'No low level stocks'),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: isWarning ? 18 : 13,
+                                        color: tokens.fg,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );

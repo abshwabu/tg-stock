@@ -17,11 +17,13 @@ import 'transfer_screen.dart';
 class ProductsScreen extends StatefulWidget {
   final LedgerRepository repository;
   final VoidCallback? onMutation;
+  final bool initialFilterLowStock;
 
   const ProductsScreen({
     super.key,
     required this.repository,
     this.onMutation,
+    this.initialFilterLowStock = false,
   });
 
   @override
@@ -33,12 +35,14 @@ class _ProductsScreenState extends State<ProductsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedKindFilter = 'all';
+  bool _filterLowStockOnly = false;
   bool _isDemoLoaded = false;
   Timer? _searchDebounceTimer;
 
   @override
   void initState() {
     super.initState();
+    _filterLowStockOnly = widget.initialFilterLowStock;
     _demoService = DemoDataService(repository: widget.repository);
     _checkDemoStatus();
   }
@@ -967,8 +971,34 @@ class _ProductsScreenState extends State<ProductsScreen> {
               children: [
                 ChoiceChip(
                   label: Text(isAm ? 'ሁሉም' : 'All'),
-                  selected: _selectedKindFilter == 'all',
-                  onSelected: (sel) => setState(() => _selectedKindFilter = 'all'),
+                  selected: !_filterLowStockOnly && _selectedKindFilter == 'all',
+                  onSelected: (sel) {
+                    setState(() {
+                      _filterLowStockOnly = false;
+                      _selectedKindFilter = 'all';
+                    });
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  avatar: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 16,
+                    color: _filterLowStockOnly
+                        ? (isDark ? Colors.red.shade200 : Colors.red.shade900)
+                        : (isDark ? Colors.orange.shade300 : Colors.orange.shade800),
+                  ),
+                  label: Text(isAm ? 'ያነሱ ዕቃዎች' : 'Low Stock'),
+                  selected: _filterLowStockOnly,
+                  selectedColor: isDark ? const Color(0xFF7F1D1D) : Colors.red.shade100,
+                  checkmarkColor: isDark ? Colors.red.shade200 : Colors.red.shade900,
+                  labelStyle: TextStyle(
+                    fontWeight: _filterLowStockOnly ? FontWeight.bold : FontWeight.normal,
+                    color: _filterLowStockOnly
+                        ? (isDark ? Colors.red.shade200 : Colors.red.shade900)
+                        : null,
+                  ),
+                  onSelected: (sel) => setState(() => _filterLowStockOnly = sel),
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
@@ -1010,7 +1040,11 @@ class _ProductsScreenState extends State<ProductsScreen> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final products = snapshot.data!;
+                final allProducts = snapshot.data!;
+                final products = _filterLowStockOnly
+                    ? allProducts.where((p) => p.isLow).toList()
+                    : allProducts;
+
                 if (products.isEmpty) {
                   if (_searchQuery.isNotEmpty) {
                     return Center(
@@ -1033,6 +1067,19 @@ class _ProductsScreenState extends State<ProductsScreen> {
                           ),
                         ],
                       ),
+                    );
+                  }
+
+                  if (_filterLowStockOnly) {
+                    return EmptyStateWidget(
+                      icon: Icons.check_circle_outline,
+                      title: isAm ? 'ዝቅተኛ ክምችት ላይ ያለ ዕቃ የለም' : 'No low level stocks',
+                      description: isAm
+                          ? 'ሁሉም ዕቃዎች በቂ ክምችት አላቸው።'
+                          : 'All products currently have sufficient stock levels.',
+                      primaryButtonLabel: isAm ? 'ሁሉንም ዕቃዎች አሳይ' : 'Show All Products',
+                      primaryButtonIcon: Icons.inventory_2_outlined,
+                      onPrimaryPressed: () => setState(() => _filterLowStockOnly = false),
                     );
                   }
 

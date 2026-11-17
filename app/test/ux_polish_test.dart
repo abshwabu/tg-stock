@@ -13,6 +13,7 @@ import 'package:app/services/error_logger.dart';
 import 'package:app/services/sync_engine.dart';
 import 'package:app/ui/screens/first_run_screen.dart';
 import 'package:app/ui/screens/home_screen.dart';
+import 'package:app/ui/screens/products_screen.dart';
 import 'package:app/ui/screens/settings_screen.dart';
 import 'package:app/ui/theme.dart';
 import 'package:app/ui/widgets/empty_state_widget.dart';
@@ -378,6 +379,111 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 5));
       syncEngine.dispose();
+      await db.close();
+    });
+
+    testWidgets('HomeScreen low stock card displays "No low level stocks" when count is 0 and navigates to ProductsScreen on tap', (tester) async {
+      final db = AppDatabase.inMemory();
+      final repository = LedgerRepository(db);
+      final authStorage = InMemoryAuthStorage();
+      final syncEngine = SyncEngine(
+        db: db,
+        api: ApiClient(),
+        storage: authStorage,
+      );
+
+      await repository.setShopName('Test Shop');
+      await repository.setLanguage('en');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: HomeScreen(
+            db: db,
+            repository: repository,
+            apiClient: ApiClient(),
+            authStorage: authStorage,
+            syncEngine: syncEngine,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      // Verify "No low level stocks" is displayed on the Low Stock card
+      expect(find.text('No low level stocks'), findsOneWidget);
+      expect(find.text('Low Stock'), findsOneWidget);
+
+      // Tap on the Low Stock card
+      await tester.tap(find.text('No low level stocks'));
+      await tester.pumpAndSettle();
+
+      // ProductsScreen should now be opened with empty state "No low level stocks"
+      expect(find.byType(ProductsScreen), findsOneWidget);
+      expect(find.text('No low level stocks'), findsOneWidget);
+      expect(find.text('All products currently have sufficient stock levels.'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(seconds: 5));
+      syncEngine.dispose();
+      await db.close();
+    });
+
+    testWidgets('ProductsScreen filters low stock items when initialFilterLowStock is true', (tester) async {
+      final db = AppDatabase.inMemory();
+      final repository = LedgerRepository(db);
+
+      final p1 = await repository.createProduct(
+        name: 'Item High Stock',
+        sellPriceCents: 10000,
+        costPriceCents: 8000,
+        unit: 'pcs',
+        kind: 'stockable',
+        lowStockAtMilli: 5000,
+      );
+      await repository.recordStockIn(
+        productId: p1.id,
+        qtyMilli: 10000,
+      );
+
+      final p2 = await repository.createProduct(
+        name: 'Item Low Stock',
+        sellPriceCents: 15000,
+        costPriceCents: 12000,
+        unit: 'pcs',
+        kind: 'stockable',
+        lowStockAtMilli: 5000,
+      );
+      await repository.recordStockIn(
+        productId: p2.id,
+        qtyMilli: 2000,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: ProductsScreen(
+            repository: repository,
+            initialFilterLowStock: true,
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      // Only the low stock product should be visible
+      expect(find.text('Item Low Stock'), findsOneWidget);
+      expect(find.text('Item High Stock'), findsNothing);
+
+      // Tap Low Stock chip to toggle it off -> both products should show
+      await tester.tap(find.text('Low Stock'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Item Low Stock'), findsOneWidget);
+      expect(find.text('Item High Stock'), findsOneWidget);
+
       await db.close();
     });
   });

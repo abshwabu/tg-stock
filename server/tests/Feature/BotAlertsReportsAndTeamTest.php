@@ -183,6 +183,40 @@ class BotAlertsReportsAndTeamTest extends TestCase
         $this->assertNull($product->low_stock_alerted_at_ms);
     }
 
+    public function test_send_low_stock_alert_message_in_english_and_amharic(): void
+    {
+        Http::fake();
+
+        $product = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Teff Flour',
+            'unit' => 'kg',
+            'cost_price_cents' => 10000,
+            'sell_price_cents' => 13000,
+            'low_stock_at_milli' => 5000,
+            'is_active' => true,
+            'updated_at_ms' => 1000,
+        ]);
+
+        $this->owner->language = 'am';
+        $this->owner->save();
+
+        SendLowStockAlertJob::dispatchSync(
+            $product->id,
+            3000,
+            $this->shop->id,
+            null
+        );
+
+        Http::assertSent(function ($request) {
+            return str_contains($request->url(), 'sendMessage')
+                && str_contains($request['text'], 'You are low on')
+                && str_contains($request['text'], 'ዝቅተኛ ክምችት አለብዎት')
+                && str_contains($request['text'], 'Teff Flour');
+        });
+    }
+
     public function test_daily_summary_command_sends_once_per_day_and_skips_when_empty(): void
     {
         $product = Product::withoutGlobalScope(ShopScope::class)->create([
