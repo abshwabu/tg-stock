@@ -37,6 +37,14 @@ class LicenseVerifier
     ];
 
     /**
+     * Built-in trusted public keys by Key ID (kid) fallback.
+     */
+    public const TRUSTED_KEYS = [
+        1 => '0110750deee76ecbe8e5b980061e61e4271929e289a7d3ccf9ce1ff6d9a90f58',
+        2 => '731f9b900ed6c14d00e265f590cbc89f8f5a88baae5d56173ede17b312cd1871',
+    ];
+
+    /**
      * Verify a license token according to LICENSE_SPEC.md §8.
      *
      * @param string $tokenString Raw token string (e.g. LIC1-XXXXX-...)
@@ -211,11 +219,14 @@ class LicenseVerifier
     protected static function getPublicKeyHex(int $kid, ?array $customTrustedKeys = null): ?string
     {
         if ($customTrustedKeys !== null) {
-            return $customTrustedKeys[$kid] ?? null;
+            return $customTrustedKeys[$kid] ?? $customTrustedKeys[(string) $kid] ?? null;
         }
 
         $configured = config('license_keys.keys', []);
-        return $configured[$kid]['public_key_hex'] ?? null;
+        return $configured[$kid]['public_key_hex']
+            ?? $configured[(string) $kid]['public_key_hex']
+            ?? self::TRUSTED_KEYS[$kid]
+            ?? null;
     }
 
     /**

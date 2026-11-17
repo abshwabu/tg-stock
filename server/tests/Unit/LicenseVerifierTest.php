@@ -114,4 +114,22 @@ class LicenseVerifierTest extends TestCase
             }
         }
     }
+
+    /**
+     * Test fallback to built-in trusted keys when config is empty or missing.
+     */
+    public function test_trusted_keys_fallback_when_config_empty(): void
+    {
+        config(['license_keys.keys' => []]);
+
+        $reflection = new \ReflectionClass(LicenseVerifier::class);
+        $method = $reflection->getMethod('getPublicKeyHex');
+        $method->setAccessible(true);
+
+        $key1 = $method->invoke(null, 1);
+        $key2 = $method->invoke(null, 2);
+
+        $this->assertSame(LicenseVerifier::TRUSTED_KEYS[1], $key1);
+        $this->assertSame(LicenseVerifier::TRUSTED_KEYS[2], $key2);
+    }
 }
