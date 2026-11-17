@@ -9,6 +9,7 @@ import '../../utils/money_formatter.dart';
 import '../../utils/quantity_formatter.dart';
 import '../theme.dart';
 import '../widgets/empty_state_widget.dart';
+import 'income_expense_screen.dart';
 
 enum ReportRange {
   today,
@@ -50,6 +51,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Map<String, int> _revenueVsReceivedVsNewDube = {};
   int _outstandingDubeTotal = 0;
   int _overdueDubeCount = 0;
+  CashFlowSummary _cashFlow = CashFlowSummary.empty;
 
   late final ExportService _exportService;
 
@@ -138,6 +140,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final revVsRec = await widget.repository.getRevenueVsReceivedVsNewDubeToday();
     final outDube = await widget.repository.getOutstandingDubeTotal();
     final overdueCount = await widget.repository.getOverdueCount();
+    final cashFlow = await widget.repository.getCashFlowSummary(startMs: fromMs, endMs: toMs);
 
     if (mounted) {
       setState(() {
@@ -156,6 +159,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         _revenueVsReceivedVsNewDube = revVsRec;
         _outstandingDubeTotal = outDube;
         _overdueDubeCount = overdueCount;
+        _cashFlow = cashFlow;
         _isLoading = false;
       });
     }
@@ -957,6 +961,46 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   _buildSummaryCol('Money Received', received, isDark ? const Color(0xFF4ADE80) : Colors.green.shade800),
                   const SizedBox(width: 6),
                   _buildSummaryCol('New Dube', newDube, isDark ? const Color(0xFFFB923C) : Colors.deepOrange.shade800),
+                ],
+              );
+            }),
+
+            const Divider(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '💸 Extra Incomes & Expenses:',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                TextButton.icon(
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  icon: const Icon(Icons.open_in_new, size: 14),
+                  label: const Text('Manage', style: TextStyle(fontSize: 12)),
+                  onPressed: () async {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => IncomeExpenseScreen(repository: widget.repository),
+                      ),
+                    );
+                    _loadReport();
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Builder(builder: (ctx) {
+              final isDark = Theme.of(ctx).brightness == Brightness.dark;
+              final netColor = _cashFlow.netCents >= 0
+                  ? (isDark ? const Color(0xFF4ADE80) : Colors.green.shade800)
+                  : (isDark ? const Color(0xFFF87171) : Colors.red.shade800);
+              return Row(
+                children: [
+                  _buildSummaryCol('Extra Income', _cashFlow.totalIncomeCents, isDark ? const Color(0xFF4ADE80) : Colors.green.shade800),
+                  const SizedBox(width: 6),
+                  _buildSummaryCol('Extra Expenses', _cashFlow.totalExpenseCents, isDark ? const Color(0xFFF87171) : Colors.red.shade800),
+                  const SizedBox(width: 6),
+                  _buildSummaryCol('Net Extra', _cashFlow.netCents, netColor),
                 ],
               );
             }),

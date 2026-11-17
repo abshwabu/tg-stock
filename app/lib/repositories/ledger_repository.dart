@@ -2890,4 +2890,54 @@ class LedgerRepository {
 
     return result;
   }
+
+  // ---------------------------------------------------------------------------
+  // Non-Inventory Cash Flow (Extra Income & Expense) Methods
+  // ---------------------------------------------------------------------------
+
+  Future<CashFlowEntry> addCashFlowEntry({
+    String? id,
+    required String type,
+    required int amountCents,
+    required String category,
+    String paymentMethod = 'cash',
+    String? note,
+    int? createdAtMs,
+  }) {
+    return db.createCashFlowEntry(
+      id: id,
+      type: type,
+      amountCents: amountCents,
+      category: category,
+      paymentMethod: paymentMethod,
+      note: note,
+      createdAtMs: createdAtMs,
+    );
+  }
+
+  Future<void> deleteCashFlowEntry(String id) {
+    return db.deleteCashFlowEntry(id);
+  }
+
+  Future<List<CashFlowEntry>> getCashFlowEntries({
+    int? startMs,
+    int? endMs,
+    String? type,
+  }) {
+    return db.getCashFlowEntries(
+      startMs: startMs,
+      endMs: endMs,
+      type: type,
+    );
+  }
+
+  Future<CashFlowSummary> getCashFlowSummary({
+    int? startMs,
+    int? endMs,
+  }) {
+    return db.getCashFlowSummary(
+      startMs: startMs,
+      endMs: endMs,
+    );
+  }
 }

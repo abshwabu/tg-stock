@@ -8,6 +8,9 @@ import 'package:path_provider/path_provider.dart';
 
 import '../utils/quantity_formatter.dart';
 import '../utils/uuid_generator.dart';
+import 'cash_flow_entry.dart';
+
+export 'cash_flow_entry.dart';
 
 part 'app_database.g.dart';
 
@@ -268,6 +271,7 @@ class AppDatabase extends _$AppDatabase {
     onCreate: (m) async {
       await m.createAll();
       await _createIndexes();
+      await _createCashFlowTable();
       await _seedDefaultLocationIfEmpty();
       await _seedStarterPaymentProviders();
       await _seedDefaultPaymentSettings();
@@ -347,6 +351,7 @@ class AppDatabase extends _$AppDatabase {
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON;');
       await _createIndexes();
+      await _createCashFlowTable();
     },
   );
 
@@ -1895,6 +1900,134 @@ class AppDatabase extends _$AppDatabase {
     await setMeta(
       'last_synced_at_ms',
       dt.toUtc().millisecondsSinceEpoch.toString(),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Non-Inventory Cash Flow (Income & Expense) Support
+  // ---------------------------------------------------------------------------
+
+  Future<void> _createCashFlowTable() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS cash_flow_entries (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        payment_method TEXT NOT NULL DEFAULT 'cash',
+        note TEXT,
+        created_at_ms INTEGER NOT NULL
+      );
+    ''');
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_cash_flow_created ON cash_flow_entries(created_at_ms);',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_cash_flow_type ON cash_flow_entries(type);',
+    );
+  }
+
+  Future<CashFlowEntry> createCashFlowEntry({
+    String? id,
+    required String type,
+    required int amountCents,
+    required String category,
+    String paymentMethod = 'cash',
+    String? note,
+    int? createdAtMs,
+  }) async {
+    final entryId = id ?? UuidGenerator.v7();
+    final nowMs = createdAtMs ?? DateTime.now().toUtc().millisecondsSinceEpoch;
+    await customStatement(
+      'INSERT INTO cash_flow_entries (id, type, amount_cents, category, payment_method, note, created_at_ms) '
+      'VALUES (?, ?, ?, ?, ?, ?, ?);',
+      [entryId, type, amountCents, category, paymentMethod, note, nowMs],
+    );
+    return CashFlowEntry(
+      id: entryId,
+      type: type,
+      amountCents: amountCents,
+      category: category,
+      paymentMethod: paymentMethod,
+      note: note,
+      createdAtMs: nowMs,
+    );
+  }
+
+  Future<void> deleteCashFlowEntry(String id) async {
+    await customStatement(
+      'DELETE FROM cash_flow_entries WHERE id = ?;',
+      [id],
+    );
+  }
+
+  Future<List<CashFlowEntry>> getCashFlowEntries({
+    int? startMs,
+    int? endMs,
+    String? type,
+  }) async {
+    String sql = 'SELECT * FROM cash_flow_entries WHERE 1=1';
+    final params = <dynamic>[];
+
+    if (startMs != null) {
+      sql += ' AND created_at_ms >= ?';
+      params.add(startMs);
+    }
+    if (endMs != null) {
+      sql += ' AND created_at_ms <= ?';
+      params.add(endMs);
+    }
+    if (type != null && type != 'all') {
+      sql += ' AND type = ?';
+      params.add(type);
+    }
+
+    sql += ' ORDER BY created_at_ms DESC';
+
+    final rows = await customSelect(sql, variables: params.map((p) => Variable(p)).toList()).get();
+    return rows.map((r) => CashFlowEntry.fromRow(r.data)).toList();
+  }
+
+  Future<CashFlowSummary> getCashFlowSummary({
+    int? startMs,
+    int? endMs,
+  }) async {
+    String sql = 'SELECT type, SUM(amount_cents) as total, COUNT(*) as cnt FROM cash_flow_entries WHERE 1=1';
+    final params = <dynamic>[];
+
+    if (startMs != null) {
+      sql += ' AND created_at_ms >= ?';
+      params.add(startMs);
+    }
+    if (endMs != null) {
+      sql += ' AND created_at_ms <= ?';
+      params.add(endMs);
+    }
+
+    sql += ' GROUP BY type';
+
+    final rows = await customSelect(sql, variables: params.map((p) => Variable(p)).toList()).get();
+    int income = 0;
+    int expense = 0;
+    int count = 0;
+
+    for (final r in rows) {
+      final t = r.read<String>('type');
+      final tot = r.read<int?>('total') ?? 0;
+      final c = r.read<int?>('cnt') ?? 0;
+      count += c;
+      if (t == 'income') {
+        income += tot;
+      } else if (t == 'expense') {
+        expense += tot;
+      }
+    }
+
+    return CashFlowSummary(
+      totalIncomeCents: income,
+      totalExpenseCents: expense,
+      netCents: income - expense,
+      count: count,
     );
   }
 }

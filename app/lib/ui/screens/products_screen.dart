@@ -379,7 +379,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).brightness == Brightness.dark
                                       ? const Color(0xFFFDE68A)
-                                      : Colors.amber.shade950,
+                                      : const Color(0xFF78350F),
                                 ),
                               ),
                             ),

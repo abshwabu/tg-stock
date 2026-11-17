@@ -20,6 +20,7 @@ import '../widgets/warehouse_setup_sheet.dart';
 import 'adjust_screen.dart';
 import 'dube_screen.dart';
 import 'history_screen.dart';
+import 'income_expense_screen.dart';
 import 'license_screen.dart';
 import 'products_screen.dart';
 import 'reports_screen.dart';
@@ -1102,7 +1103,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 }),
                 const SizedBox(height: 10),
 
-                // Reports & Analytics Button
+                // Extra Income & Expense Button
                 FilledButton.tonalIcon(
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
@@ -1111,13 +1112,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (ctx) => ReportsScreen(repository: widget.repository),
+                        builder: (ctx) => IncomeExpenseScreen(
+                          repository: widget.repository,
+                          onMutation: _notifyMutation,
+                        ),
                       ),
                     );
                   },
-                  icon: const Icon(Icons.analytics_outlined, size: 20),
+                  icon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
                   label: Text(
-                    isAm ? '📊 ሪፖርቶች እና ትንታኔ' : '📊 Reports & Analytics',
+                    isAm ? '💸 ገቢ እና ወጪ (ተጨማሪ)' : '💸 Income & Expense',
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
