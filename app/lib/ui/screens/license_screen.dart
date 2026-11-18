@@ -75,13 +75,36 @@ class _LicenseScreenState extends State<LicenseScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final result = await widget.licenseGate.activateToken(rawToken);
+      String? shopUuid = await widget.syncEngine?.licenseStorage?.getPairedShopUuid();
+      if ((shopUuid == null || shopUuid.isEmpty) && widget.syncEngine != null) {
+        try {
+          final enabled = await widget.syncEngine!.storage.isOnlineEnabled();
+          final token = await widget.syncEngine!.storage.getDeviceToken();
+          final serverUrl = await widget.syncEngine!.storage.getServerUrl();
+          if (enabled && token != null && serverUrl.isNotEmpty) {
+            final meData = await widget.syncEngine!.api.getMe(serverUrl: serverUrl, deviceToken: token);
+            final userObj = meData['user'] as Map<String, dynamic>?;
+            final meShopId = (userObj?['shop_id'] ?? meData['shop_id'])?.toString();
+            if (meShopId != null && meShopId.isNotEmpty) {
+              shopUuid = meShopId;
+              await widget.syncEngine!.licenseStorage?.savePairedShopUuid(meShopId);
+            }
+          }
+        } catch (_) {}
+      }
+
+      final result = await widget.licenseGate.activateToken(rawToken, shopUuid: shopUuid);
+      await _loadData();
+      if (!mounted) return;
       if (result.isValid || result.state == LicenseState.grace || result.state == LicenseState.expiring) {
         _tokenController.clear();
+        final planName = _language == 'am'
+            ? result.payload?.plan.displayNameAm ?? 'ፈቃድ'
+            : result.payload?.plan.displayNameEn ?? 'License';
         _showToast(
           _language == 'am'
-              ? 'ፈቃድ በተሳካ ሁኔታ ነቅቷል!'
-              : 'License activated successfully!',
+              ? 'የሱቅ ፈቃድ በተሳካ ሁኔታ ነቅቷል! ($planName)'
+              : 'License activated successfully! ($planName)',
         );
       } else {
         final reason = result.reason ?? (_language == 'am' ? 'ልክ ያልሆነ ፈቃድ' : 'Invalid license token');
@@ -143,9 +166,10 @@ class _LicenseScreenState extends State<LicenseScreen> {
           : RefreshIndicator(
               onRefresh: () async {
                 if (widget.syncEngine != null) {
-                  await widget.syncEngine!.syncNow();
+                  try {
+                    await widget.syncEngine!.syncLicense();
+                  } catch (_) {}
                 }
-                await widget.licenseGate.reevaluate();
                 await _loadData();
               },
               child: SingleChildScrollView(
@@ -306,12 +330,37 @@ class _LicenseScreenState extends State<LicenseScreen> {
                           : () async {
                               setState(() => _isLoading = true);
                               try {
-                                await widget.syncEngine!.syncNow();
-                                await widget.licenseGate.reevaluate();
+                                final res = await widget.syncEngine!.syncLicense();
                                 await _loadData();
-                                _showToast(isAm ? 'ፈቃድ ከሰርቨር ተመሳስሏል' : 'License refreshed from server');
+                                if (!mounted) return;
+                                if (res != null &&
+                                    (res.isValid ||
+                                        res.state == LicenseState.expiring ||
+                                        res.state == LicenseState.grace)) {
+                                  final planName = isAm
+                                      ? res.payload?.plan.displayNameAm ?? 'ፈቃድ'
+                                      : res.payload?.plan.displayNameEn ?? 'License';
+                                  _showToast(
+                                    isAm
+                                        ? 'የሱቅ ፈቃድ በተሳካ ሁኔታ ነቅቷል! ($planName)'
+                                        : 'Shop license activated successfully! ($planName)',
+                                  );
+                                } else if (res == null) {
+                                  _showToast(
+                                    isAm
+                                        ? 'በአገልጋዩ ላይ ለዚህ ሱቅ የተገኘ ፈቃድ የለም። እባክዎ በቴሌግራም ቦት ፈቃድ ያግብሩ።'
+                                        : 'No active license found on server for this shop. Please activate via Telegram bot.',
+                                    isError: true,
+                                  );
+                                } else {
+                                  _showToast(
+                                    res.reason ??
+                                        (isAm ? 'ፈቃድ ልክ አይደለም' : 'Invalid license token'),
+                                    isError: true,
+                                  );
+                                }
                               } catch (e) {
-                                _showToast(e.toString(), isError: true);
+                                _showToast('Sync error: $e', isError: true);
                               } finally {
                                 if (mounted) setState(() => _isLoading = false);
                               }

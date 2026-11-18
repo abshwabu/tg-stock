@@ -108,7 +108,10 @@ class LicenseGate {
         highWater: _clockService.highWater,
         revocationList: revocations,
       );
-      if (shopResult.isValid || shopResult.state == LicenseState.expired || shopResult.state == LicenseState.grace || shopResult.state == LicenseState.expiring) {
+      if (shopResult.isValid ||
+          shopResult.state == LicenseState.expired ||
+          shopResult.state == LicenseState.grace ||
+          shopResult.state == LicenseState.expiring) {
         result = shopResult;
       }
     }

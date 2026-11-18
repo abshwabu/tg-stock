@@ -12,6 +12,7 @@ import 'app_update_service.dart';
 import 'auth_storage.dart';
 import 'licensing/clock_service.dart';
 import 'licensing/license_gate.dart';
+import 'licensing/license_models.dart';
 import 'licensing/license_storage.dart';
 
 enum SyncStatus {
@@ -382,21 +383,7 @@ class SyncEngine {
       // Fetch latest shop license from server if paired
       if (licenseGate != null) {
         try {
-          final licData = await api.getLicense(serverUrl: serverUrl, deviceToken: token);
-          final tokenStr = licData['token'] as String?;
-          final shopUuid = (licData['shop_uuid'] ?? licData['shop_id']) as String?;
-          if (shopUuid != null && shopUuid.isNotEmpty) {
-            await licenseStorage?.savePairedShopUuid(shopUuid);
-          }
-          if (licData['server_time'] != null) {
-            final st = DateTime.tryParse(licData['server_time'] as String);
-            if (st != null) await clockService?.calibrateFromServerTime(st);
-          }
-          if (tokenStr != null && tokenStr.isNotEmpty) {
-            await licenseGate!.activateToken(tokenStr, shopUuid: shopUuid);
-          } else {
-            await licenseGate!.reevaluate();
-          }
+          await syncLicense();
         } catch (_) {}
       }
     } on UnauthorizedException {
@@ -430,6 +417,65 @@ class SyncEngine {
       _isSyncing = false;
       await _updatePendingAndStockState();
     }
+  }
+
+  /// Explicitly sync license from server and return the verification result.
+  Future<LicenseVerificationResult?> syncLicense() async {
+    final enabled = await storage.isOnlineEnabled();
+    final token = await storage.getDeviceToken();
+    final serverUrl = await storage.getServerUrl();
+
+    if (!enabled || token == null || serverUrl.isEmpty) {
+      throw StateError('Device is not paired or online mode is disabled');
+    }
+
+    // 1. Fetch shop UUID from /v1/me if not already cached
+    var shopUuid = await licenseStorage?.getPairedShopUuid();
+    if (shopUuid == null || shopUuid.isEmpty) {
+      try {
+        final meData = await api.getMe(serverUrl: serverUrl, deviceToken: token);
+        final userObj = meData['user'] as Map<String, dynamic>?;
+        final meShopId = (userObj?['shop_id'] ?? meData['shop_id'])?.toString();
+        if (meShopId != null && meShopId.isNotEmpty) {
+          shopUuid = meShopId;
+          await licenseStorage?.savePairedShopUuid(meShopId);
+        }
+      } catch (_) {}
+    }
+
+    // 2. Fetch license from /v1/license
+    Map<String, dynamic> licData;
+    try {
+      licData = await api.getLicense(serverUrl: serverUrl, deviceToken: token);
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) {
+        throw ApiException(
+          'Server /v1/license endpoint not found (404). Please ensure the latest server package is deployed or activate your token manually below.',
+          404,
+        );
+      }
+      rethrow;
+    }
+    final tokenStr = licData['token'] as String?;
+    final returnedShopUuid = (licData['shop_uuid'] ?? licData['shop_id'])?.toString();
+    if (returnedShopUuid != null && returnedShopUuid.isNotEmpty) {
+      shopUuid = returnedShopUuid;
+      await licenseStorage?.savePairedShopUuid(shopUuid);
+    }
+
+    final serverTime = licData['server_time'] as String?;
+    if (serverTime != null) {
+      final st = DateTime.tryParse(serverTime);
+      if (st != null) await clockService?.calibrateFromServerTime(st);
+    }
+
+    if (tokenStr == null || tokenStr.trim().isEmpty) {
+      await licenseGate?.reevaluate();
+      return null;
+    }
+
+    final result = await licenseGate!.activateToken(tokenStr, shopUuid: shopUuid);
+    return result;
   }
 
   /// First sync flow: seeds all existing offline history into the outbox

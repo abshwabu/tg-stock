@@ -246,6 +246,30 @@ class ApiClient {
     return false;
   }
 
+  /// GET /v1/me
+  Future<Map<String, dynamic>> getMe({
+    required String serverUrl,
+    required String deviceToken,
+  }) async {
+    final uri = Uri.parse('$serverUrl/v1/me');
+    _assertTls(uri);
+
+    final response = await _sendRequest(() => _client.get(
+          uri,
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $deviceToken',
+          },
+        ));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+
+    _handleError(response);
+    throw ApiException('Failed to fetch profile from server', response.statusCode);
+  }
+
   /// GET /v1/license
   Future<Map<String, dynamic>> getLicense({
     required String serverUrl,

@@ -167,8 +167,17 @@ class _PairingScreenState extends State<PairingScreen> {
     // 1. Save token securely & enable online mode
     await widget.authStorage.saveDeviceToken(deviceToken);
     await widget.authStorage.setOnlineEnabled(true);
-    if (shopUuid != null && shopUuid.isNotEmpty) {
-      await widget.syncEngine.licenseStorage?.savePairedShopUuid(shopUuid);
+    var effectiveShopUuid = shopUuid;
+    if (effectiveShopUuid == null || effectiveShopUuid.isEmpty) {
+      try {
+        final serverUrl = await widget.authStorage.getServerUrl();
+        final me = await widget.syncEngine.api.getMe(serverUrl: serverUrl, deviceToken: deviceToken);
+        final userObj = me['user'] as Map<String, dynamic>?;
+        effectiveShopUuid = (userObj?['shop_id'] ?? me['shop_id'])?.toString();
+      } catch (_) {}
+    }
+    if (effectiveShopUuid != null && effectiveShopUuid.isNotEmpty) {
+      await widget.syncEngine.licenseStorage?.savePairedShopUuid(effectiveShopUuid);
     }
 
     if (!mounted) return;
