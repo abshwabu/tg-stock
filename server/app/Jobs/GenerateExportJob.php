@@ -184,7 +184,7 @@ class GenerateExportJob implements ShouldQueue
                 'location' => fn($q) => $q->withoutGlobalScope(ShopScope::class),
             ])
             ->where('shop_id', $shop->id)
-            ->where('type', 'sale')
+            ->activeSales()
             ->orderBy('created_at_ms', 'desc');
 
         if (!empty($period)) {

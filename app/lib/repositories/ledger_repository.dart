@@ -2968,11 +2968,40 @@ class LedgerRepository {
           ..where((p) => p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
         .get();
 
+    final saleIds = paymentsToday.map((p) => p.saleId).whereType<String>().toSet();
+    final voidedSaleIds = saleIds.isEmpty
+        ? <String>{}
+        : (await (db.select(db.sales)
+              ..where((s) => s.id.isIn(saleIds) & s.voidedAtMs.isNotNull()))
+            .get())
+            .map((s) => s.id)
+            .toSet();
+
     final result = {'cash': 0, 'bank': 0, 'wallet': 0};
+    final netBySaleAndMethod = <String, Map<String, int>>{};
+
     for (final p in paymentsToday) {
       final m = p.method.toLowerCase();
-      result[m] = (result[m] ?? 0) + p.amountCents;
+      if (p.saleId != null && voidedSaleIds.contains(p.saleId)) {
+        netBySaleAndMethod.putIfAbsent(p.saleId!, () => {})[m] =
+            (netBySaleAndMethod[p.saleId!]?[m] ?? 0) + p.amountCents;
+      } else {
+        result[m] = (result[m] ?? 0) + p.amountCents;
+      }
     }
+
+    for (final mMap in netBySaleAndMethod.values) {
+      for (final entry in mMap.entries) {
+        if (entry.value > 0) {
+          result[entry.key] = (result[entry.key] ?? 0) + entry.value;
+        }
+      }
+    }
+
+    for (final key in result.keys) {
+      if (result[key]! < 0) result[key] = 0;
+    }
+
     return result;
   }
 
@@ -2985,12 +3014,39 @@ class LedgerRepository {
           ..where((p) => p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
         .get();
 
+    final saleIds = paymentsToday.map((p) => p.saleId).whereType<String>().toSet();
+    final voidedSaleIds = saleIds.isEmpty
+        ? <String>{}
+        : (await (db.select(db.sales)
+              ..where((s) => s.id.isIn(saleIds) & s.voidedAtMs.isNotNull()))
+            .get())
+            .map((s) => s.id)
+            .toSet();
+
     final result = <String, int>{};
+    final netBySaleAndProvider = <String, Map<String, int>>{};
+
     for (final p in paymentsToday) {
       if (p.providerKey != null && p.providerKey!.isNotEmpty) {
-        result[p.providerKey!] = (result[p.providerKey!] ?? 0) + p.amountCents;
+        final prov = p.providerKey!;
+        if (p.saleId != null && voidedSaleIds.contains(p.saleId)) {
+          netBySaleAndProvider.putIfAbsent(p.saleId!, () => {})[prov] =
+              (netBySaleAndProvider[p.saleId!]?[prov] ?? 0) + p.amountCents;
+        } else {
+          result[prov] = (result[prov] ?? 0) + p.amountCents;
+        }
       }
     }
+
+    for (final pMap in netBySaleAndProvider.values) {
+      for (final entry in pMap.entries) {
+        if (entry.value > 0) {
+          result[entry.key] = (result[entry.key] ?? 0) + entry.value;
+        }
+      }
+    }
+
+    result.removeWhere((_, amt) => amt < 0);
     return result;
   }
 
@@ -3003,7 +3059,39 @@ class LedgerRepository {
           ..where((p) => p.method.equals('cash') & p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
         .get();
 
-    return cashPayments.fold<int>(0, (sum, p) => sum + p.amountCents);
+    final saleIds = cashPayments.map((p) => p.saleId).whereType<String>().toSet();
+    final voidedSaleIds = saleIds.isEmpty
+        ? <String>{}
+        : (await (db.select(db.sales)
+              ..where((s) => s.id.isIn(saleIds) & s.voidedAtMs.isNotNull()))
+            .get())
+            .map((s) => s.id)
+            .toSet();
+
+    int totalCashCents = 0;
+    final cashBySale = <String, int>{};
+
+    for (final p in cashPayments) {
+      if (p.saleId != null) {
+        cashBySale[p.saleId!] = (cashBySale[p.saleId!] ?? 0) + p.amountCents;
+      } else {
+        totalCashCents += p.amountCents;
+      }
+    }
+
+    for (final entry in cashBySale.entries) {
+      final sId = entry.key;
+      final netAmt = entry.value;
+      if (voidedSaleIds.contains(sId)) {
+        if (netAmt > 0) {
+          totalCashCents += netAmt;
+        }
+      } else {
+        totalCashCents += netAmt;
+      }
+    }
+
+    return totalCashCents > 0 ? totalCashCents : 0;
   }
 
   Future<Map<String, int>> getRevenueVsReceivedVsNewDubeToday() async {
@@ -3031,7 +3119,34 @@ class LedgerRepository {
     final paymentsToday = await (db.select(db.payments)
           ..where((p) => p.receivedAtMs.isBiggerOrEqualValue(startTodayMs) & p.receivedAtMs.isSmallerOrEqualValue(endTodayMs)))
         .get();
-    final moneyReceivedCents = paymentsToday.fold<int>(0, (sum, p) => sum + p.amountCents);
+
+    final saleIds = paymentsToday.map((p) => p.saleId).whereType<String>().toSet();
+    final voidedSaleIds = saleIds.isEmpty
+        ? <String>{}
+        : (await (db.select(db.sales)
+              ..where((s) => s.id.isIn(saleIds) & s.voidedAtMs.isNotNull()))
+            .get())
+            .map((s) => s.id)
+            .toSet();
+
+    int moneyReceivedCents = 0;
+    final netBySale = <String, int>{};
+
+    for (final p in paymentsToday) {
+      if (p.saleId != null && voidedSaleIds.contains(p.saleId)) {
+        netBySale[p.saleId!] = (netBySale[p.saleId!] ?? 0) + p.amountCents;
+      } else {
+        moneyReceivedCents += p.amountCents;
+      }
+    }
+
+    for (final netAmt in netBySale.values) {
+      if (netAmt > 0) {
+        moneyReceivedCents += netAmt;
+      }
+    }
+
+    if (moneyReceivedCents < 0) moneyReceivedCents = 0;
 
     return {
       'revenue_cents': revenueCents,

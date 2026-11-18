@@ -116,11 +116,14 @@ class ReportHandler
         $sales = Movement::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $user->shop_id)
             ->where('user_id', $user->id)
-            ->where('type', 'sale')
+            ->activeSales()
             ->whereBetween('created_at_ms', [$startMs, $endMs])
             ->get();
 
-        $count = $sales->count();
+        $count = $sales->pluck('sale_id')->filter()->unique()->count();
+        if ($count === 0 && $sales->isNotEmpty()) {
+            $count = $sales->count();
+        }
         $totalCents = 0;
         foreach ($sales as $s) {
             $totalCents += (int) round((abs($s->qty_milli) * $s->unit_price_cents) / 1000);
@@ -201,7 +204,7 @@ class ReportHandler
         // Query sales movements with optional location filter
         $salesQuery = Movement::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $shopId)
-            ->where('type', 'sale')
+            ->activeSales()
             ->whereBetween('created_at_ms', [$startMs, $endMs]);
 
         $locationName = null;
@@ -212,7 +215,8 @@ class ReportHandler
         }
 
         $salesRows = $salesQuery->get();
-        $salesCount = $salesRows->count();
+        $distinctSalesCount = $salesRows->pluck('sale_id')->filter()->unique()->count();
+        $salesCount = $totals['sales_count'] ?? ($distinctSalesCount > 0 ? $distinctSalesCount : $salesRows->count());
         $totalRevenueCents = 0;
         $totalCostCents = 0;
         $itemsWithCost = 0;
@@ -257,7 +261,7 @@ class ReportHandler
         $topQuery = Movement::withoutGlobalScope(ShopScope::class)
             ->select('product_id', DB::raw('SUM(-qty_milli) as total_qty'), DB::raw('SUM(-qty_milli * unit_price_cents / 1000) as total_revenue'))
             ->where('shop_id', $shopId)
-            ->where('type', 'sale')
+            ->activeSales()
             ->whereBetween('created_at_ms', [$startMs, $endMs]);
 
         if (!empty($locationId) && $locationId !== 'all') {

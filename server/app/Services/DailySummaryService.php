@@ -107,11 +107,12 @@ class DailySummaryService
         // 1. Sales metrics
         $salesRows = Movement::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $shop->id)
-            ->where('type', 'sale')
+            ->activeSales()
             ->whereBetween('created_at_ms', [$startOfDayMs, $endOfDayMs])
             ->get();
 
-        $salesCount = $salesRows->count();
+        $distinctSalesCount = $salesRows->pluck('sale_id')->filter()->unique()->count();
+        $salesCount = $distinctSalesCount > 0 ? $distinctSalesCount : $salesRows->count();
         $totalRevenueCents = 0;
         foreach ($salesRows as $s) {
             $totalRevenueCents += (int) round((abs($s->qty_milli) * $s->unit_price_cents) / 1000);
@@ -149,7 +150,7 @@ class DailySummaryService
         $topItems = Movement::withoutGlobalScope(ShopScope::class)
             ->select('product_id', DB::raw('SUM(-qty_milli) as total_qty'), DB::raw('SUM(-qty_milli * unit_price_cents / 1000) as total_revenue'))
             ->where('shop_id', $shop->id)
-            ->where('type', 'sale')
+            ->activeSales()
             ->whereBetween('created_at_ms', [$startOfDayMs, $endOfDayMs])
             ->groupBy('product_id')
             ->orderByDesc('total_revenue')

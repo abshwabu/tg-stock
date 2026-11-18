@@ -177,6 +177,7 @@ class SyncService
                 $saleMovements = Movement::withoutGlobalScope(ShopScope::class)
                     ->where('shop_id', $shopId)
                     ->where('sale_id', $saleId)
+                    ->where('type', 'sale')
                     ->get();
 
                 $computedTotal = 0;
@@ -605,14 +606,23 @@ class SyncService
         if ($existing !== null) {
             // Existing sale: handle voiding or metadata update
             if (!empty($data['voided_at']) && $existing->voided_at_ms === null) {
-                try {
-                    $this->balanceService->voidSale($existing, $user ?? (string) $existing->user_id);
-                    $accepted[] = $id;
-                    return;
-                } catch (\Throwable $e) {
-                    $rejected[] = ['id' => $id, 'reason' => $e->getMessage()];
-                    return;
+                $voidedAtMs = (int) $data['voided_at'];
+                if ($voidedAtMs > $nowMs + self::MAX_FUTURE_DRIFT_MS) {
+                    $voidedAtMs = $nowMs;
                 }
+                $existing->voided_at_ms = $voidedAtMs;
+                $existing->updated_at_ms = $nowMs;
+                $existing->save();
+
+                Change::withoutGlobalScope(ShopScope::class)->create([
+                    'shop_id' => $shopId,
+                    'device_id' => $device->id,
+                    'entity' => 'sale',
+                    'entity_id' => $existing->id,
+                ]);
+
+                $accepted[] = $id;
+                return;
             }
 
             // Can update note or due_date if not voided
@@ -702,7 +712,8 @@ class SyncService
 
         $totalExplicitPayments = $explicitPaymentsInDb + $explicitPaymentsInBatch;
         $isLegacy = (bool) ($data['legacy'] ?? false);
-        $isDube = !$isLegacy && (($totalCents - $totalExplicitPayments) > 0);
+        $isVoided = !empty($data['voided_at']);
+        $isDube = !$isLegacy && !$isVoided && (($totalCents - $totalExplicitPayments) > 0);
 
         if ($isDube) {
             // Must have sale.dube permission
@@ -904,6 +915,19 @@ class SyncService
         }
 
         $amountCents = (int) ($data['amount_cents'] ?? 0);
+
+        if ($amountCents < 0 && !empty($saleId)) {
+            $existingReversal = Payment::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('sale_id', $saleId)
+                ->where('amount_cents', $amountCents)
+                ->exists();
+
+            if ($existingReversal) {
+                $accepted[] = $id;
+                return;
+            }
+        }
 
         $maxSeq = (int) Payment::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $shopId)
@@ -1216,6 +1240,20 @@ class SyncService
         }
 
         $qtyMilli = LedgerService::parseQty($rawQty);
+
+        if ($type === 'adjust' && !empty($saleId)) {
+            $existingAdjust = Movement::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('sale_id', $saleId)
+                ->where('product_id', $productId)
+                ->where('type', 'adjust')
+                ->exists();
+
+            if ($existingAdjust) {
+                $accepted[] = $id;
+                return;
+            }
+        }
 
         // Validation: consume movement rules
         if ($type === 'consume') {

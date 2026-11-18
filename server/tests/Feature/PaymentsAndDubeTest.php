@@ -1456,4 +1456,171 @@ class PaymentsAndDubeTest extends TestCase
             }
         }
     }
+
+    public function test_undo_sale_sync_does_not_duplicate_reversals_or_turn_into_dube(): void
+    {
+        $shop = $this->shopA['shop'];
+        $device = $this->shopA['owner_device'];
+        $loc = $this->shopA['location'];
+        $nowMs = (int) (microtime(true) * 1000);
+        $syncService = app(\App\Services\SyncService::class);
+
+        $prod1 = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $shop->id,
+            'name' => 'Item 1',
+            'unit' => 'pcs',
+            'kind' => 'stockable',
+            'cost_price_cents' => 60000,
+            'default_price_cents' => 100000,
+        ]);
+
+        $prod2 = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $shop->id,
+            'name' => 'Item 2',
+            'unit' => 'pcs',
+            'kind' => 'stockable',
+            'cost_price_cents' => 30000,
+            'default_price_cents' => 50000,
+        ]);
+
+        $sale1Id = (string) Str::uuid7();
+        $sale2Id = (string) Str::uuid7();
+        $pay1Id = (string) Str::uuid7();
+        $pay2Id = (string) Str::uuid7();
+        $mov1Id = (string) Str::uuid7();
+        $mov2Id = (string) Str::uuid7();
+
+        // Step 1: Client creates 2 sales and syncs
+        $payload1 = [
+            'changes' => [
+                ['id' => $sale1Id, 'entity' => 'sale', 'op' => 'create', 'data' => ['id' => $sale1Id, 'location_id' => $loc->id, 'total_cents' => 100000, 'created_at' => $nowMs]],
+                ['id' => $mov1Id, 'entity' => 'movement', 'op' => 'create', 'data' => ['id' => $mov1Id, 'sale_id' => $sale1Id, 'product_id' => $prod1->id, 'location_id' => $loc->id, 'type' => 'sale', 'qty' => '-1.000', 'unit_price_cents' => 100000, 'tracks_stock' => true, 'created_at' => $nowMs]],
+                ['id' => $pay1Id, 'entity' => 'payment', 'op' => 'create', 'data' => ['id' => $pay1Id, 'sale_id' => $sale1Id, 'location_id' => $loc->id, 'method' => 'cash', 'amount_cents' => 100000, 'received_at' => $nowMs]],
+
+                ['id' => $sale2Id, 'entity' => 'sale', 'op' => 'create', 'data' => ['id' => $sale2Id, 'location_id' => $loc->id, 'total_cents' => 50000, 'created_at' => $nowMs]],
+                ['id' => $mov2Id, 'entity' => 'movement', 'op' => 'create', 'data' => ['id' => $mov2Id, 'sale_id' => $sale2Id, 'product_id' => $prod2->id, 'location_id' => $loc->id, 'type' => 'sale', 'qty' => '-1.000', 'unit_price_cents' => 50000, 'tracks_stock' => true, 'created_at' => $nowMs]],
+                ['id' => $pay2Id, 'entity' => 'payment', 'op' => 'create', 'data' => ['id' => $pay2Id, 'sale_id' => $sale2Id, 'location_id' => $loc->id, 'method' => 'cash', 'amount_cents' => 50000, 'received_at' => $nowMs]],
+            ],
+            'cursor' => 0,
+        ];
+
+        $res1 = $syncService->sync($device, $payload1, 2000);
+        $this->assertEmpty($res1['rejected'], json_encode($res1['rejected']));
+        $this->assertContains($sale1Id, $res1['accepted']);
+        $this->assertContains($sale2Id, $res1['accepted']);
+
+        // Verify state before undo
+        $totalsBefore = $this->reportService->salesTotals($shop, [$nowMs - 60000, $nowMs + 60000]);
+        $this->assertSame(2, $totalsBefore['sales_count']);
+        $this->assertSame(150000, $totalsBefore['revenue_cents']);
+        $this->assertSame(0, $totalsBefore['new_dube_cents']);
+
+        $cashBefore = $this->reportService->cashExpected($shop, Carbon::createFromTimestampMs($nowMs)->toDateString());
+        $this->assertSame(150000, $cashBefore['expected_cash_cents']);
+
+        // Step 2: Client undoes Sale 1 and syncs
+        $reversalPayId = (string) Str::uuid7();
+        $adjustMovId = (string) Str::uuid7();
+        $undoMs = $nowMs + 1000;
+
+        $payload2 = [
+            'changes' => [
+                ['id' => $sale1Id, 'entity' => 'sale', 'op' => 'update', 'data' => ['id' => $sale1Id, 'voided_at' => $undoMs]],
+                ['id' => $reversalPayId, 'entity' => 'payment', 'op' => 'create', 'data' => ['id' => $reversalPayId, 'sale_id' => $sale1Id, 'location_id' => $loc->id, 'method' => 'cash', 'amount_cents' => -100000, 'reference' => "Reversal for [{$pay1Id}]", 'received_at' => $undoMs]],
+                ['id' => $adjustMovId, 'entity' => 'movement', 'op' => 'create', 'data' => ['id' => $adjustMovId, 'sale_id' => $sale1Id, 'product_id' => $prod1->id, 'location_id' => $loc->id, 'type' => 'adjust', 'qty' => '1.000', 'unit_price_cents' => 100000, 'tracks_stock' => true, 'source_movement_id' => $mov1Id, 'created_at' => $undoMs]],
+            ],
+            'cursor' => $res1['cursor'],
+        ];
+
+        $res2 = $syncService->sync($device, $payload2, 1000);
+        $this->assertContains($sale1Id, $res2['accepted']);
+        $this->assertContains($reversalPayId, $res2['accepted']);
+        $this->assertContains($adjustMovId, $res2['accepted']);
+
+        // Verify: Server must NOT have created duplicate reversals or sent them back
+        $sale1Payments = Payment::withoutGlobalScope(ShopScope::class)->where('sale_id', $sale1Id)->get();
+        $this->assertCount(2, $sale1Payments, 'Must have exactly 1 payment and 1 reversal, no server-created duplicate');
+
+        // Verify: Outgoing changes sent back to client must NOT include server-created reversal
+        $outgoingPayments = array_filter($res2['changes'], fn($c) => $c['entity'] === 'payment');
+        $this->assertEmpty($outgoingPayments, 'Client must not be sent duplicate reversal payments');
+
+        // Verify: Sale 1 is voided
+        $sale1 = Sale::withoutGlobalScope(ShopScope::class)->find($sale1Id);
+        $this->assertNotNull($sale1->voided_at_ms);
+
+        // Verify: Active sales count in Movement model
+        $activeMovements = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shop->id)
+            ->activeSales()
+            ->get();
+        $this->assertCount(1, $activeMovements);
+        $this->assertSame($sale2Id, $activeMovements->first()->sale_id);
+
+        // Verify: Sales totals report excludes voided sale
+        $totalsAfter = $this->reportService->salesTotals($shop, [$nowMs - 60000, $undoMs + 60000]);
+        $this->assertSame(1, $totalsAfter['sales_count'], 'Sales count must be 1 after undoing 1 of 2 sales');
+        $this->assertSame(50000, $totalsAfter['revenue_cents'], 'Revenue must be 50,000 ETB cents (Sale 2 only)');
+        $this->assertSame(0, $totalsAfter['new_dube_cents'], 'Voided sale must NEVER become Dube');
+
+        // Verify: Cash expected in drawer must be exactly 500 ETB (50000 cents), NEVER negative!
+        $cashAfter = $this->reportService->cashExpected($shop, Carbon::createFromTimestampMs($nowMs)->toDateString());
+        $this->assertSame(50000, $cashAfter['expected_cash_cents'], 'Cash expected must be 50,000 cents (500 ETB), not negative');
+
+        // Verify: Outstanding Dube is 0
+        $dubeAfter = $this->reportService->outstandingDube($shop);
+        $this->assertSame(0, $dubeAfter['total_outstanding_cents'], 'Outstanding dube must be 0');
+    }
+
+    public function test_offline_sale_created_and_undone_before_sync_is_accepted_without_dube_error(): void
+    {
+        $shop = $this->shopA['shop'];
+        $device = $this->shopA['owner_device'];
+        $loc = $this->shopA['location'];
+        $nowMs = (int) (microtime(true) * 1000);
+        $syncService = app(\App\Services\SyncService::class);
+
+        $prod = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $shop->id,
+            'name' => 'Offline Item',
+            'unit' => 'pcs',
+            'kind' => 'stockable',
+            'cost_price_cents' => 20000,
+            'default_price_cents' => 30000,
+        ]);
+
+        $saleId = (string) Str::uuid7();
+        $movId = (string) Str::uuid7();
+        $payId = (string) Str::uuid7();
+        $reversalId = (string) Str::uuid7();
+        $adjustId = (string) Str::uuid7();
+
+        // Sale created and undone offline before ever syncing (no customer, walk-in)
+        $payload = [
+            'changes' => [
+                ['id' => $saleId, 'entity' => 'sale', 'op' => 'create', 'data' => ['id' => $saleId, 'location_id' => $loc->id, 'total_cents' => 30000, 'voided_at' => $nowMs + 100, 'created_at' => $nowMs]],
+                ['id' => $mov1Id = $movId, 'entity' => 'movement', 'op' => 'create', 'data' => ['id' => $movId, 'sale_id' => $saleId, 'product_id' => $prod->id, 'location_id' => $loc->id, 'type' => 'sale', 'qty' => '-1.000', 'unit_price_cents' => 30000, 'tracks_stock' => true, 'created_at' => $nowMs]],
+                ['id' => $payId, 'entity' => 'payment', 'op' => 'create', 'data' => ['id' => $payId, 'sale_id' => $saleId, 'location_id' => $loc->id, 'method' => 'cash', 'amount_cents' => 30000, 'received_at' => $nowMs]],
+                ['id' => $adjustId, 'entity' => 'movement', 'op' => 'create', 'data' => ['id' => $adjustId, 'sale_id' => $saleId, 'product_id' => $prod->id, 'location_id' => $loc->id, 'type' => 'adjust', 'qty' => '1.000', 'unit_price_cents' => 30000, 'tracks_stock' => true, 'source_movement_id' => $movId, 'created_at' => $nowMs + 100]],
+                ['id' => $reversalId, 'entity' => 'payment', 'op' => 'create', 'data' => ['id' => $reversalId, 'sale_id' => $saleId, 'location_id' => $loc->id, 'method' => 'cash', 'amount_cents' => -30000, 'reference' => "Reversal for [{$payId}]", 'received_at' => $nowMs + 100]],
+            ],
+            'cursor' => 0,
+        ];
+
+        $res = $syncService->sync($device, $payload, 2000);
+        $this->assertEmpty($res['rejected'], 'Offline voided sale must not be rejected with missing_customer or missing_due_date: ' . json_encode($res['rejected']));
+        $this->assertContains($saleId, $res['accepted']);
+
+        // Must not be dube
+        $sale = Sale::withoutGlobalScope(ShopScope::class)->find($saleId);
+        $this->assertNotNull($sale->voided_at_ms);
+
+        $totals = $this->reportService->salesTotals($shop, [$nowMs - 60000, $nowMs + 60000]);
+        $this->assertSame(0, $totals['sales_count']);
+        $this->assertSame(0, $totals['revenue_cents']);
+        $this->assertSame(0, $totals['new_dube_cents']);
+    }
 }

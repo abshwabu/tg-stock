@@ -85,6 +85,15 @@ class PaymentReportService
 
         $payments = $query->get();
 
+        $saleIds = $payments->pluck('sale_id')->filter()->unique()->values()->all();
+        $voidedSaleIds = empty($saleIds) ? [] : Sale::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->whereIn('id', $saleIds)
+            ->whereNotNull('voided_at_ms')
+            ->pluck('id')
+            ->flip()
+            ->all();
+
         $byMethod = [
             'cash' => 0,
             'bank' => 0,
@@ -93,16 +102,24 @@ class PaymentReportService
 
         $providersGrouped = [];
         $grandTotal = 0;
+        $saleMethodNet = [];
 
         foreach ($payments as $p) {
             $amt = (int) $p->amount_cents;
+            $groupKey = "{$p->method}_" . ($p->provider_key ?? 'none');
+
+            if (!empty($p->sale_id) && isset($voidedSaleIds[$p->sale_id])) {
+                $smKey = "{$p->sale_id}_{$p->method}";
+                $saleMethodNet[$smKey] = ($saleMethodNet[$smKey] ?? 0) + $amt;
+                continue;
+            }
+
             $grandTotal += $amt;
 
             if (isset($byMethod[$p->method])) {
                 $byMethod[$p->method] += $amt;
             }
 
-            $groupKey = "{$p->method}_" . ($p->provider_key ?? 'none');
             if (!isset($providersGrouped[$groupKey])) {
                 $providersGrouped[$groupKey] = [
                     'method' => $p->method,
@@ -115,6 +132,16 @@ class PaymentReportService
 
             $providersGrouped[$groupKey]['count']++;
             $providersGrouped[$groupKey]['net_amount_cents'] += $amt;
+        }
+
+        foreach ($saleMethodNet as $smKey => $netAmt) {
+            if ($netAmt > 0) {
+                [$sId, $m] = explode('_', $smKey, 2);
+                $grandTotal += $netAmt;
+                if (isset($byMethod[$m])) {
+                    $byMethod[$m] += $netAmt;
+                }
+            }
         }
 
         return [
@@ -403,18 +430,41 @@ class PaymentReportService
 
         $payments = $query->get();
 
-        $cashSales = 0;
+        $saleIds = $payments->pluck('sale_id')->filter()->unique()->values()->all();
+        $voidedSaleIds = empty($saleIds) ? [] : Sale::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $shopId)
+            ->whereIn('id', $saleIds)
+            ->whereNotNull('voided_at_ms')
+            ->pluck('id')
+            ->flip()
+            ->all();
+
+        $cashBySale = [];
         $cashRepayments = 0;
-        $cashReversals = 0;
 
         foreach ($payments as $p) {
             $amt = (int) $p->amount_cents;
-            if ($amt < 0) {
-                $cashReversals += abs($amt);
-            } elseif (!empty($p->sale_id)) {
-                $cashSales += $amt;
+            if (!empty($p->sale_id)) {
+                $cashBySale[$p->sale_id] = ($cashBySale[$p->sale_id] ?? 0) + $amt;
             } else {
                 $cashRepayments += $amt;
+            }
+        }
+
+        $cashSales = 0;
+        $cashReversals = 0;
+        foreach ($cashBySale as $sId => $netAmt) {
+            if (isset($voidedSaleIds[$sId])) {
+                // Sale is voided: net cash impact cannot be negative
+                if ($netAmt > 0) {
+                    $cashSales += $netAmt;
+                }
+            } else {
+                if ($netAmt >= 0) {
+                    $cashSales += $netAmt;
+                } else {
+                    $cashReversals += abs($netAmt);
+                }
             }
         }
 
@@ -472,7 +522,7 @@ class PaymentReportService
         $query = Movement::withoutGlobalScope(ShopScope::class)
             ->join('products', 'products.id', '=', 'movements.product_id')
             ->where('movements.shop_id', $shopId)
-            ->where('movements.type', 'sale')
+            ->activeSales()
             ->whereBetween('movements.created_at_ms', [$startMs, $endMs]);
 
         if (!empty($locationId) && $locationId !== 'all') {
@@ -610,7 +660,7 @@ class PaymentReportService
 
         $salesQuery = Movement::withoutGlobalScope(ShopScope::class)
             ->where('shop_id', $shopId)
-            ->where('type', 'sale')
+            ->activeSales()
             ->whereBetween('created_at_ms', [$startMs, $endMs]);
 
         if (!empty($locationId) && $locationId !== 'all') {

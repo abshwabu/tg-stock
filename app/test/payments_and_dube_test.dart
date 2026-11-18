@@ -619,6 +619,71 @@ void main() {
       expect(revMetrics['money_received_cents'], equals(7000)); // 4000 cash + 2000 bank + 1000 cash
       expect(revMetrics['new_dube_cents'], equals(5000)); // 6000 - 1000
     });
+
+    test('undoing sale nets cash expected to zero and duplicate reversals never drag cash negative or create dube', () async {
+      final product = await repo.createProduct(name: 'Coffee', sellPriceCents: 5000);
+      await repo.recordStockIn(productId: product.id, qtyMilli: 10000, unitPriceCents: 3000);
+
+      // Make 2 cash sales: Sale 1 (100 ETB = 10000 cents), Sale 2 (50 ETB = 5000 cents)
+      final sale1 = await repo.recordSaleWithPayment(
+        items: [SaleLineItem(product: product, qtyMilli: 2000, unitPriceCents: 5000)],
+        paymentMethod: 'cash',
+      );
+      final sale2 = await repo.recordSaleWithPayment(
+        items: [SaleLineItem(product: product, qtyMilli: 1000, unitPriceCents: 5000)],
+        paymentMethod: 'cash',
+      );
+
+      expect(await repo.getCashExpectedInDrawer(), equals(15000));
+
+      // Undo Sale 1
+      await repo.undoSale(sale1.id);
+
+      // Verify Sale 1 voided
+      final voidedSale = await (db.select(db.sales)..where((s) => s.id.equals(sale1.id))).getSingleOrNull();
+      expect(voidedSale?.voidedAtMs, isNotNull);
+
+      // Cash in drawer must be exactly 5000 (Sale 2 only), not negative!
+      expect(await repo.getCashExpectedInDrawer(), equals(5000));
+
+      // Received today by method must be 5000
+      final rec = await repo.getReceivedTodayByMethod();
+      expect(rec['cash'], equals(5000));
+
+      // Revenue vs received vs dube today: 5000 revenue, 5000 received, 0 new dube
+      final rev = await repo.getRevenueVsReceivedVsNewDubeToday();
+      expect(rev['revenue_cents'], equals(5000));
+      expect(rev['money_received_cents'], equals(5000));
+      expect(rev['new_dube_cents'], equals(0));
+
+      // Outstanding Dube must be 0 (undone sale must NEVER turn into dube)
+      expect(await repo.getOutstandingDubeTotal(), equals(0));
+
+      // Now simulate a duplicate server reversal arriving via sync engine
+      final syncEngine = SyncEngine(db: db, api: ApiClient(), storage: InMemoryAuthStorage());
+      final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+
+      final dupReversalChange = {
+        'entity': 'payment',
+        'op': 'create',
+        'data': {
+          'id': 'dup-server-rev-1',
+          'sale_id': sale1.id,
+          'method': 'cash',
+          'amount_cents': -10000,
+          'received_at': nowMs,
+        },
+      };
+
+      await syncEngine.applyIncomingChangeForTesting(dupReversalChange);
+
+      // Sync engine must have rejected/skipped duplicate reversal
+      final paymentsForSale1 = await (db.select(db.payments)..where((p) => p.saleId.equals(sale1.id))).get();
+      expect(paymentsForSale1.length, equals(2), reason: 'Must have only 1 payment and 1 reversal, no duplicate');
+
+      // Cash in drawer remains 5000
+      expect(await repo.getCashExpectedInDrawer(), equals(5000));
+    });
   });
 
   group('9. Sync Wire Format & SyncEngine Ingestion', () {

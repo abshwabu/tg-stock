@@ -87,4 +87,30 @@ class Movement extends Model
     {
         return $this->belongsTo(Movement::class, 'source_movement_id');
     }
+
+    /**
+     * Scope to only include active sales movements (excluding voided sales and compensated lines).
+     */
+    public function scopeActiveSales($query)
+    {
+        $typeCol = $this->qualifyColumn('type');
+        $saleIdCol = $this->qualifyColumn('sale_id');
+        $idCol = $this->qualifyColumn('id');
+
+        return $query->where($typeCol, 'sale')
+            ->where(function ($q) use ($saleIdCol) {
+                $q->whereNull($saleIdCol)
+                    ->orWhereNotIn($saleIdCol, function ($sub) {
+                        $sub->select('id')
+                            ->from('sales')
+                            ->whereNotNull('voided_at_ms');
+                    });
+            })
+            ->whereNotIn($idCol, function ($sub) {
+                $sub->select('source_movement_id')
+                    ->from('movements')
+                    ->whereNotNull('source_movement_id')
+                    ->where('type', 'adjust');
+            });
+    }
 }

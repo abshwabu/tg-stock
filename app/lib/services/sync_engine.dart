@@ -534,6 +534,9 @@ class SyncEngine {
   /// Applies a single incoming change from the server.
   /// Movements: insert or ignore (append-only ledger).
   /// Products: Last-Write-Wins (LWW) by updated_at.
+  @visibleForTesting
+  Future<void> applyIncomingChangeForTesting(Map<String, dynamic> change) => _applyIncomingChange(change);
+
   Future<void> _applyIncomingChange(Map<String, dynamic> change) async {
     final entity = change['entity'] as String?;
     final op = change['op'] as String? ?? 'upsert';
@@ -579,6 +582,19 @@ class SyncEngine {
         saleId: saleId,
         sourceMovementId: sourceMovementId,
       );
+
+      // Deduplicate compensating adjustments for voided sales
+      if (type == 'adjust' && saleId != null) {
+        final existingAdjust = await (db.select(db.movements)
+              ..where((m) =>
+                  m.saleId.equals(saleId) &
+                  m.productId.equals(prodId) &
+                  m.type.equals('adjust')))
+            .get();
+        if (existingAdjust.isNotEmpty) {
+          return;
+        }
+      }
 
       // Append-only: insert or ignore duplicate IDs
       await db
@@ -658,6 +674,18 @@ class SyncEngine {
         receivedAtMs: receivedAt,
         createdAtMs: receivedAt,
       );
+
+      // Deduplicate reversal payments for voided sales
+      if (amountCents < 0 && saleId != null) {
+        final existingReversal = await (db.select(db.payments)
+              ..where((p) =>
+                  p.saleId.equals(saleId) &
+                  p.amountCents.equals(amountCents)))
+            .get();
+        if (existingReversal.isNotEmpty) {
+          return;
+        }
+      }
 
       await db
           .into(db.payments)
