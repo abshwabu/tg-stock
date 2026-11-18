@@ -9,6 +9,7 @@ use App\Models\Change;
 use App\Models\Customer;
 use App\Models\Movement;
 use App\Models\Payment;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Shop;
 use App\Models\User;
@@ -435,15 +436,27 @@ class BalanceService
                 ]);
             }
 
-            // 3. Compensate movements attached to this sale
+            // 3. Compensate stockable movements attached to this sale
             $movements = Movement::withoutGlobalScope(ShopScope::class)
                 ->where('shop_id', $shopId)
                 ->where('sale_id', $saleModel->id)
-                ->where('type', 'sale')
+                ->whereIn('type', ['sale', 'consume'])
                 ->where('qty_milli', '<', 0)
                 ->get();
 
             foreach ($movements as $m) {
+                // Non-stockable products (services, instant sales, consumables) do not track stock on sale lines
+                if (!$m->tracks_stock) {
+                    continue;
+                }
+                $prod = Product::withoutGlobalScope(ShopScope::class)
+                    ->where('shop_id', $shopId)
+                    ->where('id', $m->product_id)
+                    ->first();
+                if ($prod !== null && !$prod->isStockable()) {
+                    continue;
+                }
+
                 // Ensure movement not already compensated
                 $alreadyCompensated = Movement::withoutGlobalScope(ShopScope::class)
                     ->where('shop_id', $shopId)
@@ -460,6 +473,7 @@ class BalanceService
                         'user_id' => $userModel->id,
                         'device_id' => null,
                         'type' => 'adjust',
+                        'tracks_stock' => true,
                         'qty_milli' => abs($m->qty_milli), // Positive restores stock
                         'unit_price_cents' => $m->unit_price_cents,
                         'note' => "Compensating undo for [{$m->id}] (void sale {$saleModel->id})",

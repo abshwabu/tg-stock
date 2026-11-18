@@ -1169,12 +1169,22 @@ class SyncService
 
         // Stock-in, adjust, transfer on non-stockable products rejected with not_stockable
         if (!$product->isStockable() && in_array($type, ['in', 'adjust', 'transfer_out', 'transfer_in'], true)) {
+            if ($type === 'adjust' && !empty($data['sale_id'])) {
+                // Compensating adjust mistakenly emitted for non-stockable item during void:
+                // Accept as no-op so sync does not block or conflict.
+                $accepted[] = $id;
+                return;
+            }
             $rejected[] = ['id' => $id, 'reason' => 'not_stockable'];
             return;
         }
 
         // Validation: tracks_stock=false is allowed only on sale lines
         if (!$tracksStock && $type !== 'sale') {
+            if ($type === 'adjust' && !empty($data['sale_id'])) {
+                $accepted[] = $id;
+                return;
+            }
             $rejected[] = ['id' => $id, 'reason' => 'tracks_stock_not_allowed'];
             return;
         }

@@ -6,8 +6,10 @@ namespace App\Services\Telegram\Handlers;
 
 use App\Models\Movement;
 use App\Models\Product;
+use App\Models\Sale;
 use App\Models\User;
 use App\Scopes\ShopScope;
+use App\Services\BalanceService;
 use App\Services\LedgerService;
 use App\Services\Telegram\TelegramClient;
 use App\Services\Telegram\TelegramUi;
@@ -19,7 +21,8 @@ class UndoHandler
 
     public function __construct(
         protected TelegramClient $telegram,
-        protected LedgerService $ledger
+        protected LedgerService $ledger,
+        protected BalanceService $balanceService
     ) {}
 
     /**
@@ -105,6 +108,59 @@ class UndoHandler
         $productName = $product?->name ?? 'Product';
         $productUnit = $product?->unit ?? 'pcs';
 
+        // If the movement belongs to a sale, void the entire sale via BalanceService
+        if (!empty($last->sale_id)) {
+            $sale = Sale::withoutGlobalScope(ShopScope::class)
+                ->where('shop_id', $shopId)
+                ->where('id', $last->sale_id)
+                ->first();
+
+            if ($sale !== null) {
+                if (!empty($sale->voided_at_ms)) {
+                    if ($callbackId) {
+                        $this->telegram->answerCallbackQuery($callbackId, __('undo_already_done'), showAlert: true);
+                    } else {
+                        $this->telegram->sendMessage($chatId, __('undo_already_done'));
+                    }
+                    return;
+                }
+
+                $this->balanceService->voidSale($sale, $user);
+
+                $newStockMilli = ($product !== null && $product->isStockable()) ? $this->ledger->stockOf($product) : 0;
+                $revertedQty = LedgerService::formatQty(abs($last->qty_milli));
+
+                $msg = __('undo_success', [
+                    'type' => $last->type,
+                    'product' => $productName,
+                    'qty' => $revertedQty,
+                    'unit' => $productUnit,
+                    'new_stock' => LedgerService::formatQty($newStockMilli),
+                ]);
+
+                $this->telegram->sendMessage($chatId, $msg, [
+                    'reply_markup' => TelegramUi::mainMenuKeyboard($locale),
+                ]);
+                return;
+            }
+        }
+
+        // If non-stockable item without a sale, no adjust movement can be recorded
+        if ($product !== null && !$product->isStockable()) {
+            $revertedQty = LedgerService::formatQty(abs($last->qty_milli));
+            $msg = __('undo_success', [
+                'type' => $last->type,
+                'product' => $productName,
+                'qty' => $revertedQty,
+                'unit' => $productUnit,
+                'new_stock' => '0',
+            ]);
+            $this->telegram->sendMessage($chatId, $msg, [
+                'reply_markup' => TelegramUi::mainMenuKeyboard($locale),
+            ]);
+            return;
+        }
+
         // Create compensating movement (exact opposite signed quantity)
         $compensatingMovement = new Movement([
             'id' => (string) Str::uuid7(),
@@ -113,6 +169,7 @@ class UndoHandler
             'user_id' => $user->id,
             'device_id' => null, // bot write
             'type' => 'adjust',
+            'tracks_stock' => true,
             'qty_milli' => -$last->qty_milli,
             'unit_price_cents' => $last->unit_price_cents,
             'note' => "Compensating undo for [{$last->id}] ({$last->type})",

@@ -13,6 +13,7 @@ use App\Models\Sale;
 use App\Models\Shop;
 use App\Models\User;
 use App\Scopes\ShopScope;
+use App\Services\BalanceService;
 use App\Services\LedgerService;
 use App\Services\PairingService;
 use App\Services\PaymentReportService;
@@ -35,6 +36,7 @@ class NonStockableItemsTest extends TestCase
     protected PaymentReportService $reportService;
     protected PermissionService $permissionService;
     protected SyncService $syncService;
+    protected BalanceService $balanceService;
 
     protected Shop $shop;
     protected User $owner;
@@ -54,6 +56,7 @@ class NonStockableItemsTest extends TestCase
         $this->reportService = app(PaymentReportService::class);
         $this->permissionService = app(PermissionService::class);
         $this->syncService = app(SyncService::class);
+        $this->balanceService = app(BalanceService::class);
 
         // Setup Shop with paired owner device
         $pair = $this->pairing->startPairing('Bole Cafe & Lounge', 'Owner POS');
@@ -1019,5 +1022,245 @@ class NonStockableItemsTest extends TestCase
         $this->assertContains($meat->id, $stockProdIds);
         $this->assertNotContains($delivery->id, $stockProdIds);
         $this->assertNotContains($burger->id, $stockProdIds);
+    }
+
+    /**
+     * 10. Voiding a sale with a service or instant sale item succeeds without throwing not_stockable,
+     * voids the sale, and does NOT create adjust movements for the service.
+     */
+    public function test_void_sale_with_service_does_not_throw_and_does_not_create_adjust_movement(): void
+    {
+        $now = (int) (microtime(true) * 1000);
+
+        $service = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Haircut Service',
+            'unit' => 'serv',
+            'kind' => 'service',
+            'sell_price_cents' => 15000,
+            'is_active' => true,
+            'updated_at_ms' => $now,
+        ]);
+
+        $sale = Sale::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'location_id' => $this->location->id,
+            'user_id' => $this->owner->id,
+            'total_cents' => 15000,
+            'created_at_ms' => $now,
+            'updated_at_ms' => $now,
+        ]);
+
+        $this->salesService->addLine($sale, $service, '1.000', 15000, $this->location, $this->owner, createdAtMs: $now);
+
+        // Verify sale line recorded with tracks_stock=false
+        $saleMovement = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('sale_id', $sale->id)
+            ->first();
+
+        $this->assertNotNull($saleMovement);
+        $this->assertFalse((bool) $saleMovement->tracks_stock);
+
+        // Void the sale - must NOT throw not_stockable
+        $voidedSale = $this->balanceService->voidSale($sale, $this->owner);
+
+        $this->assertNotNull($voidedSale->voided_at_ms);
+
+        // Verify NO adjust movement was created for the service
+        $adjustMovements = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('product_id', $service->id)
+            ->where('type', 'adjust')
+            ->get();
+
+        $this->assertCount(0, $adjustMovements);
+    }
+
+    /**
+     * 11. Voiding a sale with mixed items (stockable + service) restores stock ONLY for the stockable item.
+     */
+    public function test_void_sale_with_mixed_items_only_compensates_stockable_movements(): void
+    {
+        $now = (int) (microtime(true) * 1000);
+
+        $stockable = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Shampoo Bottle',
+            'unit' => 'pcs',
+            'kind' => 'stockable',
+            'sell_price_cents' => 8000,
+            'is_active' => true,
+            'updated_at_ms' => $now,
+        ]);
+
+        // Stock 10 bottles
+        $this->ledger->record(new Movement([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'product_id' => $stockable->id,
+            'location_id' => $this->location->id,
+            'type' => 'in',
+            'qty_milli' => 10000,
+            'created_at_ms' => $now,
+        ]));
+
+        $service = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Haircut & Styling',
+            'unit' => 'serv',
+            'kind' => 'service',
+            'sell_price_cents' => 20000,
+            'is_active' => true,
+            'updated_at_ms' => $now,
+        ]);
+
+        $sale = Sale::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'location_id' => $this->location->id,
+            'user_id' => $this->owner->id,
+            'total_cents' => 28000, // 80 + 200 = 280 ETB
+            'created_at_ms' => $now,
+            'updated_at_ms' => $now,
+        ]);
+
+        $this->salesService->addLine($sale, $stockable, '2.000', 8000, $this->location, $this->owner, createdAtMs: $now);
+        $this->salesService->addLine($sale, $service, '1.000', 20000, $this->location, $this->owner, createdAtMs: $now);
+
+        // Stockable stock is now 8000 milli (8 bottles)
+        $this->assertSame(8000, $this->ledger->stockOf($stockable));
+        // Service stock is null
+        $this->assertNull($this->ledger->stockOf($service));
+
+        // Void the sale
+        $this->balanceService->voidSale($sale, $this->owner);
+
+        // Stockable restored to 10000 milli (10 bottles)
+        $this->assertSame(10000, $this->ledger->stockOf($stockable));
+
+        // Adjust movements: exactly 1 for the stockable item, 0 for the service
+        $stockableAdjusts = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('product_id', $stockable->id)
+            ->where('type', 'adjust')
+            ->get();
+        $this->assertCount(1, $stockableAdjusts);
+        $this->assertSame(2000, $stockableAdjusts->first()->qty_milli);
+
+        $serviceAdjusts = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('product_id', $service->id)
+            ->where('type', 'adjust')
+            ->get();
+        $this->assertCount(0, $serviceAdjusts);
+    }
+
+    /**
+     * 12. SyncService gracefully tolerates incoming adjust movements for non-stockables when sale_id is set.
+     */
+    public function test_sync_tolerates_incoming_adjust_on_non_stockable_with_sale_id_gracefully(): void
+    {
+        $now = (int) (microtime(true) * 1000);
+
+        $service = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Cleaning Service',
+            'unit' => 'serv',
+            'kind' => 'service',
+            'sell_price_cents' => 10000,
+            'is_active' => true,
+            'updated_at_ms' => $now,
+        ]);
+
+        $bogusAdjustId = (string) Str::uuid7();
+
+        $payload = [
+            'cursor' => 0,
+            'changes' => [
+                [
+                    'id' => $bogusAdjustId,
+                    'entity' => 'movement',
+                    'op' => 'upsert',
+                    'data' => [
+                        'id' => $bogusAdjustId,
+                        'product_id' => $service->id,
+                        'location_id' => $this->location->id,
+                        'type' => 'adjust',
+                        'qty' => '1.000',
+                        'tracks_stock' => false,
+                        'sale_id' => (string) Str::uuid7(),
+                        'note' => 'Compensating undo for instant sale',
+                        'created_at' => $now,
+                    ],
+                ],
+            ],
+        ];
+
+        // Push an adjust change for this service with sale_id
+        $result = $this->syncService->sync($this->device, $payload, strlen(json_encode($payload)));
+
+        // Must be accepted (as no-op) rather than rejected with not_stockable or tracks_stock_not_allowed
+        $this->assertContains($bogusAdjustId, $result['accepted']);
+        $this->assertEmpty($result['rejected']);
+
+        // It should NOT have inserted the invalid adjust movement into DB
+        $exists = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('id', $bogusAdjustId)
+            ->exists();
+        $this->assertFalse($exists);
+    }
+
+    /**
+     * 13. Telegram /undo on a service sale voids the sale without crashing or throwing not_stockable.
+     */
+    public function test_telegram_undo_on_service_sale_voids_sale_cleanly(): void
+    {
+        $now = (int) (microtime(true) * 1000);
+
+        $service = Product::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'name' => 'Express Wash',
+            'unit' => 'serv',
+            'kind' => 'service',
+            'sell_price_cents' => 5000,
+            'is_active' => true,
+            'updated_at_ms' => $now,
+        ]);
+
+        $sale = Sale::withoutGlobalScope(ShopScope::class)->create([
+            'id' => (string) Str::uuid7(),
+            'shop_id' => $this->shop->id,
+            'location_id' => $this->location->id,
+            'user_id' => $this->owner->id,
+            'total_cents' => 5000,
+            'created_at_ms' => $now,
+            'updated_at_ms' => $now,
+        ]);
+
+        $this->salesService->addLine($sale, $service, '1.000', 5000, $this->location, $this->owner, createdAtMs: $now);
+
+        $undoHandler = app(\App\Services\Telegram\Handlers\UndoHandler::class);
+
+        // Trigger undo
+        $undoHandler->handleUndo(10001, $this->owner);
+
+        // Sale is voided
+        $this->assertNotNull($sale->fresh()->voided_at_ms);
+
+        // No adjust movements created for the service
+        $adjustCount = Movement::withoutGlobalScope(ShopScope::class)
+            ->where('shop_id', $this->shop->id)
+            ->where('product_id', $service->id)
+            ->where('type', 'adjust')
+            ->count();
+        $this->assertSame(0, $adjustCount);
     }
 }

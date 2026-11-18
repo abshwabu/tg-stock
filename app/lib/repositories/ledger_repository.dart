@@ -2915,15 +2915,19 @@ class LedgerRepository {
         }
       }
 
-      // 3. Reverse sale movements with compensating adjust
+      // 3. Reverse sale movements with compensating adjust for stockable items only
       final saleMovements = await (db.select(db.movements)..where((m) => m.saleId.equals(sale.id) & m.type.equals('sale'))).get();
       for (final m in saleMovements) {
+        if (!m.tracksStock) continue;
+        final prod = await getProduct(m.productId);
+        if (prod != null && prod.kind != 'stockable') continue;
+
         await db.recordMovement(
           productId: m.productId,
           type: 'adjust',
-          qtyMilli: m.qtyMilli.abs(), // Positive restores stock if tracksStock
+          qtyMilli: m.qtyMilli.abs(), // Positive restores stock for stockable items
           unitPriceCents: m.unitPriceCents,
-          tracksStock: m.tracksStock,
+          tracksStock: true,
           sourceMovementId: m.id,
           note: 'Compensating undo for [${m.id}] (void sale ${sale.id})',
           locationId: m.locationId,

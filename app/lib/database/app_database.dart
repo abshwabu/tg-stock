@@ -352,8 +352,34 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA foreign_keys = ON;');
       await _createIndexes();
       await _createCashFlowTable();
+      await _cleanupInvalidNonStockableAdjustMovements();
     },
   );
+
+  /// Purges any invalid adjust movements recorded on non-stockable products
+  /// (services, instant sales) and removes them from the sync outbox.
+  Future<void> _cleanupInvalidNonStockableAdjustMovements() async {
+    try {
+      final rows = await customSelect(
+        '''
+        SELECT m.id 
+        FROM movements m 
+        JOIN products p ON m.product_id = p.id 
+        WHERE m.type = 'adjust' AND (p.kind != 'stockable' OR m.tracks_stock = 0)
+        ''',
+      ).get();
+
+      if (rows.isNotEmpty) {
+        final ids = rows.map((r) => r.read<String>('id')).toList();
+        for (final id in ids) {
+          await customStatement('DELETE FROM movements WHERE id = ?;', [id]);
+          await customStatement('DELETE FROM outbox_entries WHERE entity = "movement" AND entity_id = ?;', [id]);
+        }
+      }
+    } catch (_) {
+      // Non-fatal safety guard
+    }
+  }
 
   Future<void> _seedDefaultSetting(String key, String value) async {
     await customStatement(
