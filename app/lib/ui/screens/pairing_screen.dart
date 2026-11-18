@@ -146,7 +146,7 @@ class _PairingScreenState extends State<PairingScreen> {
         if (status.isConfirmed && status.deviceToken != null) {
           timer.cancel();
           _countdownTimer?.cancel();
-          await _onPairingConfirmed(status.deviceToken!);
+          await _onPairingConfirmed(status.deviceToken!, shopUuid: status.shopUuid);
         } else if (status.isExpired) {
           timer.cancel();
           _countdownTimer?.cancel();
@@ -163,10 +163,13 @@ class _PairingScreenState extends State<PairingScreen> {
     });
   }
 
-  Future<void> _onPairingConfirmed(String deviceToken) async {
+  Future<void> _onPairingConfirmed(String deviceToken, {String? shopUuid}) async {
     // 1. Save token securely & enable online mode
     await widget.authStorage.saveDeviceToken(deviceToken);
     await widget.authStorage.setOnlineEnabled(true);
+    if (shopUuid != null && shopUuid.isNotEmpty) {
+      await widget.syncEngine.licenseStorage?.savePairedShopUuid(shopUuid);
+    }
 
     if (!mounted) return;
     setState(() {

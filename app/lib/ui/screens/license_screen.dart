@@ -9,17 +9,20 @@ import '../../services/licensing/ethiopic_calendar.dart';
 import '../../services/licensing/install_id_service.dart';
 import '../../services/licensing/license_gate.dart';
 import '../../services/licensing/license_models.dart';
+import '../../services/sync_engine.dart';
 
 class LicenseScreen extends StatefulWidget {
   final LicenseGate licenseGate;
   final InstallIdService installIdService;
   final LedgerRepository repository;
+  final SyncEngine? syncEngine;
 
   const LicenseScreen({
     super.key,
     required this.licenseGate,
     required this.installIdService,
     required this.repository,
+    this.syncEngine,
   });
 
   @override
@@ -139,6 +142,9 @@ class _LicenseScreenState extends State<LicenseScreen> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () async {
+                if (widget.syncEngine != null) {
+                  await widget.syncEngine!.syncNow();
+                }
                 await widget.licenseGate.reevaluate();
                 await _loadData();
               },
@@ -286,6 +292,31 @@ class _LicenseScreenState extends State<LicenseScreen> {
                         ? 'እቃዎች: ${_freeLimits!.currentProducts}/${_freeLimits!.maxProducts} • ሽያጮች: ${_freeLimits!.currentSales}/${_freeLimits!.maxSales}'
                         : 'Products: ${_freeLimits!.currentProducts}/${_freeLimits!.maxProducts} • Sales: ${_freeLimits!.currentSales}/${_freeLimits!.maxSales}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                ],
+                if (widget.syncEngine != null) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.sync_rounded, size: 18),
+                      label: Text(isAm ? 'ፈቃድ ከሰርቨር አድስ' : 'Sync License from Server'),
+                      onPressed: _isLoading
+                          ? null
+                          : () async {
+                              setState(() => _isLoading = true);
+                              try {
+                                await widget.syncEngine!.syncNow();
+                                await widget.licenseGate.reevaluate();
+                                await _loadData();
+                                _showToast(isAm ? 'ፈቃድ ከሰርቨር ተመሳስሏል' : 'License refreshed from server');
+                              } catch (e) {
+                                _showToast(e.toString(), isError: true);
+                              } finally {
+                                if (mounted) setState(() => _isLoading = false);
+                              }
+                            },
+                    ),
                   ),
                 ],
               ],

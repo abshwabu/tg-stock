@@ -108,7 +108,7 @@ class LicenseGate {
         highWater: _clockService.highWater,
         revocationList: revocations,
       );
-      if (shopResult.isValid || shopResult.state == LicenseState.expired || shopResult.state == LicenseState.grace) {
+      if (shopResult.isValid || shopResult.state == LicenseState.expired || shopResult.state == LicenseState.grace || shopResult.state == LicenseState.expiring) {
         result = shopResult;
       }
     }
@@ -122,7 +122,10 @@ class LicenseGate {
   }
 
   /// Activate a new license token string.
-  Future<LicenseVerificationResult> activateToken(String tokenString) async {
+  Future<LicenseVerificationResult> activateToken(String tokenString, {String? shopUuid}) async {
+    if (shopUuid != null && shopUuid.trim().isNotEmpty) {
+      await _storage.savePairedShopUuid(shopUuid.trim());
+    }
     final result = await reevaluate(tokenOverride: tokenString);
     if (result.isValid || result.state == LicenseState.grace || result.state == LicenseState.expiring) {
       await _storage.saveLicenseToken(tokenString.trim());

@@ -1672,6 +1672,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   licenseGate: widget.licenseGate!,
                                   installIdService: widget.installIdService!,
                                   repository: widget.repository,
+                                  syncEngine: widget.syncEngine,
                                 ),
                               ),
                             );

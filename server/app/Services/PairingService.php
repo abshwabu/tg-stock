@@ -71,6 +71,7 @@ class PairingService
         }
 
         if ($pairing->status === 'confirmed') {
+            $shopId = !empty($pairing->shop_id) ? (string) $pairing->shop_id : null;
             if (!empty($pairing->device_token)) {
                 $plainToken = $pairing->device_token;
                 // Return exactly once: clear immediately from database
@@ -80,10 +81,16 @@ class PairingService
                 return [
                     'status' => 'confirmed',
                     'device_token' => $plainToken,
+                    'shop_id' => $shopId,
+                    'shop_uuid' => $shopId,
                 ];
             }
 
-            return ['status' => 'confirmed'];
+            return [
+                'status' => 'confirmed',
+                'shop_id' => $shopId,
+                'shop_uuid' => $shopId,
+            ];
         }
 
         return ['status' => 'expired'];

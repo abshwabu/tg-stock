@@ -384,7 +384,7 @@ class SyncEngine {
         try {
           final licData = await api.getLicense(serverUrl: serverUrl, deviceToken: token);
           final tokenStr = licData['token'] as String?;
-          final shopUuid = licData['shop_uuid'] as String?;
+          final shopUuid = (licData['shop_uuid'] ?? licData['shop_id']) as String?;
           if (shopUuid != null && shopUuid.isNotEmpty) {
             await licenseStorage?.savePairedShopUuid(shopUuid);
           }
@@ -393,7 +393,7 @@ class SyncEngine {
             if (st != null) await clockService?.calibrateFromServerTime(st);
           }
           if (tokenStr != null && tokenStr.isNotEmpty) {
-            await licenseGate!.activateToken(tokenStr);
+            await licenseGate!.activateToken(tokenStr, shopUuid: shopUuid);
           } else {
             await licenseGate!.reevaluate();
           }

@@ -48,6 +48,8 @@ class LicenseEnforcer
             // In testing environments where licenses are not set up, permit operations unless strict unlicensed enforcement is enabled
             if (app()->environment('testing') && !config('license.enforce_unlicensed', false)) {
                 return [
+                    'shop_id' => (string) $shop->id,
+                    'shop_uuid' => (string) $shop->id,
                     'state' => LicenseVerifier::STATE_ACTIVE,
                     'is_valid' => true,
                     'is_expired' => false,
@@ -66,6 +68,8 @@ class LicenseEnforcer
             }
 
             return [
+                'shop_id' => (string) $shop->id,
+                'shop_uuid' => (string) $shop->id,
                 'state' => 'UNLICENSED',
                 'is_valid' => false,
                 'is_expired' => true,
@@ -118,6 +122,8 @@ class LicenseEnforcer
         $features = $verification['features'];
 
         return [
+            'shop_id' => (string) $shop->id,
+            'shop_uuid' => (string) $shop->id,
             'state' => $state,
             'is_valid' => $isValid,
             'is_expired' => $isExpired,

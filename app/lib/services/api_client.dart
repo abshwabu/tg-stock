@@ -47,8 +47,9 @@ class PairingStartResponse {
 class PairingStatusResponse {
   final String status; // 'pending', 'confirmed', 'expired'
   final String? deviceToken;
+  final String? shopUuid;
 
-  PairingStatusResponse({required this.status, this.deviceToken});
+  PairingStatusResponse({required this.status, this.deviceToken, this.shopUuid});
 
   bool get isConfirmed => status == 'confirmed';
   bool get isPending => status == 'pending';
@@ -58,6 +59,7 @@ class PairingStatusResponse {
     return PairingStatusResponse(
       status: json['status'] as String? ?? 'pending',
       deviceToken: json['device_token'] as String?,
+      shopUuid: (json['shop_uuid'] ?? json['shop_id']) as String?,
     );
   }
 }

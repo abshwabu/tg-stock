@@ -359,6 +359,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               licenseGate: widget.licenseGate!,
                               installIdService: widget.installIdService!,
                               repository: widget.repository,
+                              syncEngine: widget.syncEngine,
                             ),
                           ),
                         );
