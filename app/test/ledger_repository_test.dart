@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 
 import 'package:app/database/app_database.dart';
 import 'package:app/repositories/ledger_repository.dart';
@@ -360,6 +360,34 @@ void main() {
 
       final lowCount = await repo.lowStockCount();
       expect(lowCount, 1);
+    });
+
+    test('findProductByName detects duplicate names case-insensitively and respects excludeId and deleted status', () async {
+      final p1 = await repo.createProduct(
+        name: 'Sugar (ስኳር)',
+        sellPriceCents: 8000,
+      );
+
+      // Exact match
+      var found = await repo.findProductByName('Sugar (ስኳር)');
+      expect(found?.id, equals(p1.id));
+
+      // Case-insensitive & trimmed match
+      found = await repo.findProductByName('  sugar (ስኳር)  ');
+      expect(found?.id, equals(p1.id));
+
+      // excludeId excludes the current product being edited
+      found = await repo.findProductByName('Sugar (ስኳር)', excludeId: p1.id);
+      expect(found, isNull);
+
+      // Non-existent product
+      found = await repo.findProductByName('Coffee (ቡና)');
+      expect(found, isNull);
+
+      // Deleted product is ignored
+      await repo.deleteProduct(p1.id);
+      found = await repo.findProductByName('Sugar (ስኳር)');
+      expect(found, isNull);
     });
   });
 }

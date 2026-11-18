@@ -214,6 +214,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
       }
     }
 
+    // Load active product names to detect duplicates
+    final activeProducts = await widget.repository.listProducts();
+    final existingNamesMap = <String, String>{};
+    for (final pw in activeProducts) {
+      if (existing != null && pw.product.id == existing.id) continue;
+      if (pw.product.sku == 'INSTANT_SALE') continue;
+      existingNamesMap[pw.product.name.trim().toLowerCase()] = pw.product.name;
+    }
+
     if (!mounted) return;
 
     final isAm = Localizations.localeOf(context).languageCode == 'am';
@@ -227,6 +236,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
           final isProduct = selectedKind == 'stockable';
           final isService = selectedKind == 'service';
           final isConsumable = selectedKind == 'consumable';
+
+          final enteredName = nameCtrl.text.trim().toLowerCase();
+          final duplicateExistingName = enteredName.isNotEmpty ? existingNamesMap[enteredName] : null;
+          final isDuplicateName = duplicateExistingName != null;
 
           // Calculate estimated material cost and margin for consumable
           int estimatedMatCostCents = 0;
@@ -300,8 +313,54 @@ class _ProductsScreenState extends State<ProductsScreen> {
                     TextField(
                       controller: nameCtrl,
                       autofocus: !isEdit,
-                      decoration: InputDecoration(labelText: dlgIsAm ? 'ስም *' : 'Name *'),
+                      decoration: InputDecoration(
+                        labelText: dlgIsAm ? 'ስም *' : 'Name *',
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
                     ),
+                    if (isDuplicateName) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF78350F).withValues(alpha: 0.35)
+                              : Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? const Color(0xFFF59E0B)
+                                : Colors.amber.shade700,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? const Color(0xFFF59E0B)
+                                  : Colors.amber.shade900,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                dlgIsAm
+                                    ? 'ማስጠንቀቂያ፡ "$duplicateExistingName" የሚል ዕቃ አስቀድሞ አለ! የተደገመ ስም ነው።'
+                                    : 'Warning: "$duplicateExistingName" already exists! This name is duplicated.',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? const Color(0xFFFDE68A)
+                                      : const Color(0xFF78350F),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     if (isProduct) ...[
                       const SizedBox(height: 10),
                       TextField(
@@ -565,6 +624,45 @@ class _ProductsScreenState extends State<ProductsScreen> {
               FilledButton(
                 onPressed: () async {
                   if (nameCtrl.text.trim().isEmpty) return;
+
+                  if (isDuplicateName) {
+                    final proceed = await showDialog<bool>(
+                      context: ctx,
+                      builder: (warnCtx) => AlertDialog(
+                        title: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: Colors.amber, size: 26),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                dlgIsAm ? 'የተደገመ ስም ማስጠንቀቂያ' : 'Duplicate Name Warning',
+                              ),
+                            ),
+                          ],
+                        ),
+                        content: Text(
+                          dlgIsAm
+                              ? '"$duplicateExistingName" በሚል ስም የተመዘገበ ዕቃ አስቀድሞ አለ። የተደገመ ስም ያለው ዕቃ መመዝገብ እርግጠኛ ነዎት?'
+                              : 'A product named "$duplicateExistingName" already exists. Are you sure you want to proceed with this duplicate name?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(warnCtx).pop(false),
+                            child: Text(dlgIsAm ? 'ተመለስ' : 'Go Back'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.amber.shade800,
+                            ),
+                            onPressed: () => Navigator.of(warnCtx).pop(true),
+                            child: Text(dlgIsAm ? 'ቀጥል' : 'Proceed Anyway'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (proceed != true) return;
+                  }
+
                   if (isSellingLessThanCost) {
                     final proceed = await showDialog<bool>(
                       context: ctx,

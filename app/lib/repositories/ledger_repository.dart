@@ -462,6 +462,22 @@ class LedgerRepository {
     return (db.select(db.products)..where((p) => p.id.equals(id))).getSingleOrNull();
   }
 
+  /// Finds an active product with the given name (case-insensitive, trimmed).
+  /// Ignores soft-deleted products, system products (INSTANT_SALE), and optional excludeId.
+  Future<Product?> findProductByName(String name, {String? excludeId}) async {
+    final clean = name.trim().toLowerCase();
+    if (clean.isEmpty) return null;
+    final prods = await (db.select(db.products)
+          ..where((p) => p.deletedAtMs.isNull() & p.name.lower().equals(clean)))
+        .get();
+    for (final p in prods) {
+      if (p.sku == 'INSTANT_SALE') continue;
+      if (excludeId != null && p.id == excludeId) continue;
+      return p;
+    }
+    return null;
+  }
+
   Future<List<ProductMaterial>> getProductMaterials(String productId) async {
     return (db.select(db.productMaterials)..where((pm) => pm.productId.equals(productId))).get();
   }

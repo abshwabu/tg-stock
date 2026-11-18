@@ -532,5 +532,86 @@ void main() {
 
       await db.close();
     });
+
+    testWidgets('ProductsScreen shows duplicate name warning when adding a product with existing name', (tester) async {
+      final db = AppDatabase.inMemory();
+      final repository = LedgerRepository(db);
+
+      await repository.createProduct(
+        name: 'Coca Cola',
+        sellPriceCents: 10000,
+        costPriceCents: 7000,
+        unit: 'pcs',
+        kind: 'stockable',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.lightTheme,
+          home: ProductsScreen(repository: repository),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+
+      // Open Add Item Dialog via FAB
+      final fab = find.byType(FloatingActionButton);
+      expect(fab, findsOneWidget);
+      await tester.tap(fab);
+      await tester.pumpAndSettle();
+
+      // Dialog is open
+      expect(find.text('Add Item'), findsOneWidget);
+
+      // Find the Name text field
+      final nameField = find.widgetWithText(TextField, 'Name *');
+      expect(nameField, findsOneWidget);
+
+      // Type duplicate name "coca cola" (lowercase)
+      await tester.enterText(nameField, 'coca cola');
+      await tester.pumpAndSettle();
+
+      // Inline duplicate warning must appear
+      expect(find.textContaining('already exists! This name is duplicated'), findsOneWidget);
+
+      // Enter selling price
+      final sellPriceField = find.widgetWithText(TextField, 'Sell Price ETB *');
+      await tester.enterText(sellPriceField, '100');
+      await tester.pumpAndSettle();
+
+      // Tap Save button
+      final saveBtn = find.widgetWithText(FilledButton, 'Save');
+      await tester.tap(saveBtn);
+      await tester.pumpAndSettle();
+
+      // Duplicate Name Warning dialog should appear
+      expect(find.text('Duplicate Name Warning'), findsOneWidget);
+      expect(find.textContaining('A product named "Coca Cola" already exists.'), findsOneWidget);
+
+      // Tap "Go Back"
+      await tester.tap(find.text('Go Back'));
+      await tester.pumpAndSettle();
+
+      // Dialog is still open
+      expect(find.text('Add Item'), findsOneWidget);
+
+      // Change name to unique name "Fanta"
+      await tester.enterText(nameField, 'Fanta');
+      await tester.pumpAndSettle();
+
+      // Duplicate warning should disappear
+      expect(find.textContaining('This name is duplicated'), findsNothing);
+
+      // Tap Save
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
+
+      // Dialog closed and new product listed
+      expect(find.text('Add Item'), findsNothing);
+      expect(find.text('Fanta'), findsOneWidget);
+
+      await db.close();
+    });
   });
 }
