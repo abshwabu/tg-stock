@@ -599,7 +599,9 @@ class _CustomerDetailSheetState extends State<_CustomerDetailSheet> {
                   TextField(
                     controller: refCtrl,
                     decoration: InputDecoration(
-                      labelText: isAm ? 'የደረሰኝ / ማረጋገጫ ቁጥር' : 'Reference / Tx Number',
+                      labelText: Localizations.localeOf(context).languageCode == 'om'
+                          ? 'Lakkoofsa Mirkaneessaa'
+                          : (isAm ? 'የደረሰኝ ወይም ማረጋገጫ ቁጥር' : 'Reference Number'),
                       border: const OutlineInputBorder(),
                     ),
                   ),

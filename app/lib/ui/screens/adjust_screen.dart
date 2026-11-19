@@ -255,10 +255,38 @@ class _AdjustScreenState extends State<AdjustScreen> {
                 initialValue: _reason,
                 decoration: const InputDecoration(border: OutlineInputBorder()),
                 items: [
-                  DropdownMenuItem(value: 'damaged', child: Text(isAm ? 'የተበላሸ / የወደቀ' : 'Damaged / Spoilage')),
-                  DropdownMenuItem(value: 'lost', child: Text(isAm ? 'የጠፋ / ጉድለት' : 'Lost / Shrinkage')),
-                  DropdownMenuItem(value: 'count_correction', child: Text(isAm ? 'የቆጠራ ስህተት እርማት' : 'Count Correction')),
-                  DropdownMenuItem(value: 'other', child: Text(isAm ? 'ሌላ ምክንያት' : 'Other')),
+                  DropdownMenuItem(
+                    value: 'damaged',
+                    child: Text(
+                      Localizations.localeOf(context).languageCode == 'om'
+                          ? 'Kan Badae ykn Madaqe'
+                          : (isAm ? 'የተበላሸ ወይም የወደቀ' : 'Damaged or Spoiled'),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'lost',
+                    child: Text(
+                      Localizations.localeOf(context).languageCode == 'om'
+                          ? "Kan Bade ykn Hir'ate"
+                          : (isAm ? 'የጠፋ ወይም ጉድለት' : 'Lost or Missing'),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'count_correction',
+                    child: Text(
+                      Localizations.localeOf(context).languageCode == 'om'
+                          ? 'Sirreeffama Lakkoofsaa'
+                          : (isAm ? 'የቆጠራ ስህተት እርማት' : 'Count Correction'),
+                    ),
+                  ),
+                  DropdownMenuItem(
+                    value: 'other',
+                    child: Text(
+                      Localizations.localeOf(context).languageCode == 'om'
+                          ? 'Sababa Biraa'
+                          : (isAm ? 'ሌላ ምክንያት' : 'Other'),
+                    ),
+                  ),
                 ],
                 onChanged: (val) {
                   if (val != null) setState(() => _reason = val);

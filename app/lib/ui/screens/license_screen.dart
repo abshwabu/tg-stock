@@ -289,7 +289,12 @@ class _LicenseScreenState extends State<LicenseScreen> {
                   ],
                 ),
                 const Divider(height: 24),
-                _buildInfoRow(isAm ? 'እቅድ / Plan' : 'Plan', planDisplay),
+                _buildInfoRow(
+                  Localizations.localeOf(context).languageCode == 'om'
+                      ? 'Gosa Hayyamaa'
+                      : (isAm ? 'የፈቃድ ዓይነት' : 'License Plan'),
+                  planDisplay,
+                ),
                 if (expiryDisplay != null) ...[
                   const SizedBox(height: 8),
                   _buildInfoRow(isAm ? 'የሚያበቃበት ቀን' : 'Expires On', expiryDisplay),
@@ -521,9 +526,11 @@ class _LicenseScreenState extends State<LicenseScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              isAm
-                  ? 'የቴሌግራም ቦቱን በመጠቀም የሙከራ ፈቃድ መውሰድ ወይም በቴሌብር/ሲቢኢ መግዛት ይችላሉ።'
-                  : 'Open our official Telegram bot to request a free trial or purchase a license via Telebirr / CBE.',
+              Localizations.localeOf(context).languageCode == 'om'
+                  ? 'Botiin Telegram fayyadamuun hayyama yaalii fudhachuu ykn Telebirr fi CBE fayyadamuun bitachuu dandeessu.'
+                  : (isAm
+                      ? 'የቴሌግራም ቦቱን በመጠቀም የሙከራ ፈቃድ መውሰድ ወይም በቴሌብር እና በሲቢኢ መግዛት ይችላሉ።'
+                      : 'Open our official Telegram bot to request a free trial or purchase a license via Telebirr or CBE.'),
               style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
             ),
             const SizedBox(height: 12),

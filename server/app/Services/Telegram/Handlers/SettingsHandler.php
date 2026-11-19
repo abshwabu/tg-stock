@@ -31,7 +31,11 @@ class SettingsHandler
         $shop = $user?->shop_id ? Shop::find($user->shop_id) : null;
         $shopName = $shop?->name ?? 'None';
         $role = $user?->role ?? 'none';
-        $langName = $locale === 'am' ? 'አማርኛ (Amharic)' : 'English';
+        $langName = match ($locale) {
+            'om' => 'Afaan Oromoo',
+            'en' => 'English',
+            default => 'አማርኛ (Amharic)',
+        };
         $negStockStatus = ($shop?->allow_negative_stock) ? '✅ Enabled' : '❌ Disabled';
         $calendarStatus = ($shop?->use_ethiopian_calendar) ? '🇪🇹 Ethiopian' : '🌐 Gregorian';
 
@@ -45,6 +49,7 @@ class SettingsHandler
         $rows = [
             [
                 ['text' => '🇪🇹 አማርኛ', 'callback_data' => 'lang:set:am'],
+                ['text' => '🌳 Afaan Oromoo', 'callback_data' => 'lang:set:om'],
                 ['text' => '🇬🇧 English', 'callback_data' => 'lang:set:en'],
             ],
         ];
@@ -362,7 +367,7 @@ class SettingsHandler
      */
     public function handleLanguageCallback(string $callbackQueryId, int|string $chatId, int $messageId, string $action, string $lang, ?User $user): void
     {
-        if ($action !== 'set' || !in_array($lang, ['am', 'en'], true)) {
+        if ($action !== 'set' || !in_array($lang, ['am', 'en', 'om'], true)) {
             $this->telegram->answerCallbackQuery($callbackQueryId);
             return;
         }
@@ -477,7 +482,11 @@ class SettingsHandler
     {
         $shopName = $shop->name;
         $role = $user->role;
-        $langName = $locale === 'am' ? 'አማርኛ (Amharic)' : 'English';
+        $langName = match ($locale) {
+            'om' => 'Afaan Oromoo',
+            'en' => 'English',
+            default => 'አማርኛ (Amharic)',
+        };
         $negStockStatus = ($shop->allow_negative_stock) ? '✅ Enabled' : '❌ Disabled';
         $calendarStatus = ($shop->use_ethiopian_calendar) ? '🇪🇹 Ethiopian' : '🌐 Gregorian';
 
@@ -499,10 +508,11 @@ class SettingsHandler
         $rows = [
             [
                 ['text' => '🇪🇹 አማርኛ', 'callback_data' => 'lang:set:am'],
+                ['text' => '🌳 Afaan Oromoo', 'callback_data' => 'lang:set:om'],
                 ['text' => '🇬🇧 English', 'callback_data' => 'lang:set:en'],
             ],
             [
-                ['text' => '💳 ' . ($locale === 'en' ? 'Payment Methods & Dube' : 'የክፍያ መንገዶች እና ዱቤ'), 'callback_data' => 'settings:pay:menu'],
+                ['text' => '💳 ' . ($locale === 'en' ? 'Payment Methods & Dube' : ($locale === 'om' ? 'Malleen Kaffaltii fi Liqii' : 'የክፍያ መንገዶች እና ዱቤ')), 'callback_data' => 'settings:pay:menu'],
             ],
             [
                 ['text' => $toggleNegLabel, 'callback_data' => 'settings:toggle:neg_stock'],
@@ -511,7 +521,7 @@ class SettingsHandler
                 ['text' => $toggleCalLabel, 'callback_data' => 'settings:toggle:calendar'],
             ],
             [
-                ['text' => '👥 ' . ($locale === 'en' ? 'Manage Team & Staff' : 'የቡድን እና ሠራተኞች አስተዳደር'), 'callback_data' => 'team:menu:0'],
+                ['text' => '👥 ' . ($locale === 'en' ? 'Manage Team & Staff' : ($locale === 'om' ? 'Garee fi Hojjettoota Bulchuu' : 'የቡድን እና ሠራተኞች አስተዳደር')), 'callback_data' => 'team:menu:0'],
             ],
         ];
 

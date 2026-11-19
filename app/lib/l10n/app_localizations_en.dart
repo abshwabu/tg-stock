@@ -102,10 +102,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get selectReason => 'Adjustment Reason';
 
   @override
-  String get reasonDamaged => 'Damaged / Spoilage';
+  String get reasonDamaged => 'Damaged';
 
   @override
-  String get reasonLost => 'Lost / Shrinkage';
+  String get reasonLost => 'Lost';
 
   @override
   String get reasonCountCorrection => 'Count Correction';
@@ -153,7 +153,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shopNamePrompt => 'Shop Name';
 
   @override
-  String get appLockPrompt => 'Protect with PIN / Biometrics';
+  String get appLockPrompt => 'Protect with PIN or Biometrics';
 
   @override
   String get startUsingApp => 'Get Started';
@@ -243,7 +243,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dailySummary => 'Daily Summary Notification';
 
   @override
-  String get dubeTitle => 'Dube / Pay Later';
+  String get dubeTitle => 'Dube Credit';
 
   @override
   String get btnDube => 'Dube';

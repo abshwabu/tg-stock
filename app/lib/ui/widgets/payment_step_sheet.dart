@@ -29,6 +29,13 @@ class PaymentStepSheet extends StatefulWidget {
 }
 
 class _PaymentStepSheetState extends State<PaymentStepSheet> {
+  String _t(BuildContext context, {required String en, required String am, required String om}) {
+    final code = Localizations.localeOf(context).languageCode;
+    if (code == 'om') return om;
+    if (code == 'am') return am;
+    return en;
+  }
+
   List<String> _enabledMethods = ['cash', 'bank', 'wallet', 'dube'];
   String _selectedMethod = 'cash';
   bool _requireReference = false;
@@ -385,7 +392,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
             children: [
               Expanded(
                 child: Text(
-                  isAm ? 'ሽያጭ ጨርስ' : 'Complete Sale',
+                  _t(context, en: 'Complete Sale', am: 'ሽያጭ ጨርስ', om: 'Gurgurtaa Xumuri'),
                   style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -408,13 +415,13 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
             child: Row(
               children: [
                 if (_enabledMethods.contains('cash'))
-                  _buildMethodChip('cash', isAm ? '💵 ጥሬ ገንዘብ' : '💵 Cash', Icons.money),
+                  _buildMethodChip('cash', _t(context, en: '💵 Cash', am: '💵 ጥሬ ገንዘብ', om: '💵 Qarshii Callaa'), Icons.money),
                 if (_enabledMethods.contains('bank'))
-                  _buildMethodChip('bank', isAm ? '🏦 ባንክ' : '🏦 Bank', Icons.account_balance),
+                  _buildMethodChip('bank', _t(context, en: '🏦 Bank', am: '🏦 ባንክ', om: '🏦 Baankii'), Icons.account_balance),
                 if (_enabledMethods.contains('wallet'))
-                  _buildMethodChip('wallet', isAm ? '📱 ዋሌት' : '📱 Wallet', Icons.phone_android),
+                  _buildMethodChip('wallet', _t(context, en: '📱 Wallet', am: '📱 ዋሌት', om: '📱 Waaleettii'), Icons.phone_android),
                 if (_enabledMethods.contains('dube'))
-                  _buildMethodChip('dube', isAm ? '📝 ዱቤ' : '📝 Dube', Icons.edit_note),
+                  _buildMethodChip('dube', _t(context, en: '📝 Dube', am: '📝 ዱቤ', om: '📝 Liqii'), Icons.edit_note),
               ],
             ),
           ),
@@ -490,7 +497,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          isAm ? 'የጥሬ ገንዘብ ክፍያ' : 'Cash Payment',
+          _t(context, en: 'Cash Payment', am: 'የጥሬ ገንዘብ ክፍያ', om: 'Kaffaltii Qarshii Callaa'),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
         const SizedBox(height: 10),
@@ -498,7 +505,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           controller: _amountReceivedCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
-            labelText: isAm ? 'የተቀበሉት ገንዘብ (ብር)' : 'Amount Received (ETB)',
+            labelText: _t(context, en: 'Amount Received (ETB)', am: 'የተቀበሉት ገንዘብ (ብር)', om: 'Qarshii Fudhatame (ETB)'),
             border: const OutlineInputBorder(),
             prefixText: 'ETB ',
           ),
@@ -513,7 +520,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           children: [
             ActionChip(
-              label: Text(isAm ? 'ልክ' : 'Exact'),
+              label: Text(_t(context, en: 'Exact', am: 'ልክ', om: 'Sirrii')),
               onPressed: () {
                 setState(() {
                   _cashReceivedCents = widget.totalCents;
@@ -559,7 +566,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isAm ? 'መልስ:' : 'Change Due:',
+                    _t(context, en: 'Change Due:', am: 'መልስ:', om: 'Deebii:'),
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: tokens.fg),
                   ),
                   Text(
@@ -589,20 +596,20 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isAm ? 'ባንክ ይምረጡ' : 'Select Bank',
+              _t(context, en: 'Select Bank', am: 'ባንክ ይምረጡ', om: 'Baankii Filadhaa'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             TextButton.icon(
               onPressed: () => _addCustomProvider('bank'),
               icon: const Icon(Icons.add, size: 16),
-              label: Text(isAm ? 'ሌላ ባንክ…' : 'Other bank…'),
+              label: Text(_t(context, en: 'Other bank…', am: 'ሌላ ባንክ…', om: 'Baankii biraa…')),
             ),
           ],
         ),
         TextField(
           controller: _bankSearchCtrl,
           decoration: InputDecoration(
-            hintText: isAm ? 'ባንክ ፈልግ...' : 'Search bank...',
+            hintText: _t(context, en: 'Search bank...', am: 'ባንክ ፈልግ...', om: 'Baankii barbaadi...'),
             prefixIcon: const Icon(Icons.search, size: 20),
             isDense: true,
             border: const OutlineInputBorder(),
@@ -644,8 +651,8 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           controller: _referenceCtrl,
           decoration: InputDecoration(
             labelText: _requireReference
-                ? (isAm ? 'የግብይት ቁጥር * (ግዴታ)' : 'Reference / Tx Number * (Required)')
-                : (isAm ? 'የግብይት ቁጥር (አማራጭ)' : 'Reference / Tx Number (Optional)'),
+                ? _t(context, en: 'Reference Number * (Required)', am: 'የግብይት ቁጥር * (ግዴታ)', om: 'Lakkoofsa Mirkaneessaa * (Dirqama)')
+                : _t(context, en: 'Reference Number (Optional)', am: 'የግብይት ቁጥር (አማራጭ)', om: 'Lakkoofsa Mirkaneessaa (Filannoo)'),
             border: const OutlineInputBorder(),
           ),
         ),
@@ -667,20 +674,20 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isAm ? 'ዋሌት ይምረጡ' : 'Select Wallet',
+              _t(context, en: 'Select Wallet', am: 'ዋሌት ይምረጡ', om: 'Waaleettii Filadhaa'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             TextButton.icon(
               onPressed: () => _addCustomProvider('wallet'),
               icon: const Icon(Icons.add, size: 16),
-              label: Text(isAm ? 'ሌላ ዋሌት…' : 'Other wallet…'),
+              label: Text(_t(context, en: 'Other wallet…', am: 'ሌላ ዋሌት…', om: 'Waaleettii biraa…')),
             ),
           ],
         ),
         TextField(
           controller: _walletSearchCtrl,
           decoration: InputDecoration(
-            hintText: isAm ? 'ዋሌት ፈልግ...' : 'Search wallet...',
+            hintText: _t(context, en: 'Search wallet...', am: 'ዋሌት ፈልግ...', om: 'Waaleettii barbaadi...'),
             prefixIcon: const Icon(Icons.search, size: 20),
             isDense: true,
             border: const OutlineInputBorder(),
@@ -722,8 +729,8 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           controller: _referenceCtrl,
           decoration: InputDecoration(
             labelText: _requireReference
-                ? (isAm ? 'የግብይት ቁጥር * (ግዴታ)' : 'Reference / Tx Number * (Required)')
-                : (isAm ? 'የግብይት ቁጥር (አማራጭ)' : 'Reference / Tx Number (Optional)'),
+                ? _t(context, en: 'Reference Number * (Required)', am: 'የግብይት ቁጥር * (ግዴታ)', om: 'Lakkoofsa Mirkaneessaa * (Dirqama)')
+                : _t(context, en: 'Reference Number (Optional)', am: 'የግብይት ቁጥር (አማራጭ)', om: 'Lakkoofsa Mirkaneessaa (Filannoo)'),
             border: const OutlineInputBorder(),
           ),
         ),
@@ -743,13 +750,13 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isAm ? 'ደንበኛ *' : 'Customer *',
+              _t(context, en: 'Customer *', am: 'ደንበኛ *', om: 'Maamila *'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
             TextButton.icon(
               onPressed: _showNewCustomerDialog,
               icon: const Icon(Icons.person_add, size: 16),
-              label: Text(isAm ? '+ አዲስ ደንበኛ' : '+ New customer'),
+              label: Text(_t(context, en: '+ New customer', am: '+ አዲስ ደንበኛ', om: '+ Maamila Haaraa')),
             ),
           ],
         ),
@@ -816,7 +823,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
                   ),
                   TextButton(
                     onPressed: () => setState(() => _selectedCustomer = null),
-                    child: Text(isAm ? 'ቀይር' : 'Change'),
+                    child: Text(_t(context, en: 'Change', am: 'ቀይር', om: 'Jijjiiri')),
                   ),
                 ],
               ),
@@ -828,13 +835,13 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
 
         // 2. Paid Now Selection
         Text(
-          isAm ? 'አሁን የተከፈለ' : 'Paid Now',
+          _t(context, en: 'Paid Now', am: 'አሁን የተከፈለ', om: 'Amma Kan Kaffalame'),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            _buildPaidNowChip(isAm ? '0 (ያልተከፈለ)' : '0 (Unpaid)', 0),
+            _buildPaidNowChip(_t(context, en: '0 (Unpaid)', am: '0 (ያልተከፈለ)', om: '0 (Hin kaffalamne)'), 0),
             const SizedBox(width: 6),
             _buildPaidNowChip('25%', (widget.totalCents * 0.25).round()),
             const SizedBox(width: 6),
@@ -877,7 +884,7 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              isAm ? 'የሚከፈልበት ቀን *' : 'Due Date *',
+              _t(context, en: 'Due Date *', am: 'የሚከፈልበት ቀን *', om: 'Guyyaa Kaffaltii *'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
             TextButton.icon(
@@ -900,17 +907,17 @@ class _PaymentStepSheetState extends State<PaymentStepSheet> {
         Row(
           children: [
             ActionChip(
-              label: Text(isAm ? '+7 ቀናት' : '+7 Days'),
+              label: Text(_t(context, en: '+7 Days', am: '+7 ቀናት', om: '+Guyyoota 7')),
               onPressed: () => setState(() => _dubeDueDate = DateTime.now().add(const Duration(days: 7))),
             ),
             const SizedBox(width: 6),
             ActionChip(
-              label: Text(isAm ? '+14 ቀናት' : '+14 Days'),
+              label: Text(_t(context, en: '+14 Days', am: '+14 ቀናት', om: '+Guyyoota 14')),
               onPressed: () => setState(() => _dubeDueDate = DateTime.now().add(const Duration(days: 14))),
             ),
             const SizedBox(width: 6),
             ActionChip(
-              label: Text(isAm ? '+30 ቀናት' : '+30 Days'),
+              label: Text(_t(context, en: '+30 Days', am: '+30 ቀናት', om: '+Guyyoota 30')),
               onPressed: () => setState(() => _dubeDueDate = DateTime.now().add(const Duration(days: 30))),
             ),
           ],

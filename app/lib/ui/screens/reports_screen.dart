@@ -919,21 +919,46 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 14),
 
             // Methods Breakdown
-            const Text('Received Today by Method:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            Text(
+              Localizations.localeOf(context).languageCode == 'om'
+                  ? 'Kaffaltii Har\'aa Malleeniin:'
+                  : (isAm ? 'የዛሬ ገቢ በክፍያ ዘዴ፦' : 'Received Today by Method:'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
             const SizedBox(height: 6),
             Wrap(
               spacing: 12,
               runSpacing: 6,
               children: [
-                Text('💵 Cash: ${MoneyFormatter.formatCents(cashRec)}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
-                Text('🏦 Bank: ${MoneyFormatter.formatCents(bankRec)}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
-                Text('📱 Wallet: ${MoneyFormatter.formatCents(walletRec)}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500)),
+                Text(
+                  Localizations.localeOf(context).languageCode == 'om'
+                      ? '💵 Qarshii Callaa: ${MoneyFormatter.formatCents(cashRec)}'
+                      : (isAm ? '💵 ጥሬ ገንዘብ: ${MoneyFormatter.formatCents(cashRec)}' : '💵 Cash: ${MoneyFormatter.formatCents(cashRec)}'),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  Localizations.localeOf(context).languageCode == 'om'
+                      ? '🏦 Baankii: ${MoneyFormatter.formatCents(bankRec)}'
+                      : (isAm ? '🏦 ባንክ: ${MoneyFormatter.formatCents(bankRec)}' : '🏦 Bank: ${MoneyFormatter.formatCents(bankRec)}'),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+                ),
+                Text(
+                  Localizations.localeOf(context).languageCode == 'om'
+                      ? '📱 Waaleettii: ${MoneyFormatter.formatCents(walletRec)}'
+                      : (isAm ? '📱 ዋሌት: ${MoneyFormatter.formatCents(walletRec)}' : '📱 Wallet: ${MoneyFormatter.formatCents(walletRec)}'),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+                ),
               ],
             ),
 
             if (_receivedByProvider.isNotEmpty) ...[
               const SizedBox(height: 10),
-              const Text('By Bank / Wallet Provider:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Text(
+                Localizations.localeOf(context).languageCode == 'om'
+                    ? 'Baankii fi Waaleettiin:'
+                    : (isAm ? 'በባንክ እና ዋሌት አቅራቢ፦' : 'By Bank and Wallet Provider:'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+              ),
               const SizedBox(height: 4),
               Wrap(
                 spacing: 8,

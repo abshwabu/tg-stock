@@ -22,7 +22,7 @@ void main() {
 
   late AppDatabase db;
   late InMemoryLicenseStorage storage;
-  late ClockService clockService;
+  late _TestClockService clockService;
   late InstallIdService installIdService;
   late LicenseGate gate;
   late LedgerRepository repo;
@@ -32,7 +32,7 @@ void main() {
     storage = InMemoryLicenseStorage();
     await storage.saveInstallId(testContextId);
 
-    clockService = ClockService(storage: storage, db: db);
+    clockService = _TestClockService(storage: storage, db: db);
     await clockService.init();
 
     installIdService = InstallIdService(storage: storage);
@@ -148,6 +148,8 @@ void main() {
     });
 
     test('grace token allows all operations while signaling grace state', () async {
+      clockService.mockToday = 1050;
+      clockService.mockHighWater = 1050;
       final res = await gate.activateToken(graceToken);
       expect(res.state, equals(LicenseState.grace));
       expect(gate.isReadOnly, isFalse);
@@ -158,6 +160,8 @@ void main() {
         sellPriceCents: 200,
       );
       expect(p.name, equals('Grace Product'));
+      clockService.mockToday = null;
+      clockService.mockHighWater = null;
     });
   });
 
@@ -217,4 +221,16 @@ void main() {
       expect(list.first.product.name, equals('Oil (ዘይት)'));
     });
   });
+}
+
+class _TestClockService extends ClockService {
+  int? mockToday;
+  int? mockHighWater;
+  _TestClockService({required super.storage, required super.db});
+  @override
+  int get today => mockToday ?? super.today;
+  @override
+  int get highWater => mockHighWater ?? super.highWater;
+  @override
+  int get effectiveToday => mockToday ?? super.effectiveToday;
 }

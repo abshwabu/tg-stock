@@ -62,6 +62,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late final BackupService _backupService;
   String _shopName = 'Inventory';
   String _language = 'am';
+  bool _langOmEnabled = false;
+  bool _langAmEnabled = true;
   bool _locationsEnabled = false;
   bool _locationsPromptDismissed = false;
   bool _isOnline = false;
@@ -69,6 +71,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isBackupOverdue = false;
   AppUpdateInfo? _updateInfo;
   bool _updateBannerDismissed = false;
+
+  String _t({required String en, required String am, required String om}) {
+    if (_language == 'om') return om;
+    if (_language == 'am') return am;
+    return en;
+  }
 
   @override
   void initState() {
@@ -98,6 +106,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     final name = await widget.repository.getShopName();
     final lang = await widget.repository.getLanguage();
+    final langOm = await widget.repository.isOromoEnabled();
+    final langAm = await widget.repository.isAmharicEnabled();
     final locEnabled = await widget.repository.getLocationsEnabled();
     final promptDismissed = await widget.repository.getLocationsPromptDismissed();
     final isOnline = await widget.authStorage.isOnlineEnabled();
@@ -112,6 +122,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       setState(() {
         _shopName = name;
         _language = lang;
+        _langOmEnabled = langOm;
+        _langAmEnabled = langAm;
         _locationsEnabled = locEnabled;
         _locationsPromptDismissed = promptDismissed;
         _isOnline = isOnline;
@@ -140,14 +152,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   String _formatDaysAgo(int timestampMs) {
     final diff = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(timestampMs));
-    final isAm = _language == 'am';
     if (diff.inDays <= 0) {
-      if (diff.inHours <= 1) return isAm ? 'ቅድም ትንሽ ሰዓት' : 'Just now';
-      return isAm ? 'ዛሬ' : 'Today';
+      if (diff.inHours <= 1) return _t(en: 'Just now', am: 'ቅድም ትንሽ ሰዓት', om: 'Amma dura');
+      return _t(en: 'Today', am: 'ዛሬ', om: "Har'a");
     } else if (diff.inDays == 1) {
-      return isAm ? 'ትናንት' : 'Yesterday';
+      return _t(en: 'Yesterday', am: 'ትናንት', om: 'Kaleessa');
     } else {
-      return isAm ? 'ከ ${diff.inDays} ቀናት በፊት' : '${diff.inDays} days ago';
+      return _t(en: '${diff.inDays} days ago', am: 'ከ ${diff.inDays} ቀናት በፊት', om: 'Guyyoota ${diff.inDays} dura');
     }
   }
 
@@ -187,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Row(
               children: [
                 Text(
-                  isAm ? 'የቀን መዝገብ' : 'POS & Inventory',
+                  _t(en: 'POS & Inventory', am: 'የቀን መዝገብ', om: 'Galmee Guyyaa'),
                   style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: 8),
@@ -227,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                         const SizedBox(width: 3),
                         Text(
-                          _isOnline ? (isAm ? 'ኦንላይን' : 'Online') : (isAm ? 'ስልክ ላይ' : 'Offline'),
+                          _isOnline ? _t(en: 'Online', am: 'ኦንላይን', om: 'Toora Irra') : _t(en: 'Offline', am: 'ስልክ ላይ', om: 'Bilbila Irra'),
                           style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.bold,
@@ -247,22 +258,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             builder: (ctx) {
               final isDark = Theme.of(ctx).brightness == Brightness.dark;
               final Color langColor = isDark ? const Color(0xFF14B8A6) : const Color(0xFF0F766E);
+              final activeLabel = _language == 'om'
+                  ? 'ORO'
+                  : (_language == 'am' ? 'አማ' : 'EN');
               return IconButton(
-                tooltip: isAm ? 'ቋንቋ ቀይር' : 'Change Language',
+                tooltip: _t(en: 'Change Language', am: 'ቋንቋ ቀይር', om: 'Afaan Jijjiiri'),
                 visualDensity: VisualDensity.compact,
                 icon: CircleAvatar(
                   radius: 13,
                   backgroundColor: langColor.withValues(alpha: 0.15),
                   child: Text(
-                    isAm ? 'አማ' : 'EN',
+                    activeLabel,
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: langColor),
                   ),
                 ),
                 onPressed: () async {
-                  final newLang = isAm ? 'en' : 'am';
-                  await widget.repository.setLanguage(newLang);
+                  final enabledLangs = <String>[
+                    if (_langAmEnabled) 'am',
+                    if (_langOmEnabled) 'om',
+                    'en',
+                  ];
+                  if (enabledLangs.isEmpty) enabledLangs.add('en');
+                  final curIdx = enabledLangs.indexOf(_language);
+                  final nextLang = enabledLangs[(curIdx + 1) % enabledLangs.length];
+                  await widget.repository.setLanguage(nextLang);
                   if (context.mounted) {
-                    InventoryApp.of(context)?.setLocale(newLang);
+                    InventoryApp.of(context)?.setLocale(nextLang);
                   }
                   await _loadShopInfo();
                 },
@@ -275,8 +296,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               final Color themeColor = isDark ? const Color(0xFFFBBF24) : const Color(0xFF0F766E);
               return IconButton(
                 tooltip: isDark
-                    ? (isAm ? 'ወደ ብርሃን ገጽታ ቀይር' : 'Switch to Light Mode')
-                    : (isAm ? 'ወደ ጨለማ ገጽታ ቀይር' : 'Switch to Dark Mode'),
+                    ? _t(en: 'Switch to Light Mode', am: 'ወደ ብርሃን ገጽታ ቀይር', om: 'Gara Bifa Ifaatti Jijjiiri')
+                    : _t(en: 'Switch to Dark Mode', am: 'ወደ ጨለማ ገጽታ ቀይር', om: 'Gara Bifa Dukkanaatti Jijjiiri'),
                 visualDensity: VisualDensity.compact,
                 icon: CircleAvatar(
                   radius: 13,
@@ -301,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           IconButton(
             icon: const Icon(Icons.analytics_outlined),
-            tooltip: isAm ? 'ሪፖርቶች' : 'Reports',
+            tooltip: _t(en: 'Reports', am: 'ሪፖርቶች', om: 'Gabaasa'),
             visualDensity: VisualDensity.compact,
             onPressed: () {
               Navigator.of(context).push(
@@ -313,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: isAm ? 'ቅንብሮች' : 'Settings',
+            tooltip: _t(en: 'Settings', am: 'ቅንብሮች', om: "Qindaa'ina"),
             visualDensity: VisualDensity.compact,
             onPressed: () async {
               await Navigator.of(context).push(
@@ -408,7 +429,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 icon: const Icon(Icons.close_rounded, size: 18),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
-                                tooltip: isAm ? 'ዝጋ' : 'Dismiss',
+                                tooltip: _t(en: 'Dismiss', am: 'ዝጋ', om: 'Cufi'),
                                 onPressed: () {
                                   setState(() {
                                     _updateBannerDismissed = true;
@@ -451,7 +472,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               },
                               icon: const Icon(Icons.download_rounded, size: 18),
                               label: Text(
-                                isAm ? 'አሁኑኑ አዘምን' : 'Download Update Now',
+                                _t(en: 'Download Update Now', am: 'አሁኑኑ አዘምን', om: 'Amma Haaromsi'),
                                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                               ),
                             ),
@@ -483,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
-                                    isAm ? 'ስልክዎ ቢጠፋ መረጃዎ እንዳይጠፋ!' : 'Lost phone means lost data!',
+                                    _t(en: 'Lost phone means lost data!', am: 'ስልክዎ ቢጠፋ መረጃዎ እንዳይጠፋ!', om: 'Bilbilli yoo bade daataan akka hin banne!'),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
@@ -515,7 +536,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 onPressed: _shareBackupNow,
                                 icon: const Icon(Icons.share_rounded, size: 18),
                                 label: Text(
-                                  isAm ? 'አሁኑኑ ኮፒ አድርገው ያጋሩ' : 'Back Up & Share Now',
+                                  _t(en: 'Back Up & Share Now', am: 'አሁኑኑ ኮፒ አድርገው ያጋሩ', om: 'Amma Koppii Taasisaa'),
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
                               ),
@@ -542,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           InkWell(
                             onTap: _shareBackupNow,
                             child: Text(
-                              isAm ? 'አዲስ ኮፒ ውሰድ' : 'Back up now',
+                              _t(en: 'Back up now', am: 'አዲስ ኮፒ ውሰድ', om: 'Amma koppii godhi'),
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -572,7 +593,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  isAm ? 'ዕቃ ከአንድ ቦታ በላይ ያስቀምጣሉ?' : 'Keep stock in more than one place?',
+                                  _t(en: 'Keep stock in more than one place?', am: 'ዕቃ ከአንድ ቦታ በላይ ያስቀምጣሉ?', om: 'Meeshaa iddoo tokkoo olitti kuustuu?'),
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                               ),
@@ -598,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   await _loadShopInfo();
                                 },
                                 child: Text(
-                                  isAm ? 'አሁን አይደለም' : 'Not now',
+                                  _t(en: 'Not now', am: 'አሁን አይደለም', om: 'Amma miti'),
                                   style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
                                 ),
                               ),
@@ -615,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     onComplete: _loadShopInfo,
                                   );
                                 },
-                                child: Text(isAm ? 'አዎ፣ ጀምር' : 'Set Up'),
+                                child: Text(_t(en: 'Set Up', am: 'አዎ፣ ጀምር', om: 'Eeyyee, Qopheessi')),
                               ),
                             ],
                           ),
@@ -667,7 +688,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         const SizedBox(width: 6),
                                         Expanded(
                                           child: Text(
-                                            isAm ? 'የዛሬ ሽያጭ' : "Today's Sales",
+                                            _t(en: "Today's Sales", am: 'የዛሬ ሽያጭ', om: "Gurgurtaa Har'aa"),
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 12,
@@ -742,7 +763,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         const SizedBox(width: 6),
                                         Expanded(
                                           child: Text(
-                                            isAm ? 'ያነሱ ዕቃዎች' : 'Low Stock',
+                                            _t(en: 'Low Stock', am: 'ያነሱ ዕቃዎች', om: "Meeshaalee Hir'atan"),
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 12,
@@ -760,8 +781,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     const SizedBox(height: 8),
                                     Text(
                                       isWarning
-                                          ? (isAm ? '$count ዕቃዎች' : '$count items')
-                                          : (isAm ? 'ዝቅተኛ ክምችት የለም' : 'No low level stocks'),
+                                          ? _t(en: '$count items', am: '$count ዕቃዎች', om: 'Meeshaalee $count')
+                                          : _t(en: 'No low level stocks', am: 'ዝቅተኛ ክምችት የለም', om: "Meeshaan hir'ate hin jiru"),
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: isWarning ? 18 : 13,
@@ -808,7 +829,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       Icon(Icons.point_of_sale, size: 16, color: tokens.fg),
                                       const SizedBox(width: 6),
                                       Text(
-                                        isAm ? 'ጥሬ ገንዘብ በካዝና' : 'Cash in Drawer',
+                                        _t(en: 'Cash in Drawer', am: 'ጥሬ ገንዘብ በካዝና', om: 'Qarshii Kaazinaa'),
                                         style: TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 11.5,
@@ -872,7 +893,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         Icon(Icons.edit_note, size: 16, color: tokens.fg),
                                         const SizedBox(width: 6),
                                         Text(
-                                          isAm ? 'ጠቅላላ ዱቤ' : 'Outstanding Dube',
+                                          _t(en: 'Outstanding Dube', am: 'ጠቅላላ ዱቤ', om: 'Liqii Waliigalaa'),
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 11.5,
@@ -922,7 +943,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                   icon: const Icon(Icons.shopping_cart_checkout, size: 28),
                   label: Text(
-                    isAm ? '🛒 አዲስ ሽያጭ ጀምር' : '🛒 New Sale',
+                    _t(en: '🛒 New Sale', am: '🛒 አዲስ ሽያጭ ጀምር', om: '🛒 Gurgurtaa Haaraa Eegali'),
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
@@ -949,7 +970,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         },
                         icon: const Icon(Icons.add_box_outlined, size: 22, color: Color(0xFF0F766E)),
                         label: Text(
-                          isAm ? '➕ ገቢ ዕቃ' : '➕ Stock In',
+                          _t(en: '➕ Stock In', am: '➕ ገቢ ዕቃ', om: '➕ Galii Meeshaa'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                       ),
@@ -973,7 +994,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         },
                         icon: const Icon(Icons.inventory_2_outlined, size: 22),
                         label: Text(
-                          isAm ? '📦 ዕቃዎች' : '📦 Products',
+                          _t(en: '📦 Products', am: '📦 ዕቃዎች', om: '📦 Meeshaalee'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                       ),
@@ -1003,7 +1024,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                           icon: const Icon(Icons.local_shipping_outlined, size: 20, color: Color(0xFF0F766E)),
                           label: Text(
-                            isAm ? '🚚 የዕቃ ዝውውር' : '🚚 Stock Transfer',
+                            _t(en: '🚚 Stock Transfer', am: '🚚 የዕቃ ዝውውር', om: '🚚 Dabarsa Meeshaa'),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                           ),
                         ),
@@ -1027,7 +1048,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                           icon: const Icon(Icons.tune, size: 18),
                           label: Text(
-                            isAm ? '🔧 ስቶክ ማስተካከል' : '🔧 Adjust',
+                            _t(en: '🔧 Adjust', am: '🔧 ስቶክ ማስተካከል', om: '🔧 Sirreessuu'),
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                           ),
                         ),
@@ -1052,7 +1073,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     },
                     icon: const Icon(Icons.history, size: 18),
                     label: Text(
-                      isAm ? '📜 የእንቅስቃሴ ታሪክ' : '📜 History & Undo',
+                      _t(en: '📜 History & Undo', am: '📜 የእንቅስቃሴ ታሪክ', om: '📜 Seenaa Sochii'),
                       style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                     ),
                   ),
@@ -1078,7 +1099,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                           icon: const Icon(Icons.tune, size: 18),
                           label: Text(
-                            isAm ? '🔧 ስቶክ ማስተካከል' : '🔧 Adjust',
+                            _t(en: '🔧 Adjust', am: '🔧 ስቶክ ማስተካከል', om: '🔧 Sirreessuu'),
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                           ),
                         ),
@@ -1102,7 +1123,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           },
                           icon: const Icon(Icons.history, size: 18),
                           label: Text(
-                            isAm ? '📜 የእንቅስቃሴ ታሪክ' : '📜 History & Undo',
+                            _t(en: '📜 History & Undo', am: '📜 የእንቅስቃሴ ታሪክ', om: '📜 Seenaa Sochii'),
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
                           ),
                         ),
@@ -1134,7 +1155,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     },
                     icon: const Icon(Icons.bolt_rounded, size: 24),
                     label: Text(
-                      isAm ? '⚡ ቅጽበታዊ ሽያጭ' : '⚡ Instant Sale',
+                      _t(en: '⚡ Instant Sale', am: '⚡ ቅጽበታዊ ሽያጭ', om: '⚡ Gurgurtaa Saffisaa'),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                   );
@@ -1159,7 +1180,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   },
                   icon: const Icon(Icons.account_balance_wallet_outlined, size: 20),
                   label: Text(
-                    isAm ? '💸 ገቢ እና ወጪ (ተጨማሪ)' : '💸 Income & Expense',
+                    _t(en: '💸 Income & Expense', am: '💸 ገቢ እና ወጪ (ተጨማሪ)', om: '💸 Galii fi Baasii'),
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                 ),
@@ -1170,7 +1191,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      isAm ? 'የቅርብ ጊዜ እንቅስቃሴዎች' : 'Recent Transactions',
+                      _t(en: 'Recent Transactions', am: 'የቅርብ ጊዜ እንቅስቃሴዎች', om: 'Sochiilee Dhihoo'),
                       style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                     ),
                     TextButton(
@@ -1184,7 +1205,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ),
                         );
                       },
-                      child: Text(isAm ? 'ሁሉንም እይ' : 'View All'),
+                      child: Text(_t(en: 'View All', am: 'ሁሉንም እይ', om: 'Hunda Ilaali')),
                     ),
                   ],
                 ),

@@ -60,6 +60,13 @@ class TelegramUi
                     ['💸 Income & Expense', '⚙️ Settings'],
                 ]);
             }
+            if ($locale === 'om') {
+                return self::replyKeyboard([
+                    ['📦 Meeshaalee', '➕ Galii Meeshaa'],
+                    ['🛒 Gurgurtaa', '📊 Gabaasa'],
+                    ['💸 Galii fi Baasii', '⚙️ Qindaa\'ina'],
+                ]);
+            }
 
             return self::replyKeyboard([
                 ['📦 ዕቃዎች', '➕ ገቢ ዕቃ'],
@@ -91,10 +98,10 @@ class TelegramUi
 
         $row1 = [];
         if ($canProducts) {
-            $row1[] = $locale === 'en' ? '📦 Products' : '📦 ዕቃዎች';
+            $row1[] = $locale === 'en' ? '📦 Products' : ($locale === 'om' ? '📦 Meeshaalee' : '📦 ዕቃዎች');
         }
         if ($canStockIn) {
-            $row1[] = $locale === 'en' ? '➕ Stock In' : '➕ ገቢ ዕቃ';
+            $row1[] = $locale === 'en' ? '➕ Stock In' : ($locale === 'om' ? '➕ Galii Meeshaa' : '➕ ገቢ ዕቃ');
         }
         if (!empty($row1)) {
             $rows[] = $row1;
@@ -102,10 +109,10 @@ class TelegramUi
 
         $row2 = [];
         if ($canSale) {
-            $row2[] = $locale === 'en' ? '🛒 Sale' : '🛒 ሽያጭ';
+            $row2[] = $locale === 'en' ? '🛒 Sale' : ($locale === 'om' ? '🛒 Gurgurtaa' : '🛒 ሽያጭ');
         }
         if ($canReports) {
-            $row2[] = $locale === 'en' ? '📊 Reports' : '📊 ሪፖርት';
+            $row2[] = $locale === 'en' ? '📊 Reports' : ($locale === 'om' ? '📊 Gabaasa' : '📊 ሪፖርት');
         }
         if (!empty($row2)) {
             $rows[] = $row2;
@@ -113,21 +120,21 @@ class TelegramUi
 
         $row3 = [];
         if ($canDube) {
-            $row3[] = $locale === 'en' ? '📒 Dube' : '📒 ዱቤ';
+            $row3[] = $locale === 'en' ? '📒 Dube' : ($locale === 'om' ? '📒 Liqii' : '📒 ዱቤ');
         }
         if ($canCashFlow) {
-            $row3[] = $locale === 'en' ? '💸 Income & Expense' : '💸 ገቢና ወጪ';
+            $row3[] = $locale === 'en' ? '💸 Income & Expense' : ($locale === 'om' ? '💸 Galii fi Baasii' : '💸 ገቢና ወጪ');
         }
         if (!empty($row3)) {
             $rows[] = $row3;
         }
 
         if ($canTransfer) {
-            $rows[] = [$locale === 'en' ? '🚚 Transfer' : '🚚 ማስተላለፍ'];
+            $rows[] = [$locale === 'en' ? '🚚 Transfer' : ($locale === 'om' ? '🚚 Dabarsuu' : '🚚 ማስተላለፍ')];
         }
 
         // 3. Settings is always available
-        $rows[] = [$locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች'];
+        $rows[] = [$locale === 'en' ? '⚙️ Settings' : ($locale === 'om' ? '⚙️ Qindaa\'ina' : '⚙️ ቅንብሮች')];
 
         return self::replyKeyboard($rows);
     }
@@ -153,28 +160,28 @@ class TelegramUi
         }
 
         $row1 = [
-            ['text' => $locale === 'en' ? '📦 Products' : '📦 ዕቃዎች', 'callback_data' => 'menu:products:0'],
-            ['text' => $locale === 'en' ? '➕ Stock In' : '➕ ገቢ ዕቃ', 'callback_data' => 'menu:stockin:0'],
+            ['text' => $locale === 'en' ? '📦 Products' : ($locale === 'om' ? '📦 Meeshaalee' : '📦 ዕቃዎች'), 'callback_data' => 'menu:products:0'],
+            ['text' => $locale === 'en' ? '➕ Stock In' : ($locale === 'om' ? '➕ Galii Meeshaa' : '➕ ገቢ ዕቃ'), 'callback_data' => 'menu:stockin:0'],
         ];
         $rows[] = $row1;
 
         $row2 = [
-            ['text' => $locale === 'en' ? '🛒 Sale' : '🛒 ሽያጭ', 'callback_data' => 'menu:sale:0'],
-            ['text' => $locale === 'en' ? '📊 Reports' : '📊 ሪፖርት', 'callback_data' => 'menu:reports:0'],
+            ['text' => $locale === 'en' ? '🛒 Sale' : ($locale === 'om' ? '🛒 Gurgurtaa' : '🛒 ሽያጭ'), 'callback_data' => 'menu:sale:0'],
+            ['text' => $locale === 'en' ? '📊 Reports' : ($locale === 'om' ? '📊 Gabaasa' : '📊 ሪፖርት'), 'callback_data' => 'menu:reports:0'],
         ];
         $rows[] = $row2;
 
         $row3 = [];
         if ($user !== null && app(\App\Services\PermissionService::class)->can($user, 'dube.view')) {
-            $row3[] = ['text' => $locale === 'en' ? '📒 Dube' : '📒 ዱቤ', 'callback_data' => 'menu:dube:0'];
+            $row3[] = ['text' => $locale === 'en' ? '📒 Dube' : ($locale === 'om' ? '📒 Liqii' : '📒 ዱቤ'), 'callback_data' => 'menu:dube:0'];
         }
-        $row3[] = ['text' => $locale === 'en' ? '💸 Income & Expense' : '💸 ገቢና ወጪ', 'callback_data' => 'menu:cashflow:0'];
+        $row3[] = ['text' => $locale === 'en' ? '💸 Income & Expense' : ($locale === 'om' ? '💸 Galii fi Baasii' : '💸 ገቢና ወጪ'), 'callback_data' => 'menu:cashflow:0'];
         $rows[] = $row3;
 
         $row3 = [];
         if ($user !== null && $user->role === 'owner') {
-            $row3[] = ['text' => $locale === 'en' ? '📱 Link Phone' : '📱 ስልክ አገናኝ', 'callback_data' => 'menu:pair:0'];
-            $row3[] = ['text' => $locale === 'en' ? '🚚 Transfer' : '🚚 ዝውውር', 'callback_data' => 'menu:transfer:0'];
+            $row3[] = ['text' => $locale === 'en' ? '📱 Link Phone' : ($locale === 'om' ? '📱 Bilbila Qabsiisi' : '📱 ስልክ አገናኝ'), 'callback_data' => 'menu:pair:0'];
+            $row3[] = ['text' => $locale === 'en' ? '🚚 Transfer' : ($locale === 'om' ? '🚚 Dabarsuu' : '🚚 ዝውውር'), 'callback_data' => 'menu:transfer:0'];
         }
         if (!empty($row3)) {
             $rows[] = $row3;
@@ -182,10 +189,10 @@ class TelegramUi
 
         $row4 = [];
         if ($user !== null && $user->role === 'owner') {
-            $row4[] = ['text' => $locale === 'en' ? '👥 Team' : '👥 ቡድን', 'callback_data' => 'menu:team:0'];
-            $row4[] = ['text' => $locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች', 'callback_data' => 'menu:settings:0'];
+            $row4[] = ['text' => $locale === 'en' ? '👥 Team' : ($locale === 'om' ? '👥 Garee' : '👥 ቡድን'), 'callback_data' => 'menu:team:0'];
+            $row4[] = ['text' => $locale === 'en' ? '⚙️ Settings' : ($locale === 'om' ? '⚙️ Qindaa\'ina' : '⚙️ ቅንብሮች'), 'callback_data' => 'menu:settings:0'];
         } else {
-            $row4[] = ['text' => $locale === 'en' ? '⚙️ Settings' : '⚙️ ቅንብሮች', 'callback_data' => 'menu:settings:0'];
+            $row4[] = ['text' => $locale === 'en' ? '⚙️ Settings' : ($locale === 'om' ? '⚙️ Qindaa\'ina' : '⚙️ ቅንብሮች'), 'callback_data' => 'menu:settings:0'];
         }
         $rows[] = $row4;
 
@@ -197,7 +204,7 @@ class TelegramUi
      */
     public static function cancelKeyboard(string $locale = 'am'): array
     {
-        $cancelLabel = $locale === 'en' ? '❌ Cancel' : '❌ ሰርዝ';
+        $cancelLabel = $locale === 'en' ? '❌ Cancel' : ($locale === 'om' ? '❌ Dhiisi' : '❌ ሰርዝ');
 
         return self::replyKeyboard([
             [$cancelLabel],
@@ -209,8 +216,8 @@ class TelegramUi
      */
     public static function confirmKeyboard(string $yesCallback, string $noCallback, string $locale = 'am'): array
     {
-        $yesLabel = $locale === 'en' ? '✅ Yes' : '✅ አዎ';
-        $noLabel = $locale === 'en' ? '❌ No' : '❌ አይ';
+        $yesLabel = $locale === 'en' ? '✅ Yes' : ($locale === 'om' ? '✅ Eeyyee' : '✅ አዎ');
+        $noLabel = $locale === 'en' ? '❌ No' : ($locale === 'om' ? '❌ Lakki' : '❌ አይ');
 
         return self::inlineKeyboard([
             [

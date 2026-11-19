@@ -16,7 +16,7 @@
   "menu_settings": "⚙️ Settings",
   "menu_overview": "🏪 <b>:shop</b>\nChoose an option from the menu below:",
   "settings_title": "⚙️ <b>Settings</b>\n🏪 Shop: <b>:shop</b>\n👤 Role: <b>:role</b>\n🌐 Language: <b>:language</b>\n⚡ Negative Stock: <b>:neg_stock</b>",
-  "choose_language": "🌐 Choose your language / ቋንቋ ይምረጡ:",
+  "choose_language": "🌐 Choose your language:",
   "language_updated": "✅ Language updated to English!",
   "help_text": "ℹ️ <b>Inventory quick start</b>\n1. Add products from Products (or search by name).\n2. Use Sale to record cash, bank, wallet, or Dube sales.\n3. Open Reports to review sales, stock, and balances.\n4. Owners can invite staff from Settings → Team.\n5. Type /cancel to stop any step.\n\n📱 Mobile app: https://stock.yenesuq.com/app/\n🔒 Privacy: https://stock.yenesuq.com/privacy/\n📜 Terms: https://stock.yenesuq.com/terms/\n💬 Support: support@yenesuq.com",
   "unknown_command": "I did not recognize that. Try /menu, or type a product name to search.\nYou can also use /help for a quick start.",

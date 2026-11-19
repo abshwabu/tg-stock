@@ -819,7 +819,7 @@ class _FirstRunScreenState extends State<FirstRunScreen> {
                 }
               },
               icon: const Icon(Icons.shopping_bag_outlined),
-              label: Text(isAm ? 'ፈቃድ ግዛ (በቴሌብር / ሲቢኢ)' : 'Buy License (Telebirr / CBE)'),
+              label: Text(isAm ? 'ፈቃድ ግዛ (በቴሌብር ወይም በሲቢኢ)' : 'Buy License (Telebirr or CBE)'),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 13),
               ),

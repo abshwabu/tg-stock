@@ -261,7 +261,9 @@ class _StockInScreenState extends State<StockInScreen> {
               TextField(
                 controller: _noteController,
                 decoration: InputDecoration(
-                  labelText: isAm ? 'አቅራቢ / ማስታወሻ (አስፈላጊ አይደለም)' : 'Supplier / Note (Optional)',
+                  labelText: Localizations.localeOf(context).languageCode == 'om'
+                      ? 'Dhiheessaa ykn Yaadannoo (Filannoo)'
+                      : (isAm ? 'አቅራቢ ወይም ማስታወሻ (አስፈላጊ አይደለም)' : 'Supplier or Note (Optional)'),
                   border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.note_alt_outlined),
                 ),

@@ -39,7 +39,7 @@ class MenuHandler
         $clean = trim($text);
 
         // Menu shortcut
-        if (in_array($clean, ['/menu', 'menu', 'ማውጫ'], true)) {
+        if (in_array(strtolower($clean), ['/menu', 'menu', 'ማውጫ', 'baafata'], true)) {
             $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
             $shopName = $shop?->name ?? 'Shop';
             $this->telegram->sendMessage(
@@ -47,9 +47,14 @@ class MenuHandler
                 __('welcome_existing', ['name' => $user?->name ?? 'User', 'shop' => $shopName]),
                 ['reply_markup' => TelegramUi::mainMenuInlineKeyboard($locale, $user)]
             );
+            $promptText = match ($locale) {
+                'en' => '📍 Quick actions menu:',
+                'om' => '📍 Baafata tarkaanfii saffisaa:',
+                default => '📍 ፈጣን ማውጫ:',
+            };
             $this->telegram->sendMessage(
                 $chatId,
-                $locale === 'en' ? '📍 Quick actions menu:' : '📍 ፈጣን ማውጫ:',
+                $promptText,
                 ['reply_markup' => TelegramUi::mainMenuKeyboard($locale, $user)]
             );
             return;
@@ -62,13 +67,13 @@ class MenuHandler
         }
 
         // 1. Settings
-        if (in_array($clean, ['⚙️ Settings', '⚙️ ቅንብሮች', '/settings'], true)) {
+        if (in_array($clean, ['⚙️ Settings', '⚙️ ቅንብሮች', '⚙️ Qindaa\'ina', '⚙️ Qindaaʼina', '/settings'], true)) {
             $this->settingsHandler->handleSettings($chatId, $user);
             return;
         }
 
         // 1.5 Transfer
-        if (in_array($clean, ['🚚 Transfer', '🚚 ማስተላለፍ', '/transfer'], true)) {
+        if (in_array($clean, ['🚚 Transfer', '🚚 ማስተላለፍ', '🚚 Dabarsuu', '/transfer'], true)) {
             $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
             if ($shop && !$this->licenseEnforcer->canWrite($shop)) {
                 $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
@@ -79,31 +84,31 @@ class MenuHandler
         }
 
         // 1.6 Review Queue
-        if (in_array($clean, ['📥 Needs Review', '📥 ማረጋገጫ የሚጠብቁ', '/review'], true)) {
+        if (in_array($clean, ['📥 Needs Review', '📥 ማረጋገጫ የሚጠብቁ', '📥 Qorannoo Kan Barbaadan', '/review'], true)) {
             $this->reviewQueueHandler->handleReviewMenu($chatId, $user);
             return;
         }
 
         // 2. Undo
-        if (in_array($clean, ['↩️ Undo', '↩️ መልስ', '/undo'], true)) {
+        if (in_array($clean, ['↩️ Undo', '↩️ መልስ', '↩️ Deebisi', '/undo'], true)) {
             $this->undoHandler->handleUndo($chatId, $user);
             return;
         }
 
         // 3. Products
-        if (in_array($clean, ['📦 Products', '📦 ዕቃዎች', '/products'], true)) {
+        if (in_array($clean, ['📦 Products', '📦 ዕቃዎች', '📦 Meeshaalee', '/products'], true)) {
             $this->productHandler->handleList($chatId, $user, 1);
             return;
         }
 
         // 3.5 Low Stock
-        if (in_array($clean, ['⚠️ Low Stock', '⚠️ ያነሱ ዕቃዎች', '/lowstock', 'lowstock', 'ዝቅተኛ ክምችት', 'ያነሱ ዕቃዎች'], true)) {
+        if (in_array(strtolower($clean), ['⚠️ low stock', '⚠️ ያነሱ ዕቃዎች', '⚠️ meeshaalee hir\'atan', '⚠️ meeshaalee dhumatan', '/lowstock', 'lowstock', 'ዝቅተኛ ክምችት', 'ያነሱ ዕቃዎች', 'meeshaalee hir\'atan'], true)) {
             $this->productHandler->handleLowStock($chatId, $user, 1);
             return;
         }
 
         // 4. Stock In
-        if (in_array($clean, ['➕ Stock In', '➕ ገቢ ዕቃ', '/stockin'], true)) {
+        if (in_array($clean, ['➕ Stock In', '➕ ገቢ ዕቃ', '➕ Galii Meeshaa', '/stockin'], true)) {
             $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
             if ($shop && !$this->licenseEnforcer->canWrite($shop)) {
                 $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
@@ -114,7 +119,7 @@ class MenuHandler
         }
 
         // 5. Sale
-        if (in_array($clean, ['🛒 Sale', '🛒 ሽያጭ', '/sale'], true)) {
+        if (in_array($clean, ['🛒 Sale', '🛒 ሽያጭ', '🛒 Gurgurtaa', '/sale'], true)) {
             $shop = $user?->shop_id ? \App\Models\Shop::find($user->shop_id) : null;
             if ($shop && !$this->licenseEnforcer->canWrite($shop)) {
                 $this->licenseBotHandler->sendRenewalBlockNotice($chatId, $user);
@@ -125,13 +130,13 @@ class MenuHandler
         }
 
         // 5.5 Dube
-        if (in_array($clean, ['📒 Dube', '📒 ዱቤ', '/dube', 'dube', 'ዱቤ'], true)) {
+        if (in_array(strtolower($clean), ['📒 dube', '📒 ዱቤ', '📒 liqii', '/dube', 'dube', 'ዱቤ', 'liqii'], true)) {
             $this->dubeHandler->start($chatId, $user);
             return;
         }
 
         // 5.6 Cash Flow (Income & Expense)
-        if (in_array($clean, ['💸 Income & Expense', '💸 ገቢና ወጪ', '/cashflow', '/expense', '/income', 'ገቢና ወጪ', 'ወጪ', 'ገቢ'], true)) {
+        if (in_array($clean, ['💸 Income & Expense', '💸 ገቢና ወጪ', '💸 Galii fi Baasii', '/cashflow', '/expense', '/income', 'ገቢና ወጪ', 'ወጪ', 'ገቢ'], true)) {
             if ($clean === '/income' || $clean === 'ገቢ') {
                 $this->cashFlowHandler->startAdd($chatId, 'income', $user);
                 return;
@@ -145,7 +150,7 @@ class MenuHandler
         }
 
         // 6. Reports
-        if (in_array($clean, ['📊 Reports', '📊 ሪፖርት', '/reports', '/report'], true)) {
+        if (in_array($clean, ['📊 Reports', '📊 ሪፖርት', '📊 Gabaasa', '/reports', '/report'], true)) {
             $this->reportHandler->handleMenu($chatId, $user);
             return;
         }

@@ -812,20 +812,28 @@ class LedgerRepository {
 
     final lang = await getLanguage();
     final isAm = lang == 'am';
+    final isOm = lang == 'om';
 
-    final reasonLabel = isAm
+    final reasonLabel = isOm
         ? switch (reason) {
-            'damaged' => 'የተበላሸ / የወደቀ',
-            'lost' => 'የጠፋ / ጉድለት',
-            'count_correction' => 'የቆጠራ ስህተት እርማት',
-            _ => 'ሌላ ምክንያት',
+            'damaged' => 'Kan Badae',
+            'lost' => 'Kan Bade',
+            'count_correction' => 'Sirreeffama Lakkoofsaa',
+            _ => 'Sababa Biroo',
           }
-        : switch (reason) {
-            'damaged' => 'Damaged / Spoilage',
-            'lost' => 'Lost / Shrinkage',
-            'count_correction' => 'Count Correction',
-            _ => 'Other',
-          };
+        : isAm
+            ? switch (reason) {
+                'damaged' => 'የተበላሸ',
+                'lost' => 'የጠፋ',
+                'count_correction' => 'የቆጠራ ስህተት እርማት',
+                _ => 'ሌላ ምክንያት',
+              }
+            : switch (reason) {
+                'damaged' => 'Damaged',
+                'lost' => 'Lost',
+                'count_correction' => 'Count Correction',
+                _ => 'Other',
+              };
 
     final combinedNote = note != null ? '$reasonLabel: $note' : reasonLabel;
 
@@ -1569,8 +1577,40 @@ class LedgerRepository {
     await setSetting('allow_negative_stock', allow ? 'true' : 'false');
   }
 
+  Future<bool> isOromoEnabled() async {
+    final val = await getSetting('lang_om_enabled', defaultValue: 'false');
+    return val == 'true';
+  }
+
+  Future<void> setOromoEnabled(bool enabled) async {
+    await setSetting('lang_om_enabled', enabled ? 'true' : 'false');
+  }
+
+  Future<bool> isAmharicEnabled() async {
+    final val = await getSetting('lang_am_enabled', defaultValue: 'true');
+    return val == 'true';
+  }
+
+  Future<void> setAmharicEnabled(bool enabled) async {
+    await setSetting('lang_am_enabled', enabled ? 'true' : 'false');
+  }
+
   Future<String> getLanguage() async {
-    return (await getSetting('language', defaultValue: 'am'))!;
+    final raw = (await getSetting('language', defaultValue: 'am'))!;
+    if (raw == 'om') {
+      final omEnabled = await isOromoEnabled();
+      if (!omEnabled) {
+        final amEnabled = await isAmharicEnabled();
+        return amEnabled ? 'am' : 'en';
+      }
+    } else if (raw == 'am') {
+      final amEnabled = await isAmharicEnabled();
+      if (!amEnabled) {
+        final omEnabled = await isOromoEnabled();
+        return omEnabled ? 'om' : 'en';
+      }
+    }
+    return raw;
   }
 
   Future<void> setLanguage(String lang) async {

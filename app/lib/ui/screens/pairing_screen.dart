@@ -356,7 +356,9 @@ class _PairingScreenState extends State<PairingScreen> {
             ),
             validator: (val) {
               if (val == null || val.trim().isEmpty) {
-                return isAm ? 'እባክዎ ለዚህ ስልክ ስም ያስገቡ' : 'Please enter a name for this phone / device';
+                return Localizations.localeOf(context).languageCode == 'om'
+                    ? 'Maaloo maqaa bilbila kanaa galchaa'
+                    : (isAm ? 'እባክዎ ለዚህ ስልክ ስም ያስገቡ' : 'Please enter a name for this device');
               }
               return null;
             },

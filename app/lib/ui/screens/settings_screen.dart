@@ -69,7 +69,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Local preferences
   String _language = 'am';
+  bool _langOmEnabled = false;
+  bool _langAmEnabled = true;
   String _themeMode = 'system';
+
+  String _t({required String en, required String am, required String om}) {
+    if (_language == 'om') return om;
+    if (_language == 'am') return am;
+    return en;
+  }
   String _currency = 'ETB';
   bool _useEthiopianCalendar = true;
   String _numberFormat = 'standard';
@@ -127,6 +135,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     // Preferences
     final lang = await widget.repository.getLanguage();
+    final langOm = await widget.repository.isOromoEnabled();
+    final langAm = await widget.repository.isAmharicEnabled();
     final themeMode = await widget.repository.getThemeMode();
     final curr = await widget.repository.getCurrencyLabel();
     final ethCal = await widget.repository.getUseEthiopianCalendar();
@@ -180,6 +190,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _shopName = shop;
         _serverUrl = url;
         _language = lang;
+        _langOmEnabled = langOm;
+        _langAmEnabled = langAm;
         _themeMode = themeMode;
         _currency = curr;
         _useEthiopianCalendar = ethCal;
@@ -942,7 +954,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 1. SHOP
                 // ==========================================
-                _buildSectionHeader(isAm ? '1. የሱቅ መረጃ' : '1. Shop Info'),
+                _buildSectionHeader(_t(en: '1. Shop Info', am: '1. የሱቅ መረጃ', om: '1. Odeeffannoo Suuqii')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
@@ -1055,19 +1067,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 2. LANGUAGE & DISPLAY
                 // ==========================================
-                _buildSectionHeader(isAm ? '2. ቋንቋ እና ገጽታ' : '2. Language & Display'),
+                _buildSectionHeader(_t(en: '2. Language & Display', am: '2. ቋንቋ እና ገጽታ', om: '2. Afaan fi Mul\'ata')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     children: [
                       ListTile(
                         leading: const Icon(Icons.language_outlined),
-                        title: Text(isAm ? 'ቋንቋ' : 'Language'),
-                        subtitle: Text(isAm ? 'አማርኛ' : 'English'),
+                        title: Text(_t(en: 'Active Language', am: 'የመተግበሪያ ቋንቋ', om: 'Afaan Hojiirra Jiru')),
+                        subtitle: Text(
+                          _language == 'om'
+                              ? 'Afaan Oromoo'
+                              : (_language == 'am' ? 'አማርኛ' : 'English'),
+                        ),
                         trailing: SegmentedButton<String>(
-                          segments: const [
-                            ButtonSegment(value: 'am', label: Text('አማ')),
-                            ButtonSegment(value: 'en', label: Text('EN')),
+                          segments: [
+                            if (_langAmEnabled)
+                              const ButtonSegment(value: 'am', label: Text('አማ')),
+                            if (_langOmEnabled)
+                              const ButtonSegment(value: 'om', label: Text('ORO')),
+                            const ButtonSegment(value: 'en', label: Text('EN')),
                           ],
                           selected: {_language},
                           onSelectionChanged: (set) async {
@@ -1079,6 +1098,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             await _loadAllSettings();
                           },
                         ),
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.translate_rounded),
+                        title: Text(_t(en: 'Enable Afaan Oromoo', am: 'አፋን ኦሮሞን አብራ', om: 'Afaan Oromoo Eeyyami')),
+                        subtitle: Text(_t(
+                          en: 'Add Afaan Oromoo to available languages',
+                          am: 'አፋን ኦሮሞን ወደ አማራጭ ቋንቋዎች ዝርዝር ያክሉ',
+                          om: 'Afaan Oromoo filannoowwan afaanii keessatti dabalii',
+                        )),
+                        value: _langOmEnabled,
+                        onChanged: (val) async {
+                          await widget.repository.setOromoEnabled(val);
+                          if (!val && _language == 'om') {
+                            final nextLang = _langAmEnabled ? 'am' : 'en';
+                            await widget.repository.setLanguage(nextLang);
+                            if (context.mounted) {
+                              InventoryApp.of(context)?.setLocale(nextLang);
+                            }
+                          }
+                          await _loadAllSettings();
+                        },
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.g_translate_outlined),
+                        title: Text(_t(en: 'Enable Amharic', am: 'አማርኛን አብራ', om: 'Afaan Amaaraa Eeyyami')),
+                        subtitle: Text(_t(
+                          en: 'Include Amharic in available languages',
+                          am: 'አማርኛን ወደ አማራጭ ቋንቋዎች ዝርዝር ያክሉ',
+                          om: 'Afaan Amaaraa filannoowwan afaanii keessatti dabalii',
+                        )),
+                        value: _langAmEnabled,
+                        onChanged: (val) async {
+                          await widget.repository.setAmharicEnabled(val);
+                          if (!val && _language == 'am') {
+                            final nextLang = _langOmEnabled ? 'om' : 'en';
+                            await widget.repository.setLanguage(nextLang);
+                            if (context.mounted) {
+                              InventoryApp.of(context)?.setLocale(nextLang);
+                            }
+                          }
+                          await _loadAllSettings();
+                        },
                       ),
                       const Divider(height: 1),
                       Padding(
@@ -1095,16 +1158,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        isAm ? 'የመተግበሪያ ገጽታ' : 'Theme / Appearance',
+                                        _t(en: 'Appearance', am: 'የመተግበሪያ ገጽታ', om: 'Bifa Appichaa'),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
                                         _themeMode == 'light'
-                                            ? (isAm ? 'ብርሃን' : 'Light')
+                                            ? _t(en: 'Light', am: 'ብርሃን', om: 'Ifa')
                                             : _themeMode == 'dark'
-                                                ? (isAm ? 'ጨለማ' : 'Dark')
-                                                : (isAm ? 'የስልክ ስርዓት' : 'System'),
+                                                ? _t(en: 'Dark', am: 'ጨለማ', om: 'Dukkana')
+                                                : _t(en: 'System', am: 'የስልክ ስርዓት', om: 'Sirna Bilbilaa'),
                                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                               color: Theme.of(context).colorScheme.onSurfaceVariant,
                                             ),
@@ -1119,9 +1182,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               width: double.infinity,
                               child: SegmentedButton<String>(
                                 segments: [
-                                  ButtonSegment(value: 'system', icon: const Icon(Icons.brightness_auto, size: 16), label: Text(isAm ? 'ስርዓት' : 'Auto')),
-                                  ButtonSegment(value: 'light', icon: const Icon(Icons.light_mode, size: 16), label: Text(isAm ? 'ብርሃን' : 'Light')),
-                                  ButtonSegment(value: 'dark', icon: const Icon(Icons.dark_mode, size: 16), label: Text(isAm ? 'ጨለማ' : 'Dark')),
+                                  ButtonSegment(value: 'system', icon: const Icon(Icons.brightness_auto, size: 16), label: Text(_t(en: 'Auto', am: 'ስርዓት', om: 'Ofumaan'))),
+                                  ButtonSegment(value: 'light', icon: const Icon(Icons.light_mode, size: 16), label: Text(_t(en: 'Light', am: 'ብርሃን', om: 'Ifa'))),
+                                  ButtonSegment(value: 'dark', icon: const Icon(Icons.dark_mode, size: 16), label: Text(_t(en: 'Dark', am: 'ጨለማ', om: 'Dukkana'))),
                                 ],
                                 selected: {_themeMode},
                                 onSelectionChanged: (set) async {
@@ -1173,7 +1236,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 3. PAYMENTS
                 // ==========================================
-                _buildSectionHeader(isAm ? '3. ክፍያዎች' : '3. Payments'),
+                _buildSectionHeader(_t(en: '3. Payments & Dube', am: '3. ክፍያዎች እና ዱቤ', om: '3. Kaffaltiiwwan fi Liqii')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
@@ -1228,7 +1291,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 4. ALERTS
                 // ==========================================
-                _buildSectionHeader(isAm ? '4. ማሳሰቢያዎች' : '4. Alerts'),
+                _buildSectionHeader(_t(en: '4. Alerts', am: '4. ማሳሰቢያዎች', om: '4. Akeekkachiisa')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
@@ -1334,7 +1397,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 5. BACKUP & DATA
                 // ==========================================
-                _buildSectionHeader(isAm ? '5. ባካፕ እና ዳታ' : '5. Backup & Data'),
+                _buildSectionHeader(_t(en: '5. Backup & Data', am: '5. ባካፕ እና ዳታ', om: '5. Koppii fi Daataa')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
@@ -1507,7 +1570,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 6. ONLINE & TEAM
                 // ==========================================
-                _buildSectionHeader(isAm ? '6. ኦንላይን እና ቡድን' : '6. Online & Team'),
+                _buildSectionHeader(_t(en: '6. Online & Team', am: '6. ኦንላይን እና ቡድን', om: '6. Toora fi Garee')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
@@ -1573,7 +1636,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               await _loadAllSettings();
                             },
                             icon: const Icon(Icons.link_rounded),
-                            label: Text(isAm ? 'ቴሌግራም አገናኝ እና ኦንላይን ሁን' : 'Go Online / Connect Telegram'),
+                            label: Text(_t(en: 'Connect Telegram & Go Online', am: 'ቴሌግራም አገናኝ እና ኦንላይን ሁን', om: 'Telegram Walitti Qabsiisi')),
                           ),
                         ] else ...[
                           OutlinedButton.icon(
@@ -1602,20 +1665,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 7. SECURITY
                 // ==========================================
-                _buildSectionHeader(isAm ? '7. ደህንነት' : '7. Security'),
+                _buildSectionHeader(_t(en: '7. Security', am: '7. ደህንነት', om: '7. Nageenya')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(
                     children: [
                       SwitchListTile(
                         secondary: const Icon(Icons.lock_outline),
-                        title: Text(isAm ? 'የመተግበሪያ መቆለፊያ' : 'PIN / Biometric Lock'),
+                        title: Text(_t(en: 'App Lock', am: 'የመተግበሪያ መቆለፊያ', om: 'Cufaa Appichaa')),
                         subtitle: Text(
                           _appLockEnabled
                               ? (_canUseBiometrics
-                                  ? (isAm ? 'በፒን እና የጣት አሻራ የተጠበቀ' : 'Secured with PIN & Biometrics')
-                                  : (isAm ? 'በ 4-አሃዝ ፒን የተጠበቀ' : 'Secured with 4-Digit PIN'))
-                              : (isAm ? 'መቆለፊያ አልተመረጠም' : 'No lock configured'),
+                                  ? _t(en: 'Secured with PIN & Biometrics', am: 'በፒን እና የጣት አሻራ የተጠበቀ', om: 'PIN fi Asxaa Qubaan kan cufame')
+                                  : _t(en: 'Secured with 4-Digit PIN', am: 'በ 4-አሃዝ ፒን የተጠበቀ', om: 'Koodii PIN lakkoofsa 4n kan cufame'))
+                              : _t(en: 'No lock configured', am: 'መቆለፊያ አልተመረጠም', om: 'Cufaan hin qophoofne'),
                         ),
                         value: _appLockEnabled,
                         onChanged: (val) => _toggleAppLock(val),
@@ -1624,7 +1687,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const Divider(height: 1),
                         ListTile(
                           leading: const Icon(Icons.password_rounded),
-                          title: Text(isAm ? 'የደህንነት ፒን ቀይር' : 'Change Security PIN'),
+                          title: Text(_t(en: 'Change Security PIN', am: 'የደህንነት ፒን ቀይር', om: 'Koodii PIN Nageenyaa Jijjiiri')),
                           trailing: const Icon(Icons.chevron_right),
                           onTap: _changePin,
                         ),
@@ -1637,7 +1700,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 // ==========================================
                 // 8. ABOUT
                 // ==========================================
-                _buildSectionHeader(isAm ? '8. ስለ መተግበሪያው' : '8. About'),
+                _buildSectionHeader(_t(en: '8. About', am: '8. ስለ መተግበሪያው', om: '8. Waa\'ee Appichaa')),
                 Card(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Column(

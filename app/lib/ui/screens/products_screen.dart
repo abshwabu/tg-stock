@@ -366,7 +366,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                       TextField(
                         controller: skuCtrl,
                         decoration: InputDecoration(
-                          labelText: dlgIsAm ? 'ባርኮድ (አስፈላጊ አይደለም)' : 'SKU / Barcode (Optional)',
+                          labelText: Localizations.localeOf(context).languageCode == 'om'
+                              ? 'Baarkoodii (Filannoo)'
+                              : (dlgIsAm ? 'ባርኮድ (አስፈላጊ አይደለም)' : 'Barcode (Optional)'),
                         ),
                       ),
                     ],
@@ -595,7 +597,9 @@ class _ProductsScreenState extends State<ProductsScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    dlgIsAm ? 'የአንዱ ትርፍ:' : 'Margin / Unit:',
+                                    Localizations.localeOf(context).languageCode == 'om'
+                                        ? "Bu'aa tokkoon tokkoo:"
+                                        : (dlgIsAm ? 'የአንዱ ትርፍ:' : 'Margin per unit:'),
                                     style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
                                   ),
                                   Text(

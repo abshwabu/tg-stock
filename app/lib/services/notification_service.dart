@@ -68,11 +68,15 @@ class NotificationService {
       final availableDisplay = QuantityFormatter.formatDisplay(currentStockMilli);
       final thresholdDisplay = QuantityFormatter.formatDisplay(threshold);
       final id = (product.id.hashCode & 0x7FFFFFFF) % 100000;
-      final isAm = (await repository.getLanguage()) == 'am';
+      final lang = await repository.getLanguage();
+
+      final channelName = lang == 'om'
+          ? 'Beeksisa Kuusaa Hir\'ate'
+          : (lang == 'am' ? 'የአነስተኛ ክምችት ማስጠንቀቂያ' : 'Low Stock Alerts');
 
       final androidDetails = AndroidNotificationDetails(
         lowStockChannelId,
-        isAm ? 'የአነስተኛ ክምችት ማስጠንቀቂያ' : 'Low Stock Alerts',
+        channelName,
         channelDescription: 'Alerts when inventory levels drop to or below threshold',
         importance: Importance.high,
         priority: Priority.high,
@@ -84,14 +88,21 @@ class NotificationService {
       );
 
       final locSuffix = (locationName != null && locationName.isNotEmpty) ? ' ($locationName)' : '';
+      final notifTitle = lang == 'om'
+          ? '⚠️ Beeksisa Kuusaa Hir\'ate: ${product.name}$locSuffix'
+          : (lang == 'am'
+              ? '⚠️ የአነስተኛ ክምችት ማስጠንቀቂያ: ${product.name}$locSuffix'
+              : '⚠️ Low Stock Alert: ${product.name}$locSuffix');
+      final notifBody = lang == 'om'
+          ? 'Kuusaan gahaa miti: $availableDisplay ${product.unit} qofatu hafe (Daangaa: $thresholdDisplay ${product.unit}).'
+          : (lang == 'am'
+              ? 'በቂ ክምችት የለም: $availableDisplay ${product.unit} ብቻ ቀርቷል (ዝቅተኛ መጠን: $thresholdDisplay ${product.unit})'
+              : 'Only $availableDisplay ${product.unit} remaining$locSuffix (Threshold: $thresholdDisplay ${product.unit}).');
+
       await _plugin.show(
         id: id,
-        title: isAm
-            ? '⚠️ የአነስተኛ ክምችት ማስጠንቀቂያ: ${product.name}$locSuffix'
-            : '⚠️ Low Stock Alert: ${product.name}$locSuffix',
-        body: isAm
-            ? 'በቂ ክምችት የለም: $availableDisplay ${product.unit} ብቻ ቀርቷል (ዝቅተኛ መጠን: $thresholdDisplay ${product.unit})'
-            : 'Only $availableDisplay ${product.unit} remaining$locSuffix (Threshold: $thresholdDisplay ${product.unit}).',
+        title: notifTitle,
+        body: notifBody,
         notificationDetails: details,
       );
     } catch (_) {}
@@ -109,11 +120,15 @@ class NotificationService {
       final masterEnabled = await repository.isNotificationsEnabled();
       if (!masterEnabled) return;
 
-      final isAm = (await repository.getLanguage()) == 'am';
+      final lang = await repository.getLanguage();
+
+      final channelName = lang == 'om'
+          ? 'Cuunfaa Guyyaa'
+          : (lang == 'am' ? 'የቀን ማጠቃለያ' : 'Daily Summary');
 
       final androidDetails = AndroidNotificationDetails(
         dailySummaryChannelId,
-        isAm ? 'የቀን ማጠቃለያ' : 'Daily Summary',
+        channelName,
         channelDescription: 'Daily evening reminder to review sales and inventory',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
@@ -124,12 +139,19 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(),
       );
 
+      final notifTitle = lang == 'om'
+          ? '📊 Cuunfaa Gurgurtaa Guyyaa'
+          : (lang == 'am' ? '📊 የቀን ሽያጭ ማጠቃለያ' : '📊 Daily Sales Summary');
+      final notifBody = lang == 'om'
+          ? 'Galii guyyaa fi haala meeshaalee dhumatan Qabiinsa Meeshaa keessatti ilaalaa.'
+          : (lang == 'am'
+              ? 'የሱቅዎን የቀን ገቢ እና የአነስተኛ ዕቃዎችን ሁኔታ በኢንቬንቶሪ ይመልከቱ።'
+              : 'Review your shop\'s daily performance and low stock items in Inventory.');
+
       await _plugin.periodicallyShow(
         id: 99999,
-        title: isAm ? '📊 የቀን ሽያጭ ማጠቃለያ' : '📊 Daily Sales Summary',
-        body: isAm
-            ? 'የሱቅዎን የቀን ገቢ እና የአነስተኛ ዕቃዎችን ሁኔታ በኢንቬንቶሪ ይመልከቱ።'
-            : 'Review your shop\'s daily performance and low stock items in Inventory.',
+        title: notifTitle,
+        body: notifBody,
         repeatInterval: RepeatInterval.daily,
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.inexact,
@@ -137,17 +159,21 @@ class NotificationService {
     } catch (_) {}
   }
 
-  /// Manually dispatches today\'s sales summary notification on demand.
+  /// Manually dispatches today's sales summary notification on demand.
   Future<void> showDailySummaryNow() async {
     try {
       final totalCents = await repository.todaySalesTotalCents();
       final lowCount = await repository.lowStockCount();
       final formattedTotal = MoneyFormatter.formatCents(totalCents);
-      final isAm = (await repository.getLanguage()) == 'am';
+      final lang = await repository.getLanguage();
+
+      final channelName = lang == 'om'
+          ? 'Cuunfaa Guyyaa'
+          : (lang == 'am' ? 'የቀን ማጠቃለያ' : 'Daily Summary');
 
       final androidDetails = AndroidNotificationDetails(
         dailySummaryChannelId,
-        isAm ? 'የቀን ማጠቃለያ' : 'Daily Summary',
+        channelName,
         importance: Importance.high,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
@@ -157,12 +183,19 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(),
       );
 
+      final notifTitle = lang == 'om'
+          ? '📊 Cuunfaa Har\'aa'
+          : (lang == 'am' ? '📊 የዛሬ ማጠቃለያ' : '📊 Today\'s Summary');
+      final notifBody = lang == 'om'
+          ? 'Gurgurtaa waliigalaa: $formattedTotal. Meeshaalee dhumatan: $lowCount.'
+          : (lang == 'am'
+              ? 'ጠቅላላ ሽያጭ: $formattedTotal። ያለቀባቸው ዕቃዎች: $lowCount።'
+              : 'Total sales: $formattedTotal. Low stock items: $lowCount.');
+
       await _plugin.show(
         id: 99998,
-        title: isAm ? '📊 የዛሬ ማጠቃለያ' : '📊 Today\'s Summary',
-        body: isAm
-            ? 'ጠቅላላ ሽያጭ: $formattedTotal። ያለቀባቸው ዕቃዎች: $lowCount።'
-            : 'Total sales: $formattedTotal. Low stock items: $lowCount.',
+        title: notifTitle,
+        body: notifBody,
         notificationDetails: details,
       );
     } catch (_) {}
@@ -200,11 +233,15 @@ class NotificationService {
 
       if (dueTodayCount == 0 && overdueCount == 0) return;
 
-      final isAm = (await repository.getLanguage()) == 'am';
+      final lang = await repository.getLanguage();
+
+      final channelName = lang == 'om'
+          ? 'Yaadachiisa Liqii'
+          : (lang == 'am' ? 'የዱቤ ማስታወሻ' : 'Dube Reminders');
 
       final androidDetails = AndroidNotificationDetails(
         dubeReminderChannelId,
-        isAm ? 'የዱቤ ማስታወሻ' : 'Dube Reminders',
+        channelName,
         channelDescription: 'Reminders for dube payments due today or overdue',
         importance: Importance.high,
         priority: Priority.high,
@@ -215,17 +252,25 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(),
       );
 
-      final msg = isAm
+      final msg = lang == 'om'
           ? (dueTodayCount > 0
-              ? '$dueTodayCount ደንበኞች ዛሬ የሚከፍሉት ዱቤ አለ${overdueCount > 0 ? " ($overdueCount ያለፈባቸው)" : ""}።'
-              : '$overdueCount ደንበኞች ክፍያቸው ያለፈበት ዱቤ አለ።')
-          : (dueTodayCount > 0
-              ? '$dueTodayCount customers have dube due today${overdueCount > 0 ? " ($overdueCount overdue)" : ""}.'
-              : '$overdueCount customers have overdue dube.');
+              ? 'Maamiloota $dueTodayCount har\'a liqii kaffaluu qaban jiru${overdueCount > 0 ? " ($overdueCount yeroon darbe)" : ""}.'
+              : 'Maamiloota $overdueCount liqiin isaanii yeroon darbe jira.')
+          : (lang == 'am'
+              ? (dueTodayCount > 0
+                  ? '$dueTodayCount ደንበኞች ዛሬ የሚከፍሉት ዱቤ አለ${overdueCount > 0 ? " ($overdueCount ያለፈባቸው)" : ""}።'
+                  : '$overdueCount ደንበኞች ክፍያቸው ያለፈበት ዱቤ አለ።')
+              : (dueTodayCount > 0
+                  ? '$dueTodayCount customers have dube due today${overdueCount > 0 ? " ($overdueCount overdue)" : ""}.'
+                  : '$overdueCount customers have overdue dube.'));
+
+      final notifTitle = lang == 'om'
+          ? '⏰ Yaadachiisa Liqii'
+          : (lang == 'am' ? '⏰ የዱቤ ማስታወሻ' : '⏰ Dube Due Reminder');
 
       await _plugin.show(
         id: 99997,
-        title: isAm ? '⏰ የዱቤ ማስታወሻ' : '⏰ Dube Due Reminder',
+        title: notifTitle,
         body: msg,
         notificationDetails: details,
       );
@@ -244,11 +289,15 @@ class NotificationService {
       final masterEnabled = await repository.isNotificationsEnabled();
       if (!masterEnabled) return;
 
-      final isAm = (await repository.getLanguage()) == 'am';
+      final lang = await repository.getLanguage();
+
+      final channelName = lang == 'om'
+          ? 'Yaadachiisa Liqii'
+          : (lang == 'am' ? 'የዱቤ ማስታወሻ' : 'Dube Reminders');
 
       final androidDetails = AndroidNotificationDetails(
         dubeReminderChannelId,
-        isAm ? 'የዱቤ ማስታወሻ' : 'Dube Reminders',
+        channelName,
         channelDescription: 'Daily reminder for customer dube due today',
         importance: Importance.defaultImportance,
         priority: Priority.defaultPriority,
@@ -259,12 +308,19 @@ class NotificationService {
         iOS: const DarwinNotificationDetails(),
       );
 
+      final notifTitle = lang == 'om'
+          ? '⏰ Yaadachiisa Liqii'
+          : (lang == 'am' ? '⏰ የዱቤ ማስታወሻ' : '⏰ Dube Reminders');
+      final notifBody = lang == 'om'
+          ? 'Maamiloota har\'a kaffalan ykn yeroon kaffaltii darbe ilaalaa.'
+          : (lang == 'am'
+              ? 'ዛሬ የሚከፍሉ ወይም ክፍያቸው ያለፈባቸውን የዱቤ ደንበኞች ይመልከቱ።'
+              : 'Check customers with dube due today or overdue.');
+
       await _plugin.periodicallyShow(
         id: 99997,
-        title: isAm ? '⏰ የዱቤ ማስታወሻ' : '⏰ Dube Reminders',
-        body: isAm
-            ? 'ዛሬ የሚከፍሉ ወይም ክፍያቸው ያለፈባቸውን የዱቤ ደንበኞች ይመልከቱ።'
-            : 'Check customers with dube due today or overdue.',
+        title: notifTitle,
+        body: notifBody,
         repeatInterval: RepeatInterval.daily,
         notificationDetails: details,
         androidScheduleMode: AndroidScheduleMode.inexact,

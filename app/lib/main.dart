@@ -18,6 +18,7 @@ import 'services/sync_engine.dart';
 import 'ui/screens/first_run_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/theme.dart';
+import 'utils/l10n_helper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -144,7 +145,7 @@ class InventoryAppState extends State<InventoryApp> {
     if (widget.licenseGate != null) {
       final res = await widget.licenseGate!.reevaluate();
       final notifService = LicenseNotificationService();
-      await notifService.onLicenseEvaluated(result: res, isAm: _localeStr == 'am');
+      await notifService.onLicenseEvaluated(result: res, langCode: _localeStr);
     }
 
     final firstRun = await widget.repository.isFirstRunCompleted();
@@ -178,7 +179,12 @@ class InventoryAppState extends State<InventoryApp> {
       });
     } else {
       setState(() {
-        _pinError = _localeStr == 'am' ? 'የተሳሳተ ኮድ! እንደገና ይሞክሩ' : 'Incorrect PIN! Try again';
+        _pinError = appL10nByCode(
+          _localeStr,
+          en: 'Incorrect PIN! Try again',
+          am: 'የተሳሳተ ኮድ! እንደገና ይሞክሩ',
+          om: 'Koodii dogoggoraa! Irra deebiʼii yaali',
+        );
       });
     }
   }
@@ -217,12 +223,22 @@ class InventoryAppState extends State<InventoryApp> {
                 const Icon(Icons.lock_rounded, size: 64, color: Color(0xFF0F766E)),
                 const SizedBox(height: 16),
                 Text(
-                  _localeStr == 'am' ? 'መተግበሪያው ተቆልፏል' : 'App Locked',
+                  appL10nByCode(
+                    _localeStr,
+                    en: 'App Locked',
+                    am: 'መተግበሪያው ተቆልፏል',
+                    om: 'Appichi Cufameera',
+                  ),
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _localeStr == 'am' ? 'እባክዎ ባለ 4-አሃዝ ኮድዎን ያስገቡ' : 'Please enter your 4-digit PIN',
+                  appL10nByCode(
+                    _localeStr,
+                    en: 'Please enter your 4-digit PIN',
+                    am: 'እባክዎ ባለ 4-አሃዝ ኮድዎን ያስገቡ',
+                    om: 'Maaloo koodii lakkoofsa 4 galchaa',
+                  ),
                   style: const TextStyle(color: Colors.grey),
                 ),
                 const SizedBox(height: 20),
@@ -245,7 +261,14 @@ class InventoryAppState extends State<InventoryApp> {
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: _verifyPin,
-                  child: Text(_localeStr == 'am' ? 'ክፈት' : 'Unlock'),
+                  child: Text(
+                    appL10nByCode(
+                      _localeStr,
+                      en: 'Unlock',
+                      am: 'ክፈት',
+                      om: 'Bani',
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -266,21 +289,25 @@ class InventoryAppState extends State<InventoryApp> {
       );
     }
 
-    final isAm = _localeStr == 'am';
+    final title = appL10nByCode(
+      _localeStr,
+      en: 'Inventory',
+      am: 'ዕቃ ዝርዝር',
+      om: 'Qabiinsa Meeshaa',
+    );
     return MaterialApp(
-      title: isAm ? 'ዕቃ ዝርዝር' : 'Inventory',
+      title: title,
       debugShowCheckedModeBanner: false,
       locale: Locale(_localeStr),
       localizationsDelegates: const [
         AppLocalizations.delegate,
+        FallbackMaterialLocalizationsDelegate(),
+        FallbackCupertinoLocalizationsDelegate(),
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('am'),
-        Locale('en'),
-      ],
+      supportedLocales: AppLocalizations.supportedLocales,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: _themeMode,

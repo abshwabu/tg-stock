@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_am.dart';
 import 'app_localizations_en.dart';
+import 'app_localizations_om.dart';
 
 // ignore_for_file: type=lint
 
@@ -96,6 +97,7 @@ abstract class AppLocalizations {
   static const List<Locale> supportedLocales = <Locale>[
     Locale('am'),
     Locale('en'),
+    Locale('om'),
   ];
 
   /// No description provided for @appTitle.
@@ -287,13 +289,13 @@ abstract class AppLocalizations {
   /// No description provided for @reasonDamaged.
   ///
   /// In en, this message translates to:
-  /// **'Damaged / Spoilage'**
+  /// **'Damaged'**
   String get reasonDamaged;
 
   /// No description provided for @reasonLost.
   ///
   /// In en, this message translates to:
-  /// **'Lost / Shrinkage'**
+  /// **'Lost'**
   String get reasonLost;
 
   /// No description provided for @reasonCountCorrection.
@@ -389,7 +391,7 @@ abstract class AppLocalizations {
   /// No description provided for @appLockPrompt.
   ///
   /// In en, this message translates to:
-  /// **'Protect with PIN / Biometrics'**
+  /// **'Protect with PIN or Biometrics'**
   String get appLockPrompt;
 
   /// No description provided for @startUsingApp.
@@ -569,7 +571,7 @@ abstract class AppLocalizations {
   /// No description provided for @dubeTitle.
   ///
   /// In en, this message translates to:
-  /// **'Dube / Pay Later'**
+  /// **'Dube Credit'**
   String get dubeTitle;
 
   /// No description provided for @btnDube.
@@ -758,7 +760,7 @@ class _AppLocalizationsDelegate
 
   @override
   bool isSupported(Locale locale) =>
-      <String>['am', 'en'].contains(locale.languageCode);
+      <String>['am', 'en', 'om'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -771,6 +773,8 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
       return AppLocalizationsAm();
     case 'en':
       return AppLocalizationsEn();
+    case 'om':
+      return AppLocalizationsOm();
   }
 
   throw FlutterError(

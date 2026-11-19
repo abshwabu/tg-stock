@@ -18,16 +18,24 @@ class LicenseNotificationService {
   /// Notify or schedule local reminders according to current license state and days left.
   Future<void> onLicenseEvaluated({
     required LicenseVerificationResult result,
-    required bool isAm,
+    bool? isAm,
+    String? langCode,
   }) async {
+    final lang = langCode ?? (isAm == false ? 'en' : 'am');
     try {
       if (result.state == LicenseState.expired) {
+        final title = lang == 'om'
+            ? '🚨 Hayyamni Dhumateera'
+            : (lang == 'am' ? '🚨 የፈቃድ ጊዜ አልቋል' : '🚨 License Expired');
+        final body = lang == 'om'
+            ? 'Hayyamni appichaa dhumateera. Gurgurtaa haaraa galchuuf maaloo hayyama keessan haaromsaa.'
+            : (lang == 'am'
+                ? 'የመተግበሪያ ፈቃድዎ ጊዜ አልቋል። አዳዲስ ሽያጮችን ለመመዝገብ እባክዎ ፈቃድዎን ያድሱ።'
+                : 'Your license has expired. Terminal is in Read-Only mode. Please renew your license.');
         await _showNotification(
           id: notifIdExpired,
-          title: isAm ? '🚨 የፈቃድ ጊዜ አልቋል' : '🚨 License Expired',
-          body: isAm
-              ? 'የመተግበሪያ ፈቃድዎ ጊዜ አልቋል። አዳዲስ ሽያጮችን ለመመዝገብ እባክዎ ፈቃድዎን ያድሱ።'
-              : 'Your license has expired. Terminal is in Read-Only mode. Please renew your license.',
+          title: title,
+          body: body,
           isUrgent: true,
         );
         return;
@@ -35,12 +43,18 @@ class LicenseNotificationService {
 
       if (result.state == LicenseState.grace) {
         final daysLeft = result.daysLeft ?? 0;
+        final title = lang == 'om'
+            ? '⚠️ Yeroo Dhifamaa'
+            : (lang == 'am' ? '⚠️ የችሮታ ጊዜ' : '⚠️ License Grace Period');
+        final body = lang == 'om'
+            ? 'Hayyamni dhumateera! Yeroo dhifamaa keessa jirtu (guyyoota $daysLeft hafe). Akka hin citneef dafaa haaromsaa.'
+            : (lang == 'am'
+                ? 'ፈቃድዎ አልቋል! በችሮታ ጊዜ ውስጥ ነዎት ($daysLeft ቀናት ቀርተዋል)። እንዳይቋረጥ ፈጥነው ያድሱ።'
+                : 'License expired! Operating in grace period ($daysLeft days remaining). Please renew promptly.');
         await _showNotification(
           id: notifIdExpired,
-          title: isAm ? '⚠️ የችሮታ ጊዜ (Grace Period)' : '⚠️ License Grace Period',
-          body: isAm
-              ? 'ፈቃድዎ አልቋል! በችሮታ ጊዜ ውስጥ ነዎት ($daysLeft ቀናት ቀርተዋል)። እንዳይቋረጥ ፈጥነው ያድሱ።'
-              : 'License expired! Operating in grace period ($daysLeft days remaining). Please renew promptly.',
+          title: title,
+          body: body,
           isUrgent: true,
         );
         return;
@@ -55,12 +69,18 @@ class LicenseNotificationService {
           notifId = notifId3Days;
         }
 
+        final title = lang == 'om'
+            ? '⏳ Yaadachiisa Haaromsa Hayyamaa'
+            : (lang == 'am' ? '⏳ የፈቃድ ማደሻ ማሳሰቢያ' : '⏳ License Expiring Soon');
+        final body = lang == 'om'
+            ? 'Hayyamni keessan guyyoota $days keessatti dhuma. Akka hin citneef ammumma haaromsaa.'
+            : (lang == 'am'
+                ? 'ፈቃድዎ በ$days ቀናት ውስጥ ያበቃል። እንዳይቋረጥ አሁኑኑ ያድሱ።'
+                : 'Your license expires in $days days. Contact vendor to renew.');
         await _showNotification(
           id: notifId,
-          title: isAm ? '⏳ የፈቃድ ማደሻ ማሳሰቢያ' : '⏳ License Expiring Soon',
-          body: isAm
-              ? 'ፈቃድዎ በ$days ቀናት ውስጥ ያበቃል። እንዳይቋረጥ አሁኑኑ ያድሱ።'
-              : 'Your license expires in $days days. Contact vendor to renew.',
+          title: title,
+          body: body,
           isUrgent: days <= 1,
         );
       }

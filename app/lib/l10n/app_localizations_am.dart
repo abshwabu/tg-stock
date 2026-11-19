@@ -102,10 +102,10 @@ class AppLocalizationsAm extends AppLocalizations {
   String get selectReason => 'የማስተካከያ ምክንያት';
 
   @override
-  String get reasonDamaged => 'የተበላሸ / የወደቀ';
+  String get reasonDamaged => 'የተበላሸ';
 
   @override
-  String get reasonLost => 'የጠፋ / ጉድለት';
+  String get reasonLost => 'የጠፋ';
 
   @override
   String get reasonCountCorrection => 'የቆጠራ ስህተት እርማት';

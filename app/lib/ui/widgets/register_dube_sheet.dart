@@ -778,7 +778,9 @@ class _RegisterDubeSheetState extends State<RegisterDubeSheet> {
 
             // 5. Note / Description
             Text(
-              isAm ? 'ማስታወሻ / ምክንያት (አማራጭ)' : 'Note / Reason (Optional)',
+              Localizations.localeOf(context).languageCode == 'om'
+                  ? 'Yaadannoo ykn Sababa (Filannoo)'
+                  : (isAm ? 'ማስታወሻ ወይም ምክንያት (አማራጭ)' : 'Note or Reason (Optional)'),
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
@@ -899,7 +901,9 @@ class _RegisterDubeSheetState extends State<RegisterDubeSheet> {
                       TextField(
                         controller: _upfrontRefCtrl,
                         decoration: InputDecoration(
-                          labelText: isAm ? 'የደረሰኝ / ማረጋገጫ ቁጥር' : 'Reference / Tx Number',
+                          labelText: Localizations.localeOf(context).languageCode == 'om'
+                              ? 'Lakkoofsa Mirkaneessaa'
+                              : (isAm ? 'የደረሰኝ ወይም ማረጋገጫ ቁጥር' : 'Reference Number'),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                           isDense: true,
                         ),

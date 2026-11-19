@@ -187,20 +187,37 @@ class _IncomeExpenseScreenState extends State<IncomeExpenseScreen> {
       '🍵 Refreshments',
       '📌 Other Expense',
     ];
+    final expenseCategoriesOm = [
+      '🏠 Kiraa',
+      '👷 Mindaa',
+      '⚡ Ibsaa fi Bishaan',
+      '🚗 Geejjiba',
+      '🛠 Suphaa',
+      '📦 Qophii Meeshaa',
+      '🍵 Keessummeessuu',
+      '📌 Baasii Biraa',
+    ];
 
     final incomeCategoriesAm = [
       '💼 ተጨማሪ አገልግሎት',
       '🤝 ኮሚሽን',
-      '🎁 ቲፕ / ስጦታ',
+      '🎁 ስጦታ',
       '🔄 ተመላሽ ገንዘብ',
       '📌 ሌላ ገቢ',
     ];
     final incomeCategoriesEn = [
       '💼 Service Fee',
       '🤝 Commission',
-      '🎁 Tip / Gift',
-      '🔄 Refund / Rebate',
+      '🎁 Tip or Gift',
+      '🔄 Refund',
       '📌 Other Income',
+    ];
+    final incomeCategoriesOm = [
+      '💼 Tajaajila Dabalataa',
+      '🤝 Koomishinii',
+      '🎁 Kennaa',
+      '🔄 Deebii Qarshii',
+      '📌 Galii Biraa',
     ];
 
     await showModalBottomSheet<void>(
@@ -213,9 +230,10 @@ class _IncomeExpenseScreenState extends State<IncomeExpenseScreen> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) {
           final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          final isOm = Localizations.localeOf(ctx).languageCode == 'om';
           final categories = currentType == 'income'
-              ? (isAm ? incomeCategoriesAm : incomeCategoriesEn)
-              : (isAm ? expenseCategoriesAm : expenseCategoriesEn);
+              ? (isOm ? incomeCategoriesOm : (isAm ? incomeCategoriesAm : incomeCategoriesEn))
+              : (isOm ? expenseCategoriesOm : (isAm ? expenseCategoriesAm : expenseCategoriesEn));
 
           return Padding(
             padding: EdgeInsets.only(
@@ -358,7 +376,9 @@ class _IncomeExpenseScreenState extends State<IncomeExpenseScreen> {
                   TextField(
                     controller: noteCtrl,
                     decoration: InputDecoration(
-                      labelText: isAm ? 'ማስታወሻ (አማራጭ)' : 'Note / Description (Optional)',
+                      labelText: Localizations.localeOf(context).languageCode == 'om'
+                          ? 'Yaadannoo (Filannoo)'
+                          : (isAm ? 'ማስታወሻ (አማራጭ)' : 'Note (Optional)'),
                       prefixIcon: const Icon(Icons.note_alt_outlined, size: 20),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
                     ),

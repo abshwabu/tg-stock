@@ -1380,8 +1380,8 @@ class TelegramRouter
             return;
         }
 
-        // Universal Cancel: "❌ Cancel", "❌ ሰርዝ", "/cancel"
-        if (in_array($text, ['❌ Cancel', '❌ ሰርዝ', '/cancel'], true)) {
+        // Universal Cancel: "❌ Cancel", "❌ ሰርዝ", "❌ Dhiisi", "/cancel"
+        if (in_array($text, ['❌ Cancel', '❌ ሰርዝ', '❌ Dhiisi', '/cancel'], true)) {
             $this->botState->clear($chatId);
             $this->telegram->sendMessage(
                 $chatId,
